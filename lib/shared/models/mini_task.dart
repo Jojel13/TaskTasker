@@ -1,5 +1,4 @@
 import 'package:isar/isar.dart';
-import 'enums.dart';
 
 part 'mini_task.g.dart';
 

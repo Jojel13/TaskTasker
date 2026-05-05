@@ -3,8 +3,6 @@ import 'package:path_provider/path_provider.dart';
 import '../../shared/models/routine.dart';
 import '../../shared/models/routine_day.dart';
 import '../../shared/models/task.dart';
-import '../../shared/models/mini_task.dart';
-import '../../shared/models/subtask.dart';
 import '../../shared/models/user_profile.dart';
 import '../../shared/models/xp_event.dart';
 

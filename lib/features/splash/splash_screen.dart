@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/isar_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../home/home_screen.dart';
 import '../../core/theme/app_text_styles.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -64,7 +65,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 700));
 
     if (mounted) {
-      // TODO(fase2): Navegar para HomeScreen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
     }
   }
 

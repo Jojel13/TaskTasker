@@ -29,6 +29,10 @@ dependencies:
   # Internacionalização
   intl: ^0.19.0
 
+  # Fase 2
+  uuid: ^4.4.0
+  flutter_slidable: ^3.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

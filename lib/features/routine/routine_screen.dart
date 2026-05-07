@@ -5,6 +5,7 @@ import '../../core/providers/core_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/routine.dart';
+import '../../shared/widgets/xp_bar.dart';
 import 'widgets/division_section.dart';
 
 class RoutineScreen extends ConsumerWidget {
@@ -58,6 +59,12 @@ class RoutineScreen extends ConsumerWidget {
                           color: AppColors.secondary, fontSize: 11)),
                 ),
             ]),
+          ),
+          
+          // ── XP Bar ─────────────────────────────────────────
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.0),
+            child: XpBar(),
           ),
 
           // ── Content ─────────────────────────────────────────

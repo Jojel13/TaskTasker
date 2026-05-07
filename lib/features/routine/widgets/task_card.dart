@@ -3,6 +3,8 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
+import 'task_settings_sheet.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class TaskCard extends StatelessWidget {
   final Task task;
@@ -18,28 +20,35 @@ class TaskCard extends StatelessWidget {
     required this.onDelete,
   });
 
-  Color get _taskColor => switch (task.color) {
+  @override
+  State<TaskCard> createState() => _TaskCardState();
+}
+
+class _TaskCardState extends State<TaskCard> {
+  bool _expanded = false;
+
+  Color get _taskColor => switch (widget.task.color) {
     TaskColor.standard => AppColors.taskStandard,
     TaskColor.blue     => AppColors.taskBlue,
     TaskColor.yellow   => AppColors.taskYellow,
     TaskColor.red      => AppColors.taskRed,
   };
 
-  bool get _isDone => task.status == TaskStatus.completed;
-  bool get _isLocked => task.color == TaskColor.red &&
-      task.scheduledDate != null &&
-      task.scheduledDate!.isAfter(DateTime.now());
+  bool get _isDone => widget.task.status == TaskStatus.completed;
+  bool get _isLocked => widget.task.color == TaskColor.red &&
+      widget.task.scheduledDate != null &&
+      widget.task.scheduledDate!.isAfter(DateTime.now());
 
   @override
   Widget build(BuildContext context) {
     return Slidable(
-      key: ValueKey(task.id),
+      key: ValueKey(widget.task.id),
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
         extentRatio: 0.25,
         children: [
           SlidableAction(
-            onPressed: (_) => onDelete(),
+            onPressed: (_) => widget.onDelete(),
             backgroundColor: AppColors.taskRed.withOpacity(0.15),
             foregroundColor: AppColors.taskRed,
             icon: Icons.delete_outline_rounded,
@@ -60,11 +69,13 @@ class TaskCard extends StatelessWidget {
             width: 0.5,
           ),
         ),
-        child: Row(children: [
+        child: Column(
+          children: [
+            Row(children: [
           // ── Color dot (tappable) ────────────────────────
           const SizedBox(width: 12),
           GestureDetector(
-            onTap: _isLocked ? null : onColorCycle,
+            onTap: _isLocked ? null : widget.onColorCycle,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: 12,
@@ -82,27 +93,47 @@ class TaskCard extends StatelessWidget {
 
           // ── Task text ───────────────────────────────────
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Text(
-                task.text,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.task.hasSubtasks ? () => setState(() => _expanded = !_expanded) : null,
+              onLongPress: (widget.task.color == TaskColor.red || widget.task.color == TaskColor.blue) 
+                  ? () => TaskSettingsSheet.show(context, widget.task)
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.task.text,
                 style: TextStyle(
                   color: _isDone ? AppColors.textMuted : AppColors.textPrimary,
                   fontSize: 14,
                   decoration: _isDone ? TextDecoration.lineThrough : null,
                   decorationColor: AppColors.textMuted,
+                  ),
                 ),
               ),
             ),
           ),
 
+          // ── Settings Icon for Red/Blue tasks ────────────
+          if (widget.task.color == TaskColor.red || widget.task.color == TaskColor.blue)
+            GestureDetector(
+              onTap: () => TaskSettingsSheet.show(context, widget.task),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                child: Icon(Icons.settings_outlined, size: 16, color: AppColors.textMuted),
+              ),
+            ),
+
           // ── Countdown badge (red task) ──────────────────
-          if (task.color == TaskColor.red && task.scheduledDate != null)
-            _CountdownBadge(scheduledDate: task.scheduledDate!),
+          if (widget.task.color == TaskColor.red && widget.task.scheduledDate != null)
+            _CountdownBadge(scheduledDate: widget.task.scheduledDate!),
 
           // ── Checkbox ────────────────────────────────────
           GestureDetector(
-            onTap: _isLocked ? null : onToggle,
+            onTap: _isLocked ? null : widget.onToggle,
             child: Container(
               width: 48,
               height: 48,
@@ -129,8 +160,42 @@ class TaskCard extends StatelessWidget {
             ),
           ),
         ]),
+        
+        // ── Subtasks Expandables ────────────────────────
+        if (_expanded && widget.task.hasSubtasks)
+          Padding(
+            padding: const EdgeInsets.only(left: 36, right: 12, bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: widget.task.subtasks.map((sub) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                      sub.isCompleted ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                      size: 16,
+                      color: sub.isCompleted ? AppColors.textMuted : _taskColor.withOpacity(0.8),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        sub.text,
+                        style: TextStyle(
+                          color: sub.isCompleted ? AppColors.textMuted : AppColors.textSecondary,
+                          fontSize: 13,
+                          decoration: sub.isCompleted ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ),
+          ),
+        ],
       ),
-    );
+      ),
+    ).animate().fade(duration: 250.ms).slideX(begin: 0.1, end: 0, curve: Curves.easeOut);
   }
 }
 

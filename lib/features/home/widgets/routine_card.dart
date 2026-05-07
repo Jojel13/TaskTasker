@@ -6,6 +6,7 @@ import '../../../shared/models/routine_day.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
 import '../../../shared/widgets/blur_confirm_dialog.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class RoutineCard extends StatefulWidget {
   final Routine routine;
@@ -211,6 +212,6 @@ class _RoutineCardState extends State<RoutineCard> {
           ],
         ]),
       ),
-    );
+    ).animate().fade(duration: 300.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad);
   }
 }

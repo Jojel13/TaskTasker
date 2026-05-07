@@ -7,6 +7,8 @@ import '../../shared/models/routine.dart';
 import 'widgets/routine_card.dart';
 import 'widgets/floating_bottom_bar.dart';
 import '../routine/routine_screen.dart';
+import 'settings_screen.dart';
+import '../../shared/widgets/xp_bar.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -47,7 +49,21 @@ class HomeScreen extends ConsumerWidget {
                       style: AppTextStyles.monoSmall),
                 ]),
               ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.settings_outlined, color: AppColors.textMuted),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                ),
+              ),
             ]),
+          ),
+          
+          // ── XP Bar ─────────────────────────────────────────
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.0),
+            child: XpBar(),
           ),
 
           // ── Lista de rotinas ────────────────────────────────

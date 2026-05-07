@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'core/database/isar_service.dart';
+import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/splash/splash_screen.dart';
 
@@ -14,6 +15,7 @@ void main() async {
   await initializeDateFormatting('pt_BR', null);
 
   await IsarService.initialize();
+  await NotificationService.instance.initialize();
 
   // Força orientação portrait
   await SystemChrome.setPreferredOrientations([

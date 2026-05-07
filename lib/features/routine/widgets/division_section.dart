@@ -12,11 +12,13 @@ import 'task_input_field.dart';
 class DivisionSection extends ConsumerWidget {
   final Routine routine;
   final RoutineDay day;
+  final bool isToday;
 
   const DivisionSection({
     super.key,
     required this.routine,
     required this.day,
+    this.isToday = true,
   });
 
   Color get _accentColor => switch (day.division) {
@@ -38,20 +40,7 @@ class DivisionSection extends ConsumerWidget {
     final tasks = day.tasks.toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-    return DragTarget<Task>(
-      onAcceptWithDetails: (details) async {
-         final task = details.data;
-         await ref.read(routineServiceProvider).moveTaskToDay(task.id, day.id);
-         ref.invalidate(routineDaysProvider(routine.id));
-      },
-      builder: (context, candidateData, rejectedData) {
-        final isHovering = candidateData.isNotEmpty;
-        return Container(
-          decoration: BoxDecoration(
-            color: isHovering ? AppColors.surface.withOpacity(0.3) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Widget content = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       // ── Division header ───────────────────────────────────
       Padding(
         padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
@@ -78,6 +67,7 @@ class DivisionSection extends ConsumerWidget {
         final card = TaskCard(
           key: ValueKey(task.id),
           task: task,
+          isReadOnly: !isToday,
           onToggle: () async {
             await ref.read(routineServiceProvider).toggleTask(task);
             ref.invalidate(routineDaysProvider(routine.id));
@@ -91,6 +81,8 @@ class DivisionSection extends ConsumerWidget {
             ref.invalidate(routineDaysProvider(routine.id));
           },
         );
+
+        if (!isToday) return card;
 
         return LongPressDraggable<Task>(
           data: task,
@@ -108,15 +100,33 @@ class DivisionSection extends ConsumerWidget {
       }),
 
       // ── Input field ─────────────────────────────────────────
-      TaskInputField(
-        onSubmit: (text) async {
-          await ref.read(routineServiceProvider).addTask(day.id, text);
-          ref.invalidate(routineDaysProvider(routine.id));
-        },
-      ),
-    ]),         // Column
-        );      // Container
-      },        // builder
-    );          // DragTarget
+      if (isToday)
+        TaskInputField(
+          onSubmit: (text) async {
+            await ref.read(routineServiceProvider).addTask(day.id, text);
+            ref.invalidate(routineDaysProvider(routine.id));
+          },
+        ),
+    ]);
+
+    if (!isToday) return content;
+
+    return DragTarget<Task>(
+      onAcceptWithDetails: (details) async {
+         final task = details.data;
+         await ref.read(routineServiceProvider).moveTaskToDay(task.id, day.id);
+         ref.invalidate(routineDaysProvider(routine.id));
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        return Container(
+          decoration: BoxDecoration(
+            color: isHovering ? AppColors.surface.withOpacity(0.3) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: content,
+        );
+      },
+    );
   }
 }

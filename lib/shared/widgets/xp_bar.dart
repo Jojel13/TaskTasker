@@ -4,6 +4,7 @@ import '../../core/providers/core_providers.dart';
 import '../../core/services/xp_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../features/dashboard/xp_dashboard_screen.dart';
 
 class XpBar extends ConsumerWidget {
   const XpBar({super.key});
@@ -28,41 +29,46 @@ class XpBar extends ConsumerWidget {
         
         final progress = (xpToNextLevel > 0) ? xpInCurrentLevel / xpToNextLevel : 0.0;
 
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'LVL $currentLevel',
-                    style: AppTextStyles.monoSmall.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const XpDashboardScreen()));
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'LVL $currentLevel',
+                      style: AppTextStyles.monoSmall.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  Text(
-                    '$xpInCurrentLevel / $xpToNextLevel XP',
-                    style: AppTextStyles.monoSmall.copyWith(
-                      color: AppColors.textMuted,
-                      fontSize: 10,
+                    Text(
+                      '$xpInCurrentLevel / $xpToNextLevel XP',
+                      style: AppTextStyles.monoSmall.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progress.clamp(0.0, 1.0),
-                  minHeight: 6,
-                  backgroundColor: AppColors.surface,
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress.clamp(0.0, 1.0),
+                    minHeight: 6,
+                    backgroundColor: AppColors.surface,
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

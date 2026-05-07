@@ -6,6 +6,8 @@ import '../services/xp_service.dart';
 import '../../shared/models/routine.dart';
 import '../../shared/models/routine_day.dart';
 import '../../shared/models/user_profile.dart';
+import '../../shared/models/task.dart';
+import '../../shared/models/enums.dart';
 
 // ── Core ─────────────────────────────────────────────────────────────────────
 final isarProvider = Provider<Isar>((ref) => IsarService.instance);
@@ -41,4 +43,15 @@ final routineDaysProvider =
 final userProfileProvider = StreamProvider<UserProfile?>((ref) {
   final isar = ref.watch(isarProvider);
   return isar.userProfiles.watchObject(1, fireImmediately: true);
+});
+
+// ── Radar ────────────────────────────────────────────────────────────────────
+final radarProvider = StreamProvider<List<Task>>((ref) {
+  final isar = ref.watch(isarProvider);
+  return isar.tasks
+      .filter()
+      .statusEqualTo(TaskStatus.active)
+      .and()
+      .group((q) => q.colorEqualTo(TaskColor.red).or().colorEqualTo(TaskColor.yellow))
+      .watch(fireImmediately: true);
 });

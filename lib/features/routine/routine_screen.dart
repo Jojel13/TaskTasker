@@ -78,7 +78,7 @@ class RoutineScreen extends ConsumerWidget {
               data: (days) => ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                 children: days
-                    .map((day) => DivisionSection(routine: routine, day: day))
+                    .map((day) => DivisionSection(routine: routine, day: day, isToday: _isToday))
                     .toList(),
               ),
             ),

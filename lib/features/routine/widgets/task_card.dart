@@ -17,6 +17,7 @@ class TaskCard extends ConsumerStatefulWidget {
   final VoidCallback onToggle;
   final VoidCallback onColorCycle;
   final VoidCallback onDelete;
+  final bool isReadOnly;
 
   const TaskCard({
     super.key,
@@ -24,6 +25,7 @@ class TaskCard extends ConsumerStatefulWidget {
     required this.onToggle,
     required this.onColorCycle,
     required this.onDelete,
+    this.isReadOnly = false,
   });
 
   @override
@@ -41,9 +43,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
   };
 
   bool get _isDone => widget.task.status == TaskStatus.completed;
-  bool get _isLocked => widget.task.color == TaskColor.red &&
+  bool get _isLocked => widget.isReadOnly || (widget.task.color == TaskColor.red &&
       widget.task.scheduledDate != null &&
-      widget.task.scheduledDate!.isAfter(DateTime.now());
+      widget.task.scheduledDate!.isAfter(DateTime.now()));
 
   @override
   Widget build(BuildContext context) {
@@ -53,9 +55,10 @@ class _TaskCardState extends ConsumerState<TaskCard> {
       key: ValueKey(widget.task.id),
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
-        extentRatio: 0.8, // More space for more actions
+        extentRatio: widget.isReadOnly ? 0.4 : 0.8,
         children: [
-          SlidableAction(
+          if (!widget.isReadOnly)
+            SlidableAction(
             onPressed: (_) async {
               // Editar texto
               final ctrl = TextEditingController(text: widget.task.text);
@@ -151,14 +154,15 @@ class _TaskCardState extends ConsumerState<TaskCard> {
           SlidableAction(
             onPressed: (_) async {
               // Task Tree
-              await Navigator.push(context, MaterialPageRoute(builder: (_) => TaskTreeScreen(task: widget.task)));
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => TaskTreeScreen(task: widget.task, isReadOnly: widget.isReadOnly)));
               setState((){});
             },
             backgroundColor: AppColors.surface,
             foregroundColor: AppColors.taskYellow,
             icon: Icons.account_tree_rounded,
           ),
-          SlidableAction(
+          if (!widget.isReadOnly)
+            SlidableAction(
             onPressed: (_) {
                if (widget.task.imageFileName != null) {
                  ImageService.deleteImage(widget.task.imageFileName!);
@@ -173,7 +177,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
           ),
         ],
       ),
-      startActionPane: (widget.task.color == TaskColor.red || widget.task.color == TaskColor.blue) ? ActionPane(
+      startActionPane: (!widget.isReadOnly && (widget.task.color == TaskColor.red || widget.task.color == TaskColor.blue)) ? ActionPane(
         motion: const DrawerMotion(),
         extentRatio: 0.25,
         children: [
@@ -307,7 +311,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     ),
 
           // ── Settings Icon for Red/Blue tasks ────────────
-          if (widget.task.color == TaskColor.red || widget.task.color == TaskColor.blue)
+          if (!widget.isReadOnly && (widget.task.color == TaskColor.red || widget.task.color == TaskColor.blue))
             GestureDetector(
               onTap: () => TaskSettingsSheet.show(context, widget.task),
               child: Container(

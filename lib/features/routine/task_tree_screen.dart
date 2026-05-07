@@ -14,7 +14,8 @@ import 'widgets/task_input_field.dart';
 
 class TaskTreeScreen extends ConsumerStatefulWidget {
   final Task task;
-  const TaskTreeScreen({super.key, required this.task});
+  final bool isReadOnly;
+  const TaskTreeScreen({super.key, required this.task, this.isReadOnly = false});
 
   @override
   ConsumerState<TaskTreeScreen> createState() => _TaskTreeScreenState();
@@ -245,7 +246,7 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
                             Row(
                               children: [
                                 GestureDetector(
-                                  onTap: () => _toggleSubtask(index),
+                                  onTap: widget.isReadOnly ? null : () => _toggleSubtask(index),
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
                                     child: Icon(
@@ -271,10 +272,11 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
                                     '${sub.completedAt!.hour.toString().padLeft(2, '0')}:${sub.completedAt!.minute.toString().padLeft(2, '0')}',
                                     style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
                                   ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.taskRed),
-                                  onPressed: () => _deleteSubtask(index),
-                                )
+                                if (!widget.isReadOnly)
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.taskRed),
+                                    onPressed: () => _deleteSubtask(index),
+                                  )
                               ],
                             ),
                             // MiniTasks
@@ -287,7 +289,7 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
                                      return Row(
                                        children: [
                                           GestureDetector(
-                                            onTap: () => _toggleMiniTask(index, mIndex),
+                                            onTap: widget.isReadOnly ? null : () => _toggleMiniTask(index, mIndex),
                                             child: Icon(
                                               m.isCompleted ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
                                               color: m.isCompleted ? AppColors.textMuted : AppColors.accent,
@@ -305,25 +307,27 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
                                               ),
                                             ),
                                           ),
-                                          IconButton(
-                                            icon: const Icon(Icons.close, size: 14, color: AppColors.textMuted),
-                                            onPressed: () => _deleteMiniTask(index, mIndex),
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                          )
+                                          if (!widget.isReadOnly)
+                                            IconButton(
+                                              icon: const Icon(Icons.close, size: 14, color: AppColors.textMuted),
+                                              onPressed: () => _deleteMiniTask(index, mIndex),
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                            )
                                        ],
                                      );
                                   }),
                                 ),
                               ),
                               // Add MiniTask Field
-                              Padding(
-                                padding: const EdgeInsets.only(left: 36.0, top: 4.0),
-                                child: TaskInputField(
-                                  placeholder: 'Nova mini-task...',
-                                  onSubmit: (text) => _addMiniTask(sub, index, text),
+                              if (!widget.isReadOnly)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 36.0, top: 4.0),
+                                  child: TaskInputField(
+                                    placeholder: 'Nova mini-task...',
+                                    onSubmit: (text) => _addMiniTask(sub, index, text),
+                                  ),
                                 ),
-                              ),
                           ],
                         ),
                       );
@@ -332,13 +336,14 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
             ),
             
             // Input Field for Subtasks
-            Padding(
-               padding: const EdgeInsets.all(8.0),
-               child: TaskInputField(
-                 placeholder: 'Nova subtask...',
-                 onSubmit: _addSubtask,
-               ),
-            ),
+            if (!widget.isReadOnly)
+              Padding(
+                 padding: const EdgeInsets.all(8.0),
+                 child: TaskInputField(
+                   placeholder: 'Nova subtask...',
+                   onSubmit: _addSubtask,
+                 ),
+              ),
           ],
         ),
       ),

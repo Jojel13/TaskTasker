@@ -37,7 +37,19 @@ class DivisionSection extends ConsumerWidget {
     final tasks = day.tasks.toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return DragTarget<Task>(
+      onAccept: (task) async {
+         await ref.read(routineServiceProvider).moveTaskToDay(task.id, day.id);
+         ref.invalidate(routineDaysProvider(routine.id));
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        return Container(
+          decoration: BoxDecoration(
+            color: isHovering ? AppColors.surface.withOpacity(0.3) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       // ── Division header ───────────────────────────────────
       Padding(
         padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
@@ -60,22 +72,38 @@ class DivisionSection extends ConsumerWidget {
       ),
 
       // ── Task list ─────────────────────────────────────────
-      ...tasks.map((task) => TaskCard(
-            key: ValueKey(task.id),
-            task: task,
-            onToggle: () async {
-              await ref.read(routineServiceProvider).toggleTask(task);
-              ref.invalidate(routineDaysProvider(routine.id));
-            },
-            onColorCycle: () async {
-              await ref.read(routineServiceProvider).cycleColor(task);
-              ref.invalidate(routineDaysProvider(routine.id));
-            },
-            onDelete: () async {
-              await ref.read(routineServiceProvider).deleteTask(day.id, task.id);
-              ref.invalidate(routineDaysProvider(routine.id));
-            },
-          )),
+      ...tasks.map((task) {
+        final card = TaskCard(
+          key: ValueKey(task.id),
+          task: task,
+          onToggle: () async {
+            await ref.read(routineServiceProvider).toggleTask(task);
+            ref.invalidate(routineDaysProvider(routine.id));
+          },
+          onColorCycle: () async {
+            await ref.read(routineServiceProvider).cycleColor(task);
+            ref.invalidate(routineDaysProvider(routine.id));
+          },
+          onDelete: () async {
+            await ref.read(routineServiceProvider).deleteTask(day.id, task.id);
+            ref.invalidate(routineDaysProvider(routine.id));
+          },
+        );
+
+        return LongPressDraggable<Task>(
+          data: task,
+          delay: const Duration(milliseconds: 300),
+          feedback: Material(
+            color: Colors.transparent,
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width - 40,
+              child: Opacity(opacity: 0.9, child: card),
+            ),
+          ),
+          childWhenDragging: Opacity(opacity: 0.3, child: card),
+          child: card,
+        );
+      }),
 
       // ── Input field ───────────────────────────────────────
       TaskInputField(
@@ -85,5 +113,7 @@ class DivisionSection extends ConsumerWidget {
         },
       ),
     ]);
+    },
+    );
   }
 }

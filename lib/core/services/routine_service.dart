@@ -174,6 +174,28 @@ class RoutineService {
     });
   }
 
+  Future<void> moveTaskToDay(Id taskId, Id newDayId) async {
+    await _isar.writeTxn(() async {
+      final task = await _isar.tasks.get(taskId);
+      if (task == null) return;
+      
+      final oldDay = await _isar.routineDays.filter().tasks((q) => q.idEqualTo(taskId)).findFirst();
+      if (oldDay != null) {
+        if (oldDay.id == newDayId) return; // Same day, no move
+        await oldDay.tasks.load();
+        oldDay.tasks.remove(task);
+        await oldDay.tasks.save();
+      }
+      
+      final newDay = await _isar.routineDays.get(newDayId);
+      if (newDay != null) {
+        await newDay.tasks.load();
+        newDay.tasks.add(task);
+        await newDay.tasks.save();
+      }
+    });
+  }
+
   Future<void> toggleTask(Task task) async {
     final nowCompleted = task.status != TaskStatus.completed;
     task.status = nowCompleted ? TaskStatus.completed : TaskStatus.active;

@@ -18,9 +18,7 @@ class HomeScreen extends ConsumerWidget {
     final routinesAsync = ref.watch(allRoutinesProvider);
     final profile = ref.watch(userProfileProvider).valueOrNull;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
+    return SafeArea(
         child: Column(children: [
           // ── Header ─────────────────────────────────────────
           Padding(
@@ -94,11 +92,7 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ]),
-      ),
-      bottomNavigationBar: FloatingBottomBar(
-        onPlusTap: () => _onPlusTap(context, ref),
-      ),
-    );
+      );
   }
 
   bool _isToday(Routine r) {

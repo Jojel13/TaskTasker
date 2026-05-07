@@ -7,6 +7,7 @@ import '../../shared/models/mini_task.dart';
 import '../../shared/models/user_profile.dart';
 import '../../shared/models/enums.dart';
 import 'xp_service.dart';
+import 'image_service.dart';
 
 class RoutineService {
   final Isar _isar;
@@ -165,6 +166,10 @@ class RoutineService {
         day.tasks.removeWhere((t) => t.id == taskId);
         await day.tasks.save();
       }
+      final task = await _isar.tasks.get(taskId);
+      if (task != null && task.imageFileName != null) {
+         await ImageService.deleteImage(task.imageFileName!);
+      }
       await _isar.tasks.delete(taskId);
     });
   }
@@ -184,13 +189,15 @@ class RoutineService {
   }
 
   Future<void> cycleColor(Task task) async {
-    // standard → blue → yellow → standard (red = Phase 3)
     final next = switch (task.color) {
       TaskColor.standard => TaskColor.blue,
       TaskColor.blue     => TaskColor.yellow,
-      TaskColor.yellow   => TaskColor.standard,
+      TaskColor.yellow   => task.scheduledDate != null ? TaskColor.red : TaskColor.standard,
       TaskColor.red      => TaskColor.standard,
     };
+    if (next == TaskColor.standard) {
+        task.scheduledDate = null;
+    }
     task.color = next;
     await _isar.writeTxn(() => _isar.tasks.put(task));
   }
@@ -203,6 +210,11 @@ class RoutineService {
     final taskIds = <Id>[];
     for (final day in routine.days) {
       await day.tasks.load();
+      for (final t in day.tasks) {
+         if (t.imageFileName != null) {
+             await ImageService.deleteImage(t.imageFileName!);
+         }
+      }
       taskIds.addAll(day.tasks.map((t) => t.id));
     }
     await _isar.writeTxn(() async {

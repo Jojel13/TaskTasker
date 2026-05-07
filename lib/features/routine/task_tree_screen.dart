@@ -4,6 +4,10 @@ import '../../core/providers/core_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/task.dart';
+import '../../shared/models/subtask.dart';
+import '../../shared/models/mini_task.dart';
+import '../../shared/models/enums.dart';
+import '../../core/services/xp_service.dart';
 import 'widgets/task_input_field.dart';
 
 class TaskTreeScreen extends ConsumerStatefulWidget {
@@ -16,6 +20,17 @@ class TaskTreeScreen extends ConsumerStatefulWidget {
 
 class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
   
+  Future<void> _invalidateProviders() async {
+    final isar = ref.read(isarProvider);
+    final day = await isar.routineDays.filter().tasks((q) => q.idEqualTo(widget.task.id)).findFirst();
+    if (day != null) {
+      final routine = await isar.routines.filter().days((q) => q.idEqualTo(day.id)).findFirst();
+      if (routine != null) {
+        ref.invalidate(routineDaysProvider(routine.id));
+      }
+    }
+  }
+
   void _addSubtask(String text) async {
     final isar = ref.read(isarProvider);
     final task = widget.task;
@@ -31,31 +46,106 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
     await isar.writeTxn(() async {
       await isar.tasks.put(task);
     });
-    
+    await _invalidateProviders();
     setState(() {});
   }
 
-  void _toggleSubtask(Subtask sub) async {
+  void _addMiniTask(Subtask parentSubtask, int subIndex, String text) async {
+    final isar = ref.read(isarProvider);
+    final task = widget.task;
+    
+    final mini = MiniTask()
+      ..text = text
+      ..sortOrder = parentSubtask.miniTasks.length;
+      
+    parentSubtask.miniTasks = [...parentSubtask.miniTasks, mini];
+    
+    // Modify the task subtask array to trigger ISAR embedded object updates
+    final newSubs = List<Subtask>.from(task.subtasks);
+    newSubs[subIndex] = parentSubtask;
+    task.subtasks = newSubs;
+    
+    await isar.writeTxn(() async {
+      await isar.tasks.put(task);
+    });
+    await _invalidateProviders();
+    setState(() {});
+  }
+
+  void _toggleSubtask(int index) async {
+    final sub = widget.task.subtasks[index];
     sub.isCompleted = !sub.isCompleted;
     sub.completedAt = sub.isCompleted ? DateTime.now() : null;
     
+    final xpService = ref.read(xpServiceProvider);
+    if (sub.isCompleted) {
+      await xpService.addXp(3, 'Subtask concluída');
+    } else {
+      await xpService.deductXp(3, 'Subtask desmarcada');
+    }
+
+    // Auto-complete all mini-tasks if subtask is marked done
+    if (sub.isCompleted) {
+       for (final m in sub.miniTasks) {
+          if (!m.isCompleted) {
+             m.isCompleted = true;
+             m.completedAt = DateTime.now();
+             await xpService.addXp(5, 'MiniTask auto-concluída');
+          }
+       }
+    }
+    
+    await _saveAndCheckParent();
+  }
+
+  void _toggleMiniTask(int subIndex, int miniIndex) async {
+    final sub = widget.task.subtasks[subIndex];
+    final mini = sub.miniTasks[miniIndex];
+    
+    mini.isCompleted = !mini.isCompleted;
+    mini.completedAt = mini.isCompleted ? DateTime.now() : null;
+    
+    final xpService = ref.read(xpServiceProvider);
+    if (mini.isCompleted) {
+      await xpService.addXp(5, 'MiniTask concluída');
+    } else {
+      await xpService.deductXp(5, 'MiniTask desmarcada');
+    }
+
+    // Auto-complete subtask if all mini-tasks are done
+    final allMinisDone = sub.miniTasks.every((m) => m.isCompleted);
+    if (allMinisDone && !sub.isCompleted) {
+        sub.isCompleted = true;
+        sub.completedAt = DateTime.now();
+        await xpService.addXp(3, 'Subtask auto-concluída');
+    }
+
+    await _saveAndCheckParent();
+  }
+
+  Future<void> _saveAndCheckParent() async {
     // Check if all subtasks are completed to auto-complete parent task
     final allCompleted = widget.task.subtasks.every((s) => s.isCompleted);
     if (allCompleted && widget.task.status != TaskStatus.completed) {
        widget.task.status = TaskStatus.completed;
        widget.task.completedOnDate = DateTime.now();
+       final xpService = ref.read(xpServiceProvider);
+       await xpService.addXp(XpService.xpForAction(widget.task.color), 'Task principal auto-concluída');
     }
     
     final isar = ref.read(isarProvider);
     await isar.writeTxn(() async {
       await isar.tasks.put(widget.task);
     });
-    
+    await _invalidateProviders();
     setState(() {});
   }
 
-  void _deleteSubtask(Subtask sub) async {
-    widget.task.subtasks = widget.task.subtasks.where((s) => s != sub).toList();
+  void _deleteSubtask(int index) async {
+    final newSubs = List<Subtask>.from(widget.task.subtasks);
+    newSubs.removeAt(index);
+    widget.task.subtasks = newSubs;
+    
     if (widget.task.subtasks.isEmpty) {
       widget.task.hasSubtasks = false;
     }
@@ -64,7 +154,25 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
     await isar.writeTxn(() async {
       await isar.tasks.put(widget.task);
     });
+    await _invalidateProviders();
+    setState(() {});
+  }
+
+  void _deleteMiniTask(int subIndex, int miniIndex) async {
+    final sub = widget.task.subtasks[subIndex];
+    final newMinis = List<MiniTask>.from(sub.miniTasks);
+    newMinis.removeAt(miniIndex);
+    sub.miniTasks = newMinis;
     
+    final newSubs = List<Subtask>.from(widget.task.subtasks);
+    newSubs[subIndex] = sub;
+    widget.task.subtasks = newSubs;
+    
+    final isar = ref.read(isarProvider);
+    await isar.writeTxn(() async {
+      await isar.tasks.put(widget.task);
+    });
+    await _invalidateProviders();
     setState(() {});
   }
 
@@ -129,39 +237,91 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
                       final sub = task.subtasks[index];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            GestureDetector(
-                              onTap: () => _toggleSubtask(sub),
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                child: Icon(
-                                  sub.isCompleted ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-                                  color: sub.isCompleted ? AppColors.textMuted : AppColors.primary,
-                                  size: 24,
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _toggleSubtask(index),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Icon(
+                                      sub.isCompleted ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                                      color: sub.isCompleted ? AppColors.textMuted : AppColors.primary,
+                                      size: 24,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    sub.text,
+                                    style: TextStyle(
+                                      color: sub.isCompleted ? AppColors.textMuted : AppColors.textSecondary,
+                                      decoration: sub.isCompleted ? TextDecoration.lineThrough : null,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                                if (sub.completedAt != null)
+                                  Text(
+                                    '${sub.completedAt!.hour.toString().padLeft(2, '0')}:${sub.completedAt!.minute.toString().padLeft(2, '0')}',
+                                    style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                                  ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.taskRed),
+                                  onPressed: () => _deleteSubtask(index),
+                                )
+                              ],
+                            ),
+                            // MiniTasks
+                            if (sub.miniTasks.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 36.0, top: 4.0),
+                                child: Column(
+                                  children: List.generate(sub.miniTasks.length, (mIndex) {
+                                     final m = sub.miniTasks[mIndex];
+                                     return Row(
+                                       children: [
+                                          GestureDetector(
+                                            onTap: () => _toggleMiniTask(index, mIndex),
+                                            child: Icon(
+                                              m.isCompleted ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                                              color: m.isCompleted ? AppColors.textMuted : AppColors.accent,
+                                              size: 18,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              m.text,
+                                              style: TextStyle(
+                                                color: m.isCompleted ? AppColors.textMuted : AppColors.textSecondary,
+                                                fontSize: 13,
+                                                decoration: m.isCompleted ? TextDecoration.lineThrough : null,
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.close, size: 14, color: AppColors.textMuted),
+                                            onPressed: () => _deleteMiniTask(index, mIndex),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                          )
+                                       ],
+                                     );
+                                  }),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                sub.text,
-                                style: TextStyle(
-                                  color: sub.isCompleted ? AppColors.textMuted : AppColors.textSecondary,
-                                  decoration: sub.isCompleted ? TextDecoration.lineThrough : null,
-                                  fontSize: 15,
+                              // Add MiniTask Field
+                              Padding(
+                                padding: const EdgeInsets.only(left: 36.0, top: 4.0),
+                                child: TaskInputField(
+                                  placeholder: 'Nova mini-task...',
+                                  onSubmit: (text) => _addMiniTask(sub, index, text),
                                 ),
                               ),
-                            ),
-                            if (sub.completedAt != null)
-                              Text(
-                                '${sub.completedAt!.hour.toString().padLeft(2, '0')}:${sub.completedAt!.minute.toString().padLeft(2, '0')}',
-                                style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
-                              ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.taskRed),
-                              onPressed: () => _deleteSubtask(sub),
-                            )
                           ],
                         ),
                       );
@@ -170,8 +330,12 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
             ),
             
             // Input Field for Subtasks
-            TaskInputField(
-              onSubmit: _addSubtask,
+            Padding(
+               padding: const EdgeInsets.all(8.0),
+               child: TaskInputField(
+                 placeholder: 'Nova subtask...',
+                 onSubmit: _addSubtask,
+               ),
             ),
           ],
         ),

@@ -8,8 +8,10 @@ import '../../../core/services/image_service.dart';
 import 'task_settings_sheet.dart';
 import '../task_tree_screen.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/providers/core_providers.dart';
 
-class TaskCard extends StatelessWidget {
+class TaskCard extends ConsumerStatefulWidget {
   final Task task;
   final VoidCallback onToggle;
   final VoidCallback onColorCycle;
@@ -24,10 +26,10 @@ class TaskCard extends StatelessWidget {
   });
 
   @override
-  State<TaskCard> createState() => _TaskCardState();
+  ConsumerState<TaskCard> createState() => _TaskCardState();
 }
 
-class _TaskCardState extends State<TaskCard> {
+class _TaskCardState extends ConsumerState<TaskCard> {
   bool _expanded = false;
 
   Color get _taskColor => switch (widget.task.color) {
@@ -54,6 +56,41 @@ class _TaskCardState extends State<TaskCard> {
         children: [
           SlidableAction(
             onPressed: (_) async {
+              // Editar texto
+              final ctrl = TextEditingController(text: widget.task.text);
+              final newText = await showDialog<String>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: AppColors.surface,
+                  title: const Text('Editar Task', style: TextStyle(color: AppColors.textPrimary)),
+                  content: TextField(
+                    controller: ctrl,
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    decoration: const InputDecoration(
+                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.border)),
+                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primary)),
+                    ),
+                    autofocus: true,
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: AppColors.textMuted))),
+                    ElevatedButton(onPressed: () => Navigator.pop(ctx, ctrl.text), style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary), child: const Text('Salvar')),
+                  ],
+                ),
+              );
+              if (newText != null && newText.trim().isNotEmpty && context.mounted) {
+                widget.task.text = newText.trim();
+                final isar = ref.read(isarProvider);
+                await isar.writeTxn(() async => await isar.tasks.put(widget.task));
+                setState(() {});
+              }
+            },
+            backgroundColor: AppColors.surface,
+            foregroundColor: AppColors.accent,
+            icon: Icons.edit_rounded,
+          ),
+          SlidableAction(
+            onPressed: (_) async {
               // Copiar texto
               await Clipboard.setData(ClipboardData(text: widget.task.text));
               if (context.mounted) {
@@ -68,12 +105,42 @@ class _TaskCardState extends State<TaskCard> {
           ),
           SlidableAction(
             onPressed: (_) async {
-              // Câmera
-              final fileName = await ImageService.pickAndSaveImage(widget.task.id.toString(), fromCamera: true);
-              if (fileName != null && context.mounted) {
-                // To keep it simple, we don't have direct access to RoutineService here to update the task
-                // We'll rely on the provider invalidation handled outside, or we should pass an onImageUpdate callback
-                // Let's assume onToggle or another callback will trigger a refresh.
+              // Câmera vs Galeria
+              final source = await showDialog<ImageSource>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: AppColors.surface,
+                  title: const Text('Escolher Imagem', style: TextStyle(color: AppColors.textPrimary)),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.camera_alt, color: AppColors.primary),
+                        title: const Text('Câmera', style: TextStyle(color: AppColors.textPrimary)),
+                        onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.photo_library, color: AppColors.primary),
+                        title: const Text('Galeria', style: TextStyle(color: AppColors.textPrimary)),
+                        onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+              
+              if (source != null) {
+                if (widget.task.imageFileName != null) {
+                   await ImageService.deleteImage(widget.task.imageFileName!);
+                }
+                final fileName = await ImageService.pickAndSaveImage(widget.task.id.toString(), fromCamera: source == ImageSource.camera);
+                if (fileName != null && context.mounted) {
+                  widget.task.imageFileName = fileName;
+                  widget.task.hasImage = true;
+                  final isar = ref.read(isarProvider);
+                  await isar.writeTxn(() async => await isar.tasks.put(widget.task));
+                  setState(() {});
+                }
               }
             },
             backgroundColor: AppColors.surface,
@@ -81,16 +148,22 @@ class _TaskCardState extends State<TaskCard> {
             icon: Icons.camera_alt_rounded,
           ),
           SlidableAction(
-            onPressed: (_) {
+            onPressed: (_) async {
               // Task Tree
-              Navigator.push(context, MaterialPageRoute(builder: (_) => TaskTreeScreen(task: widget.task)));
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => TaskTreeScreen(task: widget.task)));
+              setState((){});
             },
             backgroundColor: AppColors.surface,
             foregroundColor: AppColors.taskYellow,
             icon: Icons.account_tree_rounded,
           ),
           SlidableAction(
-            onPressed: (_) => widget.onDelete(),
+            onPressed: (_) {
+               if (widget.task.imageFileName != null) {
+                 ImageService.deleteImage(widget.task.imageFileName!);
+               }
+               widget.onDelete();
+            },
             backgroundColor: AppColors.taskRed.withOpacity(0.15),
             foregroundColor: AppColors.taskRed,
             icon: Icons.delete_outline_rounded,
@@ -99,6 +172,20 @@ class _TaskCardState extends State<TaskCard> {
           ),
         ],
       ),
+      startActionPane: (widget.task.color == TaskColor.red || widget.task.color == TaskColor.blue) ? ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.25,
+        children: [
+          SlidableAction(
+            onPressed: (_) => TaskSettingsSheet.show(context, widget.task),
+            backgroundColor: AppColors.surface,
+            foregroundColor: widget.task.color == TaskColor.red ? AppColors.taskRed : AppColors.taskBlue,
+            icon: widget.task.color == TaskColor.red ? Icons.calendar_today_rounded : Icons.repeat_rounded,
+            label: widget.task.color == TaskColor.red ? 'Data' : 'Freq',
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ],
+      ) : null,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 3),
         decoration: BoxDecoration(
@@ -117,7 +204,31 @@ class _TaskCardState extends State<TaskCard> {
           // ── Color dot (tappable) ────────────────────────
           const SizedBox(width: 12),
           GestureDetector(
-            onTap: _isLocked ? null : widget.onColorCycle,
+            onTap: _isLocked ? null : () async {
+               if (widget.task.color == TaskColor.yellow) {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    builder: (context, child) => Theme(
+                       data: Theme.of(context).copyWith(
+                         colorScheme: const ColorScheme.dark(
+                           primary: AppColors.taskRed, onPrimary: Colors.white,
+                           surface: AppColors.background, onSurface: Colors.white,
+                         ),
+                       ),
+                       child: child!,
+                    )
+                  );
+                  if (date != null) {
+                    widget.task.scheduledDate = date;
+                    widget.onColorCycle();
+                  }
+               } else {
+                 widget.onColorCycle();
+               }
+            },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: 12,

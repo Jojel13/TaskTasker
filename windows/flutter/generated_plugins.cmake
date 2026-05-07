@@ -3,6 +3,8 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  clipboard
+  file_selector_windows
   isar_flutter_libs
 )
 

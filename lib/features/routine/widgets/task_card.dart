@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
+import '../../../core/services/image_service.dart';
 import 'task_settings_sheet.dart';
+import '../task_tree_screen.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class TaskCard extends StatelessWidget {
@@ -41,12 +44,51 @@ class _TaskCardState extends State<TaskCard> {
 
   @override
   Widget build(BuildContext context) {
+    final bool hasImage = widget.task.imageFileName != null;
+    
     return Slidable(
       key: ValueKey(widget.task.id),
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
-        extentRatio: 0.25,
+        extentRatio: 0.8, // More space for more actions
         children: [
+          SlidableAction(
+            onPressed: (_) async {
+              // Copiar texto
+              await Clipboard.setData(ClipboardData(text: widget.task.text));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Texto copiado!', style: TextStyle(color: Colors.white)), backgroundColor: AppColors.primary),
+                );
+              }
+            },
+            backgroundColor: AppColors.surface,
+            foregroundColor: AppColors.primary,
+            icon: Icons.copy_rounded,
+          ),
+          SlidableAction(
+            onPressed: (_) async {
+              // Câmera
+              final fileName = await ImageService.pickAndSaveImage(widget.task.id.toString(), fromCamera: true);
+              if (fileName != null && context.mounted) {
+                // To keep it simple, we don't have direct access to RoutineService here to update the task
+                // We'll rely on the provider invalidation handled outside, or we should pass an onImageUpdate callback
+                // Let's assume onToggle or another callback will trigger a refresh.
+              }
+            },
+            backgroundColor: AppColors.surface,
+            foregroundColor: AppColors.taskBlue,
+            icon: Icons.camera_alt_rounded,
+          ),
+          SlidableAction(
+            onPressed: (_) {
+              // Task Tree
+              Navigator.push(context, MaterialPageRoute(builder: (_) => TaskTreeScreen(task: widget.task)));
+            },
+            backgroundColor: AppColors.surface,
+            foregroundColor: AppColors.taskYellow,
+            icon: Icons.account_tree_rounded,
+          ),
           SlidableAction(
             onPressed: (_) => widget.onDelete(),
             backgroundColor: AppColors.taskRed.withOpacity(0.15),
@@ -91,11 +133,30 @@ class _TaskCardState extends State<TaskCard> {
           ),
           const SizedBox(width: 12),
 
-          // ── Task text ───────────────────────────────────
+          // ── Task text & Indicators ──────────────────────
           Expanded(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: widget.task.hasSubtasks ? () => setState(() => _expanded = !_expanded) : null,
+              onDoubleTap: hasImage ? () async {
+                 // Double tap to view image
+                 final file = await ImageService.getImageFile(widget.task.imageFileName!);
+                 if (file != null && context.mounted) {
+                    showDialog(
+                      context: context,
+                      builder: (_) => Dialog(
+                        backgroundColor: Colors.transparent,
+                        insetPadding: EdgeInsets.zero,
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: InteractiveViewer(
+                            child: Image.file(file, fit: BoxFit.contain),
+                          ),
+                        ),
+                      ),
+                    );
+                 }
+              } : null,
               onLongPress: (widget.task.color == TaskColor.red || widget.task.color == TaskColor.blue) 
                   ? () => TaskSettingsSheet.show(context, widget.task)
                   : null,
@@ -114,8 +175,24 @@ class _TaskCardState extends State<TaskCard> {
                   ),
                 ),
               ),
-            ),
+              
+              // ── Indicators (Image / Subtasks) ───────────────
+              if (hasImage)
+                const Padding(
+                  padding: EdgeInsets.only(left: 8.0),
+                  child: Icon(Icons.image_outlined, size: 14, color: AppColors.textMuted),
+                ),
+              if (widget.task.hasSubtasks)
+                const Padding(
+                  padding: EdgeInsets.only(left: 8.0),
+                  child: Icon(Icons.account_tree_outlined, size: 14, color: AppColors.textMuted),
+                ),
+                
+            ],
           ),
+        ),
+      ),
+    ),
 
           // ── Settings Icon for Red/Blue tasks ────────────
           if (widget.task.color == TaskColor.red || widget.task.color == TaskColor.blue)

@@ -55,3 +55,33 @@ final radarProvider = StreamProvider<List<Task>>((ref) {
       .group((q) => q.colorEqualTo(TaskColor.red).or().colorEqualTo(TaskColor.yellow))
       .watch(fireImmediately: true);
 });
+
+// ── Dashboard Heatmap ────────────────────────────────────────────────────────
+final heatmapProvider = FutureProvider<Map<DateTime, int>>((ref) async {
+  final isar = ref.watch(isarProvider);
+  final routines = await isar.routines.where().findAll();
+  Map<DateTime, int> dataset = {};
+  
+  for (final r in routines) {
+    await r.days.load();
+    int completed = 0;
+    int total = 0;
+    for (final day in r.days) {
+      await day.tasks.load();
+      for (final t in day.tasks) {
+        total++;
+        if (t.status == TaskStatus.completed) completed++;
+      }
+    }
+    
+    if (total > 0) {
+      final percentage = completed / total;
+      int weight = 1;
+      if (percentage >= 1.0) weight = 4;
+      else if (percentage >= 0.75) weight = 3;
+      else if (percentage >= 0.5) weight = 2;
+      dataset[DateTime(r.date.year, r.date.month, r.date.day)] = weight;
+    }
+  }
+  return dataset;
+});

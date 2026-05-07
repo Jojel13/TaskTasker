@@ -133,12 +133,78 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     child: const Text('Salvar Alterações', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
+                
+                const SizedBox(height: 32),
+                
+                // Zona de Perigo
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.taskRed.withValues(alpha: 0.1),
+                    border: Border.all(color: AppColors.taskRed.withValues(alpha: 0.5)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: AppColors.taskRed),
+                          SizedBox(width: 8),
+                          Text('Zona de Perigo', style: TextStyle(color: AppColors.taskRed, fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Isso apagará permanentemente todas as rotinas e tarefas passadas. Apenas a rotina de hoje será mantida.',
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.taskRed,
+                            side: const BorderSide(color: AppColors.taskRed),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: _confirmDeleteHistory,
+                          child: const Text('Apagar Histórico Antigo', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  void _confirmDeleteHistory() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Tem certeza?', style: TextStyle(color: AppColors.taskRed)),
+        content: const Text('Esta ação é irreversível e todas as fotos de rotinas passadas serão perdidas.', style: TextStyle(color: AppColors.textPrimary)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar', style: TextStyle(color: AppColors.textMuted))),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Apagar', style: TextStyle(color: AppColors.taskRed))),
+        ],
+      )
+    );
+    
+    if (confirm != true) return;
+    
+    final routineService = ref.read(routineServiceProvider);
+    await routineService.deleteAllPastRoutines();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Histórico limpo com sucesso!')));
+    }
   }
 
   Widget _buildTextField(String label, TextEditingController controller) {

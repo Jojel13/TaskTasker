@@ -248,6 +248,15 @@ class RoutineService {
     });
   }
 
+  Future<void> deleteAllPastRoutines() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final pastRoutines = await _isar.routines.filter().dateLessThan(today).findAll();
+    for (final r in pastRoutines) {
+      await deleteRoutine(r.id);
+    }
+  }
+
   // ── Helpers ──────────────────────────────────────────────────
   bool _blueEligible(Task t, DateTime today) {
     switch (t.frequency) {

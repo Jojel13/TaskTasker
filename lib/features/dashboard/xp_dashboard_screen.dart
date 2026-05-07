@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/core_providers.dart';
 import '../../core/services/xp_service.dart';
+import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
 
 class XpDashboardScreen extends ConsumerWidget {
   const XpDashboardScreen({super.key});
@@ -137,6 +138,46 @@ class XpDashboardScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+              
+              const SizedBox(height: 40),
+              
+              // Heatmap
+              Text('HISTÓRICO DE PRODUTIVIDADE', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted)),
+              const SizedBox(height: 16),
+              Consumer(
+                builder: (context, ref, child) {
+                  final heatmapAsync = ref.watch(heatmapProvider);
+                  return heatmapAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    error: (err, _) => Text('Erro: $err', style: const TextStyle(color: AppColors.taskRed)),
+                    data: (dataset) {
+                      if (dataset.isEmpty) {
+                        return const Center(child: Text('Nenhum dado ainda.', style: TextStyle(color: AppColors.textMuted)));
+                      }
+                      return HeatMap(
+                        datasets: dataset,
+                        colorMode: ColorMode.opacity,
+                        showText: false,
+                        scrollable: true,
+                        size: 30,
+                        colorsets: const {
+                          1: AppColors.taskYellow, // 1-24%
+                          2: AppColors.taskBlue, // 25-49%
+                          3: AppColors.accent, // 50-74%
+                          4: AppColors.primary, // 75-100%
+                        },
+                        onClick: (value) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Atividade no dia ${value.day}/${value.month}'),
+                            duration: const Duration(seconds: 2),
+                          ));
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+              const SizedBox(height: 40),
             ],
           ),
         ),

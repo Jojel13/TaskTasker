@@ -73,7 +73,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     color: AppColors.surface,
                     border: Border.all(color: AppColors.primary, width: 2),
                     boxShadow: [
-                      AppColors.glowShadow(AppColors.primary, intensity: 0.8),
+                      ...AppColors.glowShadow(AppColors.primary, intensity: 0.8),
                     ],
                   ),
                   child: const Center(
@@ -113,7 +113,7 @@ class _SplashScreenState extends State<SplashScreen> {
                         width: 200 * _progress,
                         decoration: BoxDecoration(
                           color: AppColors.primary,
-                          boxShadow: [AppColors.glowShadow(AppColors.primary, intensity: 1.0)],
+                          boxShadow: [...AppColors.glowShadow(AppColors.primary, intensity: 1.0)],
                         ),
                       ),
                       const SizedBox(height: 8),

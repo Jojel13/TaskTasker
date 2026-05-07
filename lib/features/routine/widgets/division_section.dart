@@ -4,6 +4,7 @@ import '../../../core/providers/core_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/routine.dart';
 import '../../../shared/models/routine_day.dart';
+import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
 import 'task_card.dart';
 import 'task_input_field.dart';
@@ -38,7 +39,8 @@ class DivisionSection extends ConsumerWidget {
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
     return DragTarget<Task>(
-      onAccept: (task) async {
+      onAcceptWithDetails: (details) async {
+         final task = details.data;
          await ref.read(routineServiceProvider).moveTaskToDay(task.id, day.id);
          ref.invalidate(routineDaysProvider(routine.id));
       },
@@ -105,15 +107,16 @@ class DivisionSection extends ConsumerWidget {
         );
       }),
 
-      // ── Input field ───────────────────────────────────────
+      // ── Input field ─────────────────────────────────────────
       TaskInputField(
         onSubmit: (text) async {
           await ref.read(routineServiceProvider).addTask(day.id, text);
           ref.invalidate(routineDaysProvider(routine.id));
         },
       ),
-    ]);
-    },
-    );
+    ]),         // Column
+        );      // Container
+      },        // builder
+    );          // DragTarget
   }
 }

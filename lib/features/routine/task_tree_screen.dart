@@ -7,6 +7,8 @@ import '../../shared/models/task.dart';
 import '../../shared/models/subtask.dart';
 import '../../shared/models/mini_task.dart';
 import '../../shared/models/enums.dart';
+import '../../shared/models/routine_day.dart';
+import '../../shared/models/routine.dart';
 import '../../core/services/xp_service.dart';
 import 'widgets/task_input_field.dart';
 

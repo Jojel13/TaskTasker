@@ -5,7 +5,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/routine.dart';
 import 'widgets/routine_card.dart';
-import 'widgets/floating_bottom_bar.dart';
 import '../routine/routine_screen.dart';
 import 'settings_screen.dart';
 import '../../shared/widgets/xp_bar.dart';
@@ -102,11 +101,6 @@ class HomeScreen extends ConsumerWidget {
         r.date.day == now.day;
   }
 
-  Future<void> _onPlusTap(BuildContext context, WidgetRef ref) async {
-    final svc = ref.read(routineServiceProvider);
-    final routine = await svc.createRoutine();
-    if (context.mounted) _openRoutine(context, ref, routine);
-  }
 
   void _openRoutine(BuildContext context, WidgetRef ref, Routine routine) {
     Navigator.push(
@@ -140,7 +134,7 @@ class _RoutineCardLoader extends ConsumerWidget {
     return daysAsync.when(
       loading: () => const SizedBox(height: 80,
           child: Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2))),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (days) => RoutineCard(
         routine: routine,
         days: days,

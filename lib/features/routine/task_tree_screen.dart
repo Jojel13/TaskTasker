@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:isar/isar.dart';
 import '../../core/providers/core_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -203,7 +204,7 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
-                color: AppColors.surface.withOpacity(0.3),
+                color: AppColors.surface.withValues(alpha: 0.3),
               ),
               child: Row(
                 children: [

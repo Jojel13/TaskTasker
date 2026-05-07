@@ -106,17 +106,17 @@ class _ParticlesPainter extends CustomPainter {
         
         if (dist < threshold) {
           final opacity = (1 - (dist / threshold)) * 0.3;
-          connectionPaint.color = p1.color.withOpacity(opacity);
+          connectionPaint.color = p1.color.withValues(alpha: opacity);
           canvas.drawLine(Offset(p1.x, p1.y), Offset(p2.x, p2.y), connectionPaint);
         }
       }
       
       // Draw particle
-      paint.color = p1.color.withOpacity(p1.opacity);
+      paint.color = p1.color.withValues(alpha: p1.opacity);
       canvas.drawCircle(Offset(p1.x, p1.y), p1.radius, paint);
       
       // Add glow
-      paint.color = p1.color.withOpacity(p1.opacity * 0.5);
+      paint.color = p1.color.withValues(alpha: p1.opacity * 0.5);
       paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
       canvas.drawCircle(Offset(p1.x, p1.y), p1.radius * 2, paint);
       paint.maskFilter = null;

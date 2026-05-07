@@ -123,7 +123,7 @@ class _TaskSettingsSheetState extends ConsumerState<TaskSettingsSheet> {
             Text('Frequência (Task Azul)', style: AppTextStyles.labelMedium),
             const SizedBox(height: 8),
             DropdownButtonFormField<FrequencyType>(
-              value: _selectedFrequency,
+              initialValue: _selectedFrequency,
               dropdownColor: AppColors.surface,
               decoration: InputDecoration(
                 filled: true,
@@ -153,14 +153,17 @@ class _TaskSettingsSheetState extends ConsumerState<TaskSettingsSheet> {
                   return InkWell(
                     onTap: () {
                       setState(() {
-                        if (isSelected) _selectedDays.remove(day);
-                        else _selectedDays.add(day);
+                        if (isSelected) {
+                          _selectedDays.remove(day);
+                        } else {
+                          _selectedDays.add(day);
+                        }
                       });
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.taskBlue.withOpacity(0.2) : AppColors.background,
+                        color: isSelected ? AppColors.taskBlue.withValues(alpha: 0.2) : AppColors.background,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isSelected ? AppColors.taskBlue : AppColors.border,

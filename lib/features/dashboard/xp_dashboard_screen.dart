@@ -29,11 +29,10 @@ class XpDashboardScreen extends ConsumerWidget {
     final profile = ref.watch(userProfileProvider).valueOrNull;
     if (profile == null) return const Scaffold(backgroundColor: AppColors.background);
 
-    final xpService = ref.watch(xpServiceProvider);
     final totalXp = profile.totalXP;
-    final level = xpService.calculateLevel(totalXp);
-    final xpForCurrent = xpService.xpForLevel(level);
-    final xpForNext = xpService.xpForLevel(level + 1);
+    final level = profile.currentLevel;
+    final xpForCurrent = level == 1 ? 0 : XpService.xpRequiredForLevel(level - 1);
+    final xpForNext = XpService.xpRequiredForLevel(level);
     
     final progress = (totalXp - xpForCurrent) / (xpForNext - xpForCurrent);
 

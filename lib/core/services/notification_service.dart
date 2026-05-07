@@ -1,10 +1,9 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:workmanager/workmanager.dart';
+import 'package:workmanager/workmanager.dart' hide TaskStatus;
 import 'package:path_provider/path_provider.dart';
 import 'package:isar/isar.dart';
-import '../database/isar_service.dart';
 import '../../shared/models/routine.dart';
 import '../../shared/models/routine_day.dart';
 import '../../shared/models/task.dart';
@@ -92,7 +91,7 @@ class NotificationService {
       // iOS: DarwinInitializationSettings(...)
     );
     
-    await _flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    await _flutterLocalNotificationsPlugin.initialize(settings: initializationSettings);
     
     if (Platform.isAndroid) {
        _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
@@ -101,7 +100,6 @@ class NotificationService {
     
     Workmanager().initialize(
         callbackDispatcher,
-        isInDebugMode: kDebugMode,
     );
     
     _initialized = true;
@@ -114,7 +112,7 @@ class NotificationService {
       "check_routines_and_notify",
       frequency: const Duration(hours: 6), // Check every 6 hours
       constraints: Constraints(
-        networkType: NetworkType.not_required,
+        networkType: NetworkType.connected,
         requiresBatteryNotLow: true,
       ),
     );
@@ -133,10 +131,10 @@ class NotificationService {
         NotificationDetails(android: androidPlatformChannelSpecifics);
         
     await _flutterLocalNotificationsPlugin.show(
-      id,
-      title,
-      body,
-      platformChannelSpecifics,
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: platformChannelSpecifics,
     );
   }
 }

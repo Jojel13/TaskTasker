@@ -60,9 +60,9 @@ class BlurConfirmDialog extends StatelessWidget {
                     onConfirm();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: confirmColor.withOpacity(0.15),
+                    backgroundColor: confirmColor.withValues(alpha: 0.15),
                     foregroundColor: confirmColor,
-                    side: BorderSide(color: confirmColor.withOpacity(0.5)),
+                    side: BorderSide(color: confirmColor.withValues(alpha: 0.5)),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),

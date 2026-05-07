@@ -53,8 +53,8 @@ class _TaskInputFieldState extends State<TaskInputField> {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: _active
-                ? AppColors.primary.withOpacity(0.4)
-                : AppColors.border.withOpacity(0.4),
+                ? AppColors.primary.withValues(alpha: 0.4)
+                : AppColors.border.withValues(alpha: 0.4),
             width: 0.5,
           ),
         ),

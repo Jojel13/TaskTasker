@@ -55,7 +55,7 @@ class DivisionSection extends ConsumerWidget {
                 letterSpacing: 2,
               )),
           const SizedBox(width: 8),
-          Expanded(child: Divider(color: _accentColor.withOpacity(0.3), height: 1)),
+          Expanded(child: Divider(color: _accentColor.withValues(alpha: 0.3), height: 1)),
           const SizedBox(width: 8),
           Text('${tasks.where((t) => t.status == TaskStatus.completed).length}/${tasks.length}',
               style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
@@ -121,7 +121,7 @@ class DivisionSection extends ConsumerWidget {
         final isHovering = candidateData.isNotEmpty;
         return Container(
           decoration: BoxDecoration(
-            color: isHovering ? AppColors.surface.withOpacity(0.3) : Colors.transparent,
+            color: isHovering ? AppColors.surface.withValues(alpha: 0.3) : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
           child: content,

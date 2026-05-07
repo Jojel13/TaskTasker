@@ -119,7 +119,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       const SizedBox(height: 8),
                       Text(
                         'Inicializando núcleo...',
-                        style: TextStyle(color: AppColors.textMuted.withOpacity(0.5), fontSize: 10, fontFamily: 'Share Tech Mono'),
+                        style: TextStyle(color: AppColors.textMuted.withValues(alpha: 0.5), fontSize: 10, fontFamily: 'Share Tech Mono'),
                       ),
                     ],
                   ),

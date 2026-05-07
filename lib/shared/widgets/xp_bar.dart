@@ -73,7 +73,7 @@ class XpBar extends ConsumerWidget {
         );
       },
       loading: () => const SizedBox(height: 30),
-      error: (_, __) => const SizedBox(height: 30),
+      error: (_, _) => const SizedBox(height: 30),
     );
   }
 }

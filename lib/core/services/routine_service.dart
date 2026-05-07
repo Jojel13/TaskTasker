@@ -47,7 +47,9 @@ class RoutineService {
     await routine.days.load();
     final days = routine.days.toList()
       ..sort((a, b) => a.division.index.compareTo(b.division.index));
-    for (final d in days) await d.tasks.load();
+    for (final d in days) {
+      await d.tasks.load();
+    }
     return days;
   }
 

@@ -83,7 +83,7 @@ class _RoutineCardState extends State<RoutineCard> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: widget.isToday
-                ? AppColors.primary.withOpacity(0.5)
+                ? AppColors.primary.withValues(alpha: 0.5)
                 : AppColors.border,
             width: widget.isToday ? 1.5 : 0.5,
           ),

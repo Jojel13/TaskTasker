@@ -70,12 +70,12 @@ class AppColors {
   static List<BoxShadow> glowShadow(Color color, {double intensity = 1.0}) {
     return [
       BoxShadow(
-        color: color.withOpacity(0.55 * intensity),
+        color: color.withValues(alpha: 0.55 * intensity),
         blurRadius: 12 * intensity,
         spreadRadius: 0,
       ),
       BoxShadow(
-        color: color.withOpacity(0.25 * intensity),
+        color: color.withValues(alpha: 0.25 * intensity),
         blurRadius: 28 * intensity,
         spreadRadius: 0,
       ),

@@ -49,10 +49,10 @@ class RoutineScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.1),
+                    color: AppColors.secondary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                        color: AppColors.secondary.withOpacity(0.3)),
+                        color: AppColors.secondary.withValues(alpha: 0.3)),
                   ),
                   child: const Text('Histórico',
                       style: TextStyle(

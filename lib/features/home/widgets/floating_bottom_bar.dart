@@ -19,12 +19,12 @@ class FloatingBottomBar extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       height: 64,
       decoration: BoxDecoration(
-        color: AppColors.surface.withOpacity(0.9),
+        color: AppColors.surface.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(32),
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-             color: AppColors.primary.withOpacity(0.15),
+             color: AppColors.primary.withValues(alpha: 0.15),
              blurRadius: 20,
              spreadRadius: 5,
           )

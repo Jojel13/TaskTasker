@@ -169,7 +169,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                }
                widget.onDelete();
             },
-            backgroundColor: AppColors.taskRed.withOpacity(0.15),
+            backgroundColor: AppColors.taskRed.withValues(alpha: 0.15),
             foregroundColor: AppColors.taskRed,
             icon: Icons.delete_outline_rounded,
             label: 'Apagar',
@@ -199,7 +199,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
           border: Border.all(
             color: _isDone
                 ? AppColors.border
-                : _taskColor.withOpacity(0.3),
+                : _taskColor.withValues(alpha: 0.3),
             width: 0.5,
           ),
         ),
@@ -337,7 +337,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 height: 22,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _isDone ? _taskColor.withOpacity(0.2) : Colors.transparent,
+                  color: _isDone ? _taskColor.withValues(alpha: 0.2) : Colors.transparent,
                   border: Border.all(
                     color: _isLocked ? AppColors.textMuted : _taskColor,
                     width: 1.5,
@@ -367,7 +367,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     Icon(
                       sub.isCompleted ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
                       size: 16,
-                      color: sub.isCompleted ? AppColors.textMuted : _taskColor.withOpacity(0.8),
+                      color: sub.isCompleted ? AppColors.textMuted : _taskColor.withValues(alpha: 0.8),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -409,10 +409,10 @@ class _CountdownBadge extends StatelessWidget {
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.taskRed.withOpacity(isToday ? 0.25 : 0.1),
+        color: AppColors.taskRed.withValues(alpha: isToday ? 0.25 : 0.1),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-            color: AppColors.taskRed.withOpacity(isToday ? 0.8 : 0.4),
+            color: AppColors.taskRed.withValues(alpha: isToday ? 0.8 : 0.4),
             width: 0.5),
       ),
       child: Text(label,

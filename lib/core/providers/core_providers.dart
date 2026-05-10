@@ -31,8 +31,10 @@ final todayRoutineProvider = FutureProvider<Routine?>((ref) {
 });
 
 // ── Routine Days ──────────────────────────────────────────────────────────────
-final routineDaysProvider =
-    FutureProvider.family<List<RoutineDay>, Id>((ref, routineId) async {
+final routineDaysProvider = FutureProvider.family<List<RoutineDay>, Id>((
+  ref,
+  routineId,
+) async {
   final isar = ref.watch(isarProvider);
   final routine = await isar.routines.get(routineId);
   if (routine == null) return [];
@@ -52,7 +54,10 @@ final radarProvider = StreamProvider<List<Task>>((ref) {
       .filter()
       .statusEqualTo(TaskStatus.active)
       .and()
-      .group((q) => q.colorEqualTo(TaskColor.red).or().colorEqualTo(TaskColor.yellow))
+      .group(
+        (q) =>
+            q.colorEqualTo(TaskColor.red).or().colorEqualTo(TaskColor.yellow),
+      )
       .watch(fireImmediately: true);
 });
 
@@ -61,7 +66,7 @@ final heatmapProvider = FutureProvider<Map<DateTime, int>>((ref) async {
   final isar = ref.watch(isarProvider);
   final routines = await isar.routines.where().findAll();
   Map<DateTime, int> dataset = {};
-  
+
   for (final r in routines) {
     await r.days.load();
     int completed = 0;
@@ -73,13 +78,16 @@ final heatmapProvider = FutureProvider<Map<DateTime, int>>((ref) async {
         if (t.status == TaskStatus.completed) completed++;
       }
     }
-    
+
     if (total > 0) {
       final percentage = completed / total;
       int weight = 1;
-      if (percentage >= 1.0) weight = 4;
-      else if (percentage >= 0.75) weight = 3;
-      else if (percentage >= 0.5) weight = 2;
+      if (percentage >= 1.0) {
+        weight = 4;
+      } else if (percentage >= 0.75)
+        weight = 3;
+      else if (percentage >= 0.5)
+        weight = 2;
       dataset[DateTime(r.date.year, r.date.month, r.date.day)] = weight;
     }
   }

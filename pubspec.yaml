@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   cupertino_icons: ^1.0.8
 
@@ -27,7 +29,7 @@ dependencies:
   lottie: ^3.1.0
 
   # Internacionalização
-  intl: ^0.19.0
+  intl: ^0.20.2
 
   # Fase 2
   uuid: ^4.4.0

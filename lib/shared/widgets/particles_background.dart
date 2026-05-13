@@ -13,7 +13,7 @@ class ParticlesBackground extends StatefulWidget {
 
 class _ParticlesBackgroundState extends State<ParticlesBackground> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late List<_Particle> _particles;
+  List<_Particle> _particles = [];
   final Random _rnd = Random();
 
   @override

@@ -58,7 +58,12 @@ class RoutineService {
     final existing = await findTodayRoutine();
     if (existing != null) return existing;
 
-    final profile = await _isar.userProfiles.get(1) ?? UserProfile();
+    // ── Ler profile ANTES da transação (nunca criar vazio) ──────
+    final profile = await _isar.userProfiles.get(1);
+    if (profile == null) {
+      throw Exception('UserProfile não inicializado. Execute o setup do app.');
+    }
+
     final lastRoutine = await _lastRoutine();
 
     // Coletar dados fora da transaction (reads)
@@ -75,14 +80,14 @@ class RoutineService {
         for (final t in tasks) {
           if (t.color == TaskColor.red) {
             final sched = t.scheduledDate;
-            if (sched == null || sched.isBefore(today)) continue; // expired → skip
+            if (sched == null || sched.isBefore(today)) continue; // expirada → skip
             eligible.add(t);
           } else if (t.color == TaskColor.blue) {
             if (_blueEligible(t, today)) eligible.add(t);
           } else if (t.color == TaskColor.yellow) {
             if (t.completedOnDate == null) eligible.add(t);
           }
-          // standard: never propagates
+          // standard: nunca propaga
         }
         if (day.division == DivisionType.tomorrow) {
           tomorrowTasks = eligible;
@@ -94,12 +99,12 @@ class RoutineService {
 
     final today = _today();
 
-    return await _isar.writeTxn(() async {
-      final routine = Routine()
+    final routine = await _isar.writeTxn(() async {
+      final r = Routine()
         ..name = profile.routineName
         ..date = today
         ..createdAt = DateTime.now();
-      await _isar.routines.put(routine);
+      await _isar.routines.put(r);
 
       for (final division in DivisionType.values) {
         final day = RoutineDay()
@@ -118,28 +123,74 @@ class RoutineService {
           day.tasks.add(copy);
         }
         await day.tasks.save();
-        routine.days.add(day);
+        r.days.add(day);
       }
-      await routine.days.save();
-
-      // Streak
-      final updatedProfile = await _isar.userProfiles.get(1) ?? UserProfile();
-      final last = updatedProfile.lastRoutineDate;
-      final yesterday = today.subtract(const Duration(days: 1));
-      if (last != null && DateTime(last.year, last.month, last.day) == yesterday) {
-        updatedProfile.streakDays += 1;
-      } else {
-        updatedProfile.streakDays = 1;
-      }
-      if (updatedProfile.streakDays > updatedProfile.streakRecord) {
-        updatedProfile.streakRecord = updatedProfile.streakDays;
-      }
-      updatedProfile.lastRoutineDate = today;
-      await _isar.userProfiles.put(updatedProfile);
-
-      await _xp.checkStreakBonus(updatedProfile);
-      return routine;
+      await r.days.save();
+      return r;
     });
+
+    // ── Streak: verificar se o dia anterior teve tasks concluídas ─
+    // Lemos o profile novamente (fora da txn anterior) para evitar
+    // sobrescrever dados com objeto stale.
+    await _checkAndFinalizeStreak(profile, today);
+
+    return routine;
+  }
+
+  /// Verifica e atualiza o streak com base em tasks concluídas.
+  /// Critério: pelo menos 1 task concluída na rotina do dia anterior.
+  Future<void> _checkAndFinalizeStreak(UserProfile profile, DateTime today) async {
+    final updatedProfile = await _isar.userProfiles.get(1);
+    if (updatedProfile == null) return;
+
+    final yesterday = today.subtract(const Duration(days: 1));
+    final lastDate = updatedProfile.lastRoutineDate;
+
+    // Só atualiza se ainda não foi processado para hoje
+    final lastDateNormalized = lastDate != null
+        ? DateTime(lastDate.year, lastDate.month, lastDate.day)
+        : null;
+    if (lastDateNormalized == today) return; // já processado
+
+    final yesterdayNormalized = DateTime(yesterday.year, yesterday.month, yesterday.day);
+
+    // Verificar se houve tasks concluídas ontem
+    bool yesterdayHadCompletedTasks = false;
+    if (lastDateNormalized == yesterdayNormalized) {
+      // Buscar rotina de ontem
+      final yesterdayRoutine = await _isar.routines
+          .filter()
+          .dateBetween(yesterday, yesterday.add(const Duration(hours: 23, minutes: 59)))
+          .findFirst();
+
+      if (yesterdayRoutine != null) {
+        await yesterdayRoutine.days.load();
+        for (final day in yesterdayRoutine.days) {
+          await day.tasks.load();
+          if (day.tasks.any((t) => t.status == TaskStatus.completed)) {
+            yesterdayHadCompletedTasks = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (lastDateNormalized == yesterdayNormalized && yesterdayHadCompletedTasks) {
+      updatedProfile.streakDays += 1;
+    } else {
+      updatedProfile.streakDays = 0; // Quebrou o streak
+    }
+
+    if (updatedProfile.streakDays > updatedProfile.streakRecord) {
+      updatedProfile.streakRecord = updatedProfile.streakDays;
+    }
+    updatedProfile.lastRoutineDate = today;
+
+    await _isar.writeTxn(() async {
+      await _isar.userProfiles.put(updatedProfile);
+    });
+
+    await _xp.checkStreakBonus(updatedProfile);
   }
 
   // ── Task CRUD ────────────────────────────────────────────────
@@ -160,7 +211,12 @@ class RoutineService {
     });
   }
 
+  /// Deleta task e estorna XP se estava concluída.
+  /// Exceção: tasks azuis que já apareceram (propagadas) não estornam streak.
   Future<void> deleteTask(Id dayId, Id taskId) async {
+    // Ler task ANTES da transação para decisão de XP
+    final task = await _isar.tasks.get(taskId);
+
     await _isar.writeTxn(() async {
       final day = await _isar.routineDays.get(dayId);
       if (day != null) {
@@ -168,27 +224,69 @@ class RoutineService {
         day.tasks.removeWhere((t) => t.id == taskId);
         await day.tasks.save();
       }
-      final task = await _isar.tasks.get(taskId);
       if (task != null && task.imageFileName != null) {
-         await ImageService.deleteImage(task.imageFileName!);
+        await ImageService.deleteImage(task.imageFileName!);
       }
       await _isar.tasks.delete(taskId);
     });
+
+    // Estornar XP se a task estava concluída
+    if (task != null && task.status == TaskStatus.completed) {
+      final xpAmount = XpService.xpForAction(task.color);
+      await _xp.deductXp(xpAmount, 'Task concluída deletada (${task.color.name})');
+    }
+
+    // Verificar validade do streak para o dia de hoje após deleção
+    await _revalidateStreakForToday();
+  }
+
+  /// Após deletar uma task concluída, verifica se ainda existem tasks
+  /// concluídas hoje. Se não houver nenhuma, reseta o streakDays para 0
+  /// apenas se o streakDays foi incrementado hoje.
+  Future<void> _revalidateStreakForToday() async {
+    final today = _today();
+    final todayRoutine = await findTodayRoutine();
+    if (todayRoutine == null) return;
+
+    await todayRoutine.days.load();
+    bool hasAnyCompleted = false;
+    for (final day in todayRoutine.days) {
+      await day.tasks.load();
+      if (day.tasks.any((t) => t.status == TaskStatus.completed)) {
+        hasAnyCompleted = true;
+        break;
+      }
+    }
+
+    if (!hasAnyCompleted) {
+      // Sem tasks concluídas hoje — o streak do dia atual não deve contar
+      // Não tocamos no streakRecord, apenas zera o streakDays do dia
+      final profile = await _isar.userProfiles.get(1);
+      if (profile == null) return;
+      final lastDate = profile.lastRoutineDate;
+      if (lastDate != null) {
+        final lastNorm = DateTime(lastDate.year, lastDate.month, lastDate.day);
+        if (lastNorm == today && profile.streakDays > 0) {
+          profile.streakDays = 0;
+          await _isar.writeTxn(() async => _isar.userProfiles.put(profile));
+        }
+      }
+    }
   }
 
   Future<void> moveTaskToDay(Id taskId, Id newDayId) async {
     await _isar.writeTxn(() async {
       final task = await _isar.tasks.get(taskId);
       if (task == null) return;
-      
+
       final oldDay = await _isar.routineDays.filter().tasks((q) => q.idEqualTo(taskId)).findFirst();
       if (oldDay != null) {
-        if (oldDay.id == newDayId) return; // Same day, no move
+        if (oldDay.id == newDayId) return;
         await oldDay.tasks.load();
         oldDay.tasks.remove(task);
         await oldDay.tasks.save();
       }
-      
+
       final newDay = await _isar.routineDays.get(newDayId);
       if (newDay != null) {
         await newDay.tasks.load();
@@ -212,18 +310,50 @@ class RoutineService {
     }
   }
 
+  /// Loop de cores: branco → azul → amarelo → branco.
+  /// Vermelho NÃO faz parte do loop — é uma mecânica separada via calendário.
   Future<void> cycleColor(Task task) async {
     final next = switch (task.color) {
       TaskColor.standard => TaskColor.blue,
       TaskColor.blue     => TaskColor.yellow,
-      TaskColor.yellow   => task.scheduledDate != null ? TaskColor.red : TaskColor.standard,
-      TaskColor.red      => TaskColor.standard,
+      TaskColor.yellow   => TaskColor.standard,
+      TaskColor.red      => TaskColor.standard, // red → reset (nunca deve ocorrer via loop)
     };
+    // Ao voltar para branco, limpar data agendada e frequência
     if (next == TaskColor.standard) {
-        task.scheduledDate = null;
+      task.scheduledDate = null;
+    }
+    // Ao sair do azul, limpar frequência
+    if (task.color == TaskColor.blue && next != TaskColor.blue) {
+      task.frequency = FrequencyType.daily;
+      task.frequencyDays = [];
     }
     task.color = next;
     await _isar.writeTxn(() => _isar.tasks.put(task));
+  }
+
+  /// Define a task como vermelha com data agendada.
+  /// Mecânica separada do loop de cores.
+  Future<void> setTaskRed(Task task, DateTime scheduledDate) async {
+    task.color = TaskColor.red;
+    task.scheduledDate = scheduledDate;
+    await _isar.writeTxn(() => _isar.tasks.put(task));
+  }
+
+  /// Remove o status vermelho, voltando para branco.
+  Future<void> clearTaskRed(Task task) async {
+    task.color = TaskColor.standard;
+    task.scheduledDate = null;
+    await _isar.writeTxn(() => _isar.tasks.put(task));
+  }
+
+  Future<void> updateTaskSortOrder(List<Task> tasks) async {
+    await _isar.writeTxn(() async {
+      for (int i = 0; i < tasks.length; i++) {
+        tasks[i].sortOrder = i;
+        await _isar.tasks.put(tasks[i]);
+      }
+    });
   }
 
   Future<void> deleteRoutine(Id routineId) async {
@@ -235,9 +365,9 @@ class RoutineService {
     for (final day in routine.days) {
       await day.tasks.load();
       for (final t in day.tasks) {
-         if (t.imageFileName != null) {
-             await ImageService.deleteImage(t.imageFileName!);
-         }
+        if (t.imageFileName != null) {
+          await ImageService.deleteImage(t.imageFileName!);
+        }
       }
       taskIds.addAll(day.tasks.map((t) => t.id));
     }

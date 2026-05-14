@@ -1,5 +1,5 @@
 name: task_tasker
-description: "TaskTasker — App de rotinas com temática cyberpunk."
+description: "TaskTasker — App de rotinas com gamificação."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -44,6 +44,9 @@ dependencies:
   fl_chart: ^1.2.0
   flutter_heatmap_calendar: ^1.0.5
 
+  # Fase 0 — Splash nativo
+  flutter_native_splash: ^2.4.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -54,3 +57,16 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # assets:
+  #   - assets/images/
+  #   - assets/animations/
+
+flutter_native_splash:
+  color: "#080808"
+  color_dark: "#080808"
+  image: assets/images/splash_logo.png
+  android: true
+  ios: true
+  android_12:
+    color: "#080808"
+    color_dark: "#080808"

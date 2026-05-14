@@ -8,21 +8,52 @@ import '../../shared/models/routine.dart';
 import '../../shared/widgets/xp_bar.dart';
 import 'widgets/division_section.dart';
 
-class RoutineScreen extends ConsumerWidget {
+class RoutineScreen extends ConsumerStatefulWidget {
   final Routine routine;
-  const RoutineScreen({super.key, required this.routine});
+  /// Se informado, a tela fará scroll até o card da task com esse ID após carregar.
+  final int? scrollToTaskId;
+
+  const RoutineScreen({super.key, required this.routine, this.scrollToTaskId});
+
+  @override
+  ConsumerState<RoutineScreen> createState() => _RoutineScreenState();
+}
+
+class _RoutineScreenState extends ConsumerState<RoutineScreen> {
+  final ScrollController _scrollController = ScrollController();
+  final Map<int, GlobalKey> _taskKeys = {};
 
   bool get _isToday {
     final now = DateTime.now();
-    return routine.date.year == now.year &&
-        routine.date.month == now.month &&
-        routine.date.day == now.day;
+    return widget.routine.date.year == now.year &&
+        widget.routine.date.month == now.month &&
+        widget.routine.date.day == now.day;
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final daysAsync = ref.watch(routineDaysProvider(routine.id));
-    final dateStr = DateFormat('EEEE, dd \'de\' MMMM', 'pt_BR').format(routine.date);
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToTask(int taskId) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final key = _taskKeys[taskId];
+      if (key?.currentContext != null) {
+        Scrollable.ensureVisible(
+          key!.currentContext!,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+          alignment: 0.3, // posicionar a 30% do topo
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final daysAsync = ref.watch(routineDaysProvider(widget.routine.id));
+    final dateStr = DateFormat("EEEE, dd 'de' MMMM", 'pt_BR').format(widget.routine.date);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -34,25 +65,25 @@ class RoutineScreen extends ConsumerWidget {
             child: Row(children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    size: 20, color: AppColors.primary),
+                    size: 20, color: AppColors.textSecondary),
                 onPressed: () => Navigator.pop(context),
               ),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(routine.name, style: AppTextStyles.titleLarge),
+                  Text(widget.routine.name, style: AppTextStyles.titleLarge),
                   Text(dateStr,
                       style: AppTextStyles.labelSmall
-                          .copyWith(color: AppColors.primaryDim)),
+                          .copyWith(color: AppColors.textMuted)),
                 ]),
               ),
               if (!_isToday)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    color: AppColors.secondary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                        color: AppColors.secondary.withValues(alpha: 0.3)),
+                        color: AppColors.secondary.withValues(alpha: 0.25)),
                   ),
                   child: const Text('Histórico',
                       style: TextStyle(
@@ -60,7 +91,7 @@ class RoutineScreen extends ConsumerWidget {
                 ),
             ]),
           ),
-          
+
           // ── XP Bar ─────────────────────────────────────────
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 4.0),
@@ -71,16 +102,26 @@ class RoutineScreen extends ConsumerWidget {
           Expanded(
             child: daysAsync.when(
               loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary)),
+                  child: CircularProgressIndicator(color: AppColors.secondary)),
               error: (e, _) => Center(
                   child: Text('Erro: $e',
                       style: const TextStyle(color: AppColors.taskRed))),
-              data: (days) => ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                children: days
-                    .map((day) => DivisionSection(routine: routine, day: day, isToday: _isToday))
-                    .toList(),
-              ),
+              data: (days) {
+                // Após carregar, scroll automático se solicitado
+                if (widget.scrollToTaskId != null) {
+                  _scrollToTask(widget.scrollToTaskId!);
+                }
+                return ListView(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  children: days.map((day) => DivisionSection(
+                    routine: widget.routine,
+                    day: day,
+                    isToday: _isToday,
+                    taskKeys: _taskKeys,
+                  )).toList(),
+                );
+              },
             ),
           ),
         ]),

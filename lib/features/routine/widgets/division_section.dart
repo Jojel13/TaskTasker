@@ -13,57 +13,83 @@ class DivisionSection extends ConsumerWidget {
   final Routine routine;
   final RoutineDay day;
   final bool isToday;
+  /// Mapa de GlobalKeys para permitir scroll-to-task a partir do Radar
+  final Map<int, GlobalKey>? taskKeys;
 
   const DivisionSection({
     super.key,
     required this.routine,
     required this.day,
     this.isToday = true,
+    this.taskKeys,
   });
 
   Color get _accentColor => switch (day.division) {
     DivisionType.morning   => AppColors.taskYellow,
-    DivisionType.afternoon => AppColors.primary,
-    DivisionType.night     => AppColors.secondary,
-    DivisionType.tomorrow  => AppColors.accent,
+    DivisionType.afternoon => AppColors.secondary,
+    DivisionType.night     => AppColors.accent,
+    DivisionType.tomorrow  => AppColors.textSecondary,
   };
 
-  String get _icon => switch (day.division) {
-    DivisionType.morning   => '☀️',
-    DivisionType.afternoon => '🌤️',
-    DivisionType.night     => '🌙',
-    DivisionType.tomorrow  => '➡️',
+  IconData get _iconData => switch (day.division) {
+    DivisionType.morning   => Icons.wb_sunny_rounded,
+    DivisionType.afternoon => Icons.wb_cloudy_rounded,
+    DivisionType.night     => Icons.nightlight_round,
+    DivisionType.tomorrow  => Icons.arrow_forward_rounded,
   };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasks = day.tasks.toList()
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      ..sort((a, b) => a.sortOrder != b.sortOrder
+          ? a.sortOrder.compareTo(b.sortOrder)
+          : a.createdAt.compareTo(b.createdAt));
+
+    final completedCount = tasks.where((t) => t.status == TaskStatus.completed).length;
 
     Widget content = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // ── Division header ───────────────────────────────────
+      // ── Division header ───────────────────────────────────────
       Padding(
-        padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
+        padding: const EdgeInsets.fromLTRB(0, 24, 0, 10),
         child: Row(children: [
-          Text(_icon, style: const TextStyle(fontSize: 16)),
+          Icon(_iconData, size: 14, color: _accentColor),
           const SizedBox(width: 8),
-          Text(day.customName.toUpperCase(),
-              style: TextStyle(
-                color: _accentColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2,
-              )),
-          const SizedBox(width: 8),
-          Expanded(child: Divider(color: _accentColor.withValues(alpha: 0.3), height: 1)),
-          const SizedBox(width: 8),
-          Text('${tasks.where((t) => t.status == TaskStatus.completed).length}/${tasks.length}',
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+          Text(
+            day.customName.toUpperCase(),
+            style: TextStyle(
+              color: _accentColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 2.5,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              height: 0.5,
+              color: _accentColor.withValues(alpha: 0.25),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '$completedCount/${tasks.length}',
+            style: TextStyle(
+              color: completedCount == tasks.length && tasks.isNotEmpty
+                  ? _accentColor
+                  : AppColors.textMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ]),
       ),
 
-      // ── Task list ─────────────────────────────────────────
+      // ── Task list ──────────────────────────────────────────────
       ...tasks.map((task) {
+        // Registrar GlobalKey para scroll-to-task
+        final gKey = GlobalKey();
+        taskKeys?[task.id] = gKey;
+
         final card = TaskCard(
           key: ValueKey(task.id),
           task: task,
@@ -82,24 +108,27 @@ class DivisionSection extends ConsumerWidget {
           },
         );
 
-        if (!isToday) return card;
+        if (!isToday) {
+          return SizedBox(key: gKey, child: card);
+        }
 
         return LongPressDraggable<Task>(
+          key: gKey,
           data: task,
-          delay: const Duration(milliseconds: 300),
+          delay: const Duration(milliseconds: 400),
           feedback: Material(
             color: Colors.transparent,
             child: SizedBox(
               width: MediaQuery.of(context).size.width - 40,
-              child: Opacity(opacity: 0.9, child: card),
+              child: Opacity(opacity: 0.85, child: card),
             ),
           ),
-          childWhenDragging: Opacity(opacity: 0.3, child: card),
+          childWhenDragging: Opacity(opacity: 0.2, child: card),
           child: card,
         );
       }),
 
-      // ── Input field ─────────────────────────────────────────
+      // ── Input field ────────────────────────────────────────────
       if (isToday)
         TaskInputField(
           onSubmit: (text) async {
@@ -113,16 +142,22 @@ class DivisionSection extends ConsumerWidget {
 
     return DragTarget<Task>(
       onAcceptWithDetails: (details) async {
-         final task = details.data;
-         await ref.read(routineServiceProvider).moveTaskToDay(task.id, day.id);
-         ref.invalidate(routineDaysProvider(routine.id));
+        final task = details.data;
+        await ref.read(routineServiceProvider).moveTaskToDay(task.id, day.id);
+        ref.invalidate(routineDaysProvider(routine.id));
       },
       builder: (context, candidateData, rejectedData) {
         final isHovering = candidateData.isNotEmpty;
-        return Container(
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
           decoration: BoxDecoration(
-            color: isHovering ? AppColors.surface.withValues(alpha: 0.3) : Colors.transparent,
+            color: isHovering
+                ? _accentColor.withValues(alpha: 0.05)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
+            border: isHovering
+                ? Border.all(color: _accentColor.withValues(alpha: 0.3), width: 1)
+                : null,
           ),
           child: content,
         );

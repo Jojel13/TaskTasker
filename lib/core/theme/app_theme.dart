@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 
-/// Tema Cyberpunk Dark do TaskTasker
+/// Tema Peak-Cyberpunk do TaskTasker
 class AppTheme {
   AppTheme._();
 
@@ -67,7 +67,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.secondary, width: 1.5),
         ),
         hintStyle: AppTextStyles.bodyMedium,
         labelStyle: AppTextStyles.labelMedium,
@@ -84,6 +84,31 @@ class AppTheme {
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.background,
         elevation: 8,
+      ),
+
+      // Dialog
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titleTextStyle: AppTextStyles.titleMedium,
+        contentTextStyle: AppTextStyles.bodyMedium,
+      ),
+
+      // BottomSheet
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+      ),
+
+      // Chips
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surfaceVariant,
+        selectedColor: AppColors.secondary.withValues(alpha: 0.2),
+        labelStyle: AppTextStyles.labelMedium,
+        side: const BorderSide(color: AppColors.border),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       ),
 
       useMaterial3: true,

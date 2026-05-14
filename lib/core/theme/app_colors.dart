@@ -1,48 +1,50 @@
 import 'package:flutter/material.dart';
 
-/// Paleta de cores do tema Cyberpunk Dark
+/// Paleta de cores — TaskTasker
+/// Estética Peak: dark mode puro, cores vivas e suaves, glow + alto contraste.
 class AppColors {
   AppColors._();
 
   // ─── Backgrounds ──────────────────────────────────────────────
-  static const Color background     = Color(0xFF070B14);
-  static const Color surface        = Color(0xFF0D1220);
-  static const Color surfaceVariant = Color(0xFF131929);
-  static const Color card           = Color(0xFF111827);
+  static const Color background     = Color(0xFF080808); // Preto puro (Peak)
+  static const Color surface        = Color(0xFF111111); // Superfície elevada
+  static const Color surfaceVariant = Color(0xFF1A1A1A); // Cards secundários
+  static const Color card           = Color(0xFF0F0F0F); // Card base
 
-  // ─── Neon Primary — Ciano ─────────────────────────────────────
-  static const Color primary    = Color(0xFF00F5FF);
-  static const Color primaryDim = Color(0xFF00BFCC);
+  // ─── Primária — Branco/Gelo (UI principal) ────────────────────
+  static const Color primary    = Color(0xFFF0F0F0);
+  static const Color primaryDim = Color(0xFF8A8A8A);
 
-  // ─── Neon Secondary — Roxo ────────────────────────────────────
-  static const Color secondary    = Color(0xFFB44FFF);
-  static const Color secondaryDim = Color(0xFF8B2FCC);
+  // ─── Secundária — Azul Elétrico (divisões, links) ─────────────
+  static const Color secondary    = Color(0xFF4A9EFF);
+  static const Color secondaryDim = Color(0xFF2D6FCC);
 
-  // ─── Neon Accent — Rosa ───────────────────────────────────────
-  static const Color accent = Color(0xFFFF2D9B);
+  // ─── Accent — Verde Menta (streak, confirmações) ──────────────
+  static const Color accent    = Color(0xFF39D98A);
+  static const Color accentDim = Color(0xFF1FAD63);
 
   // ─── Cores das Tasks ──────────────────────────────────────────
-  static const Color taskStandard = Color(0xFFBBC4D4);
-  static const Color taskBlue     = Color(0xFF3D9EFF);
-  static const Color taskYellow   = Color(0xFFFFD60A);
-  static const Color taskRed      = Color(0xFFFF3B4E);
+  static const Color taskStandard = Color(0xFFD0D0D0); // Branco suave
+  static const Color taskBlue     = Color(0xFF4A9EFF); // Azul elétrico
+  static const Color taskYellow   = Color(0xFFFFCC00); // Amarelo ouro
+  static const Color taskRed      = Color(0xFFFF4D4D); // Vermelho coral
+  static const Color taskGreen    = Color(0xFF39D98A); // Verde menta
 
   // ─── Glow (semi-transparente para BoxShadow) ──────────────────
-  static const Color glowCyan   = Color(0x6600F5FF);
-  static const Color glowPurple = Color(0x66B44FFF);
-  static const Color glowBlue   = Color(0x663D9EFF);
-  static const Color glowYellow = Color(0x66FFD60A);
-  static const Color glowRed    = Color(0x66FF3B4E);
-  static const Color glowPink   = Color(0x66FF2D9B);
+  static const Color glowWhite  = Color(0x40F0F0F0);
+  static const Color glowBlue   = Color(0x664A9EFF);
+  static const Color glowYellow = Color(0x66FFCC00);
+  static const Color glowRed    = Color(0x66FF4D4D);
+  static const Color glowGreen  = Color(0x6639D98A);
 
   // ─── Texto ────────────────────────────────────────────────────
-  static const Color textPrimary   = Color(0xFFE8EEFF);
-  static const Color textSecondary = Color(0xFF8899BB);
-  static const Color textMuted     = Color(0xFF445577);
+  static const Color textPrimary   = Color(0xFFF0F0F0);
+  static const Color textSecondary = Color(0xFF8A8A8A);
+  static const Color textMuted     = Color(0xFF3D3D3D);
 
   // ─── UI Elements ──────────────────────────────────────────────
-  static const Color border  = Color(0xFF1E2D4A);
-  static const Color divider = Color(0xFF0F1A2E);
+  static const Color border  = Color(0xFF222222);
+  static const Color divider = Color(0xFF181818);
 
   // ─── Helpers ──────────────────────────────────────────────────
 
@@ -56,29 +58,28 @@ class AppColors {
     }
   }
 
-  /// Retorna o glow correspondente à cor da task
-  static Color glowFromTaskColor(String colorName) {
-    switch (colorName) {
-      case 'TaskColor.blue':   return glowBlue;
-      case 'TaskColor.yellow': return glowYellow;
-      case 'TaskColor.red':    return glowRed;
-      default:                 return glowCyan;
-    }
-  }
-
-  /// Gera BoxShadow com efeito neon/glow
+  /// Gera BoxShadow com efeito neon/glow suave
   static List<BoxShadow> glowShadow(Color color, {double intensity = 1.0}) {
     return [
       BoxShadow(
-        color: color.withValues(alpha: 0.55 * intensity),
-        blurRadius: 12 * intensity,
+        color: color.withValues(alpha: 0.45 * intensity),
+        blurRadius: 10 * intensity,
         spreadRadius: 0,
       ),
       BoxShadow(
-        color: color.withValues(alpha: 0.25 * intensity),
-        blurRadius: 28 * intensity,
-        spreadRadius: 0,
+        color: color.withValues(alpha: 0.18 * intensity),
+        blurRadius: 24 * intensity,
+        spreadRadius: 2,
       ),
+    ];
+  }
+
+  /// Glow duplo intenso (botões hero, elementos de destaque)
+  static List<BoxShadow> glowShadowIntense(Color color) {
+    return [
+      BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 8, spreadRadius: 0),
+      BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 20, spreadRadius: 4),
+      BoxShadow(color: color.withValues(alpha: 0.12), blurRadius: 40, spreadRadius: 8),
     ];
   }
 }

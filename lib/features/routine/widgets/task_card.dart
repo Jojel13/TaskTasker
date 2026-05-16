@@ -50,6 +50,23 @@ class _TaskCardState extends ConsumerState<TaskCard> {
        widget.task.scheduledDate != null &&
        widget.task.scheduledDate!.isAfter(DateTime.now()));
 
+  // Fundo do card tematizado pela cor da task
+  Color get _cardBgColor => switch (widget.task.color) {
+    TaskColor.standard => AppColors.card,
+    TaskColor.blue     => AppColors.cardBlue,
+    TaskColor.yellow   => AppColors.cardYellow,
+    TaskColor.red      => AppColors.cardRed,
+  };
+
+  // Label da pílula de cor
+  String get _colorLabel => switch (widget.task.color) {
+    TaskColor.standard => 'STD',
+    TaskColor.blue     => 'FREQ',
+    TaskColor.yellow   => 'PEND',
+    TaskColor.red      => 'DATA',
+  };
+
+
   @override
   Widget build(BuildContext context) {
     final bool hasImage = widget.task.imageFileName != null;
@@ -281,54 +298,90 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             )
           : null,
 
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
         margin: const EdgeInsets.symmetric(vertical: 3),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: _isDone ? AppColors.card : _cardBgColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: _isDone
                 ? AppColors.border
-                : _taskColor.withValues(alpha: 0.25),
-            width: 0.5,
+                : _taskColor.withValues(alpha: 0.4),
+            width: _isDone ? 0.5 : 1.0,
           ),
         ),
         child: Column(
           children: [
             Row(children: [
-              // ── Color dot (ciclo branco→azul→amarelo→branco) ────
-              const SizedBox(width: 12),
+              // ── Color pill button ──────────────────────────────
               GestureDetector(
-                onTap: _isToggleLocked || widget.isReadOnly ? null : () {
-                  // Loop de cores: standard → blue → yellow → standard
-                  // Vermelho: resetar para standard (via clearTaskRed)
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.isReadOnly || _isDone || _isToggleLocked ? null : () {
+                  HapticFeedback.selectionClick();
                   if (widget.task.color == TaskColor.red) {
-                    // Não deveria ocorrer (swipe não aparece para red),
-                    // mas como fallback, volta para branco
-                    ref.read(routineServiceProvider).clearTaskRed(widget.task).then((_) => setState(() {}));
+                    ref.read(routineServiceProvider).clearTaskRed(widget.task)
+                        .then((_) => setState(() {}));
                   } else {
                     widget.onColorCycle();
                   }
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _isDone ? AppColors.textMuted : _taskColor,
-                    boxShadow: _isDone
-                        ? null
-                        : AppColors.glowShadow(_taskColor, intensity: 0.6),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(12, 14, 8, 14),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _isDone
+                          ? AppColors.textMuted.withValues(alpha: 0.1)
+                          : _taskColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _isDone
+                            ? AppColors.textMuted.withValues(alpha: 0.3)
+                            : _taskColor.withValues(alpha: 0.7),
+                        width: 1,
+                      ),
+                      boxShadow: _isDone ? null : [
+                        BoxShadow(
+                          color: _taskColor.withValues(alpha: 0.2),
+                          blurRadius: 6,
+                        )
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _isDone ? AppColors.textMuted : _taskColor,
+                          ),
+                        ),
+                        if (!widget.isReadOnly && !_isDone) ...[
+                          const SizedBox(width: 5),
+                          Text(
+                            _colorLabel,
+                            style: TextStyle(
+                              color: _taskColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
 
               // ── Task text & Indicators ──────────────────────────
               Expanded(
                 child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
+                  behavior: HitTestBehavior.translucent,
                   onTap: widget.task.hasSubtasks
                       ? () => setState(() => _expanded = !_expanded)
                       : null,
@@ -377,9 +430,13 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                             child: Icon(Icons.image_outlined, size: 14, color: AppColors.textMuted),
                           ),
                         if (widget.task.hasSubtasks)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 8.0),
-                            child: Icon(Icons.account_tree_outlined, size: 14, color: AppColors.textMuted),
+                           Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: Icon(
+                              _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                              size: 16,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                       ],
                     ),
@@ -395,13 +452,13 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               GestureDetector(
                 onTap: _isToggleLocked ? null : widget.onToggle,
                 child: Container(
-                  width: 48,
-                  height: 48,
+                  width: 52,
+                  height: 52,
                   alignment: Alignment.center,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    width: 22,
-                    height: 22,
+                    width: 24,
+                    height: 24,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: _isDone ? _taskColor.withValues(alpha: 0.15) : Colors.transparent,
@@ -410,11 +467,11 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                         width: 1.5,
                       ),
                       boxShadow: _isDone
-                          ? AppColors.glowShadow(_taskColor, intensity: 0.4)
+                          ? AppColors.glowShadow(_taskColor, intensity: 0.5)
                           : null,
                     ),
                     child: _isDone
-                        ? Icon(Icons.check, size: 14, color: _taskColor)
+                        ? Icon(Icons.check_rounded, size: 15, color: _taskColor)
                         : null,
                   ),
                 ),
@@ -424,47 +481,54 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             // ── Subtasks Expandables ────────────────────────────
             if (_expanded && widget.task.hasSubtasks)
               Padding(
-                padding: const EdgeInsets.only(left: 36, right: 12, bottom: 8),
+                padding: const EdgeInsets.only(left: 16, right: 12, bottom: 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: widget.task.subtasks.map((sub) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        Icon(
-                          sub.isCompleted
-                              ? Icons.check_circle_outline_rounded
-                              : Icons.radio_button_unchecked_rounded,
-                          size: 16,
-                          color: sub.isCompleted
-                              ? AppColors.accent
-                              : _taskColor.withValues(alpha: 0.7),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            sub.text,
-                            style: TextStyle(
-                              color: sub.isCompleted ? AppColors.textMuted : AppColors.textSecondary,
-                              fontSize: 13,
-                              decoration: sub.isCompleted ? TextDecoration.lineThrough : null,
+                  children: [
+                    Divider(
+                      color: _taskColor.withValues(alpha: 0.15),
+                      thickness: 0.5,
+                      height: 12,
+                    ),
+                    ...widget.task.subtasks.map((sub) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        children: [
+                          Icon(
+                            sub.isCompleted
+                                ? Icons.check_circle_outline_rounded
+                                : Icons.radio_button_unchecked_rounded,
+                            size: 15,
+                            color: sub.isCompleted
+                                ? AppColors.accent
+                                : _taskColor.withValues(alpha: 0.6),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              sub.text,
+                              style: TextStyle(
+                                color: sub.isCompleted ? AppColors.textMuted : AppColors.textSecondary,
+                                fontSize: 13,
+                                decoration: sub.isCompleted ? TextDecoration.lineThrough : null,
+                              ),
                             ),
                           ),
-                        ),
-                        if (sub.isCompleted && sub.completedAt != null)
-                          Text(
-                            '${sub.completedAt!.hour.toString().padLeft(2, '0')}:${sub.completedAt!.minute.toString().padLeft(2, '0')}',
-                            style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
-                          ),
-                      ],
-                    ),
-                  )).toList(),
+                          if (sub.isCompleted && sub.completedAt != null)
+                            Text(
+                              '${sub.completedAt!.hour.toString().padLeft(2, '0')}:${sub.completedAt!.minute.toString().padLeft(2, '0')}',
+                              style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                            ),
+                        ],
+                      ),
+                    )),
+                  ],
                 ),
               ),
           ],
         ),
       ),
-    ).animate().fade(duration: 200.ms).slideX(begin: 0.05, end: 0, curve: Curves.easeOut);
+    ).animate().fade(duration: 200.ms).slideX(begin: 0.04, end: 0, curve: Curves.easeOut);
   }
 }
 

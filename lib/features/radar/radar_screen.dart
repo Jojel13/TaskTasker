@@ -25,25 +25,44 @@ class RadarScreen extends ConsumerWidget {
             (a.scheduledDate ?? DateTime.now()).compareTo(b.scheduledDate ?? DateTime.now()));
         yellowTasks.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-        // Proporção red/(red+yellow) determina quanto fundo é vermelho
-        final total = redTasks.length + yellowTasks.length;
-        final redRatio = total == 0 ? 0.0 : redTasks.length / total;
+        // ── Calcula as cores do degradê baseadas na proporção ────
+        final int total = redTasks.length + yellowTasks.length;
+        final double redRatio = total == 0 ? 0.0 : redTasks.length / total;
+
+        final Color topColor;
+        final Color midColor;
+        const Color bottomColor = Color(0xFF0C0808);
+
+
+        if (total == 0) {
+          topColor = AppColors.background;
+          midColor = AppColors.background;
+        } else if (redRatio >= 0.7) {
+          // Maioria vermelha: fundo vermelho intenso
+          topColor = const Color(0xFF3D0808); // vermelho escuro
+          midColor = const Color(0xFF1F0404);
+        } else if (redRatio >= 0.3) {
+          // Misto: vermelho-âmbar
+          topColor = Color.lerp(const Color(0xFF2A1000), const Color(0xFF3D0808), redRatio)!;
+          midColor = Color.lerp(const Color(0xFF180D00), const Color(0xFF1F0404), redRatio)!;
+        } else {
+          // Maioria amarela: fundo âmbar escuro
+          topColor = const Color(0xFF2A1A00); // âmbar escuro
+          midColor = const Color(0xFF180D00);
+        }
 
         return Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topCenter,
+              begin: Alignment.topLeft,
               end: Alignment.bottomCenter,
               colors: total == 0
                   ? [AppColors.background, AppColors.background]
-                  : [
-                      Color.lerp(const Color(0xFF1A0A00), const Color(0xFF1A0A00), redRatio)!,
-                      Color.lerp(const Color(0xFF0A0A00), const Color(0xFF1A0000), redRatio)!,
-                      AppColors.background,
-                    ],
-              stops: const [0.0, 0.4, 1.0],
+                  : [topColor, midColor, bottomColor],
+              stops: const [0.0, 0.45, 1.0],
             ),
           ),
+
           child: SafeArea(
             child: tasks.isEmpty
                 ? _buildEmpty()

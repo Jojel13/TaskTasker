@@ -4,7 +4,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/providers/core_providers.dart';
 import 'home_screen.dart';
 import '../radar/radar_screen.dart';
-import '../dashboard/xp_dashboard_screen.dart';
 import 'widgets/floating_bottom_bar.dart';
 import '../routine/routine_screen.dart';
 import '../../shared/widgets/particles_background.dart';
@@ -20,22 +19,18 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   final PageController _pageController = PageController(initialPage: 0);
   int _currentIndex = 0;
 
-  static const int _homeIndex = 0;
-
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
   }
 
-  void _onPageChanged(int index) {
-    setState(() => _currentIndex = index);
-  }
+  void _onPageChanged(int index) => setState(() => _currentIndex = index);
 
   void _onNavTap(int index) {
     _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 320),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
   }
@@ -67,10 +62,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Fundo de partículas suave (apenas na Home e XP)
+          // Partículas só na Home
           AnimatedOpacity(
             duration: const Duration(milliseconds: 300),
-            opacity: (_currentIndex == _homeIndex || _currentIndex == 2) ? 1.0 : 0.0,
+            opacity: _currentIndex == 0 ? 1.0 : 0.0,
             child: const Positioned.fill(
               child: ParticlesBackground(intensive: false),
             ),
@@ -78,13 +73,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
           PageView(
             controller: _pageController,
             onPageChanged: _onPageChanged,
-            physics: const NeverScrollableScrollPhysics(), // Nav controlada pela BottomBar
+            physics: const NeverScrollableScrollPhysics(),
             children: const [
               HomeScreen(),
               RadarScreen(),
-              XpDashboardScreen(),
-              // TODO Fase 6: AnalyticsScreen()
-              XpDashboardScreen(), // Placeholder até a Fase 6
             ],
           ),
         ],

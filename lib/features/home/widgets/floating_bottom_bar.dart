@@ -17,19 +17,18 @@ class FloatingBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: const EdgeInsets.fromLTRB(32, 0, 32, 28),
       child: Container(
-        height: 68,
+        height: 64,
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(34),
+          borderRadius: BorderRadius.circular(32),
           border: Border.all(color: AppColors.border, width: 0.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.4),
-              blurRadius: 20,
-              spreadRadius: 0,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 24,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -39,7 +38,6 @@ class FloatingBottomBar extends StatelessWidget {
             // Home
             _NavItem(
               icon: Icons.home_rounded,
-              label: 'Home',
               isActive: currentIndex == 0,
               activeColor: AppColors.primary,
               onTap: () {
@@ -48,57 +46,36 @@ class FloatingBottomBar extends StatelessWidget {
               },
             ),
 
-            // Radar
-            _NavItem(
-              icon: Icons.radar_rounded,
-              label: 'Radar',
-              isActive: currentIndex == 1,
-              activeColor: AppColors.taskYellow,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onNavTap(1);
-              },
-            ),
-
-            // Botão central + (criar rotina)
+            // Botão + central
             GestureDetector(
               onTap: () {
                 HapticFeedback.mediumImpact();
                 onPlusTap();
               },
               child: Container(
-                width: 54,
-                height: 54,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.primary,
                   boxShadow: AppColors.glowShadowIntense(AppColors.primary),
                 ),
-                child: const Icon(Icons.add_rounded, color: AppColors.background, size: 28),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: AppColors.background,
+                  size: 28,
+                ),
               ),
             ),
 
-            // XP
+            // Radar
             _NavItem(
-              icon: Icons.star_rounded,
-              label: 'XP',
-              isActive: currentIndex == 2,
-              activeColor: AppColors.accent,
+              icon: Icons.radar_rounded,
+              isActive: currentIndex == 1,
+              activeColor: AppColors.taskYellow,
               onTap: () {
                 HapticFeedback.selectionClick();
-                onNavTap(2);
-              },
-            ),
-
-            // Análise
-            _NavItem(
-              icon: Icons.bar_chart_rounded,
-              label: 'Análise',
-              isActive: currentIndex == 3,
-              activeColor: AppColors.secondary,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onNavTap(3);
+                onNavTap(1);
               },
             ),
           ],
@@ -110,14 +87,12 @@ class FloatingBottomBar extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
-  final String label;
   final bool isActive;
   final Color activeColor;
   final VoidCallback onTap;
 
   const _NavItem({
     required this.icon,
-    required this.label,
     required this.isActive,
     required this.activeColor,
     required this.onTap,
@@ -130,37 +105,23 @@ class _NavItem extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        width: 56,
+        height: 56,
+        alignment: Alignment.center,
         decoration: isActive
             ? BoxDecoration(
-                color: activeColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
+                color: activeColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
                 border: Border.all(
-                  color: activeColor.withValues(alpha: 0.3),
-                  width: 0.5,
+                  color: activeColor.withValues(alpha: 0.35),
+                  width: 1,
                 ),
               )
             : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isActive ? activeColor : AppColors.textMuted,
-              size: 22,
-            ),
-            const SizedBox(height: 2),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                color: isActive ? activeColor : Colors.transparent,
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-              child: Text(label),
-            ),
-          ],
+        child: Icon(
+          icon,
+          color: isActive ? activeColor : AppColors.textSecondary,
+          size: 26,
         ),
       ),
     );

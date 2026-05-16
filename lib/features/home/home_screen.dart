@@ -7,6 +7,7 @@ import '../../shared/models/routine.dart';
 import 'widgets/routine_card.dart';
 import '../routine/routine_screen.dart';
 import 'settings_screen.dart';
+import '../dashboard/xp_dashboard_screen.dart';
 import '../../shared/widgets/xp_bar.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -18,80 +19,132 @@ class HomeScreen extends ConsumerWidget {
     final profile = ref.watch(userProfileProvider).valueOrNull;
 
     return SafeArea(
-        child: Column(children: [
-          // ── Header ─────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: Row(children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('TASKTASKER',
-                      style: AppTextStyles.monoSmall
-                          .copyWith(color: AppColors.primaryDim)),
-                  Text(profile?.routineName ?? 'Minha Rotina',
-                      style: AppTextStyles.displayMedium),
-                ]),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.border),
+      child: Column(children: [
+        // ── Header ─────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 8, 8),
+          child: Row(children: [
+            // Título
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  'TASKTASKER',
+                  style: AppTextStyles.monoSmall.copyWith(
+                    color: AppColors.primary,
+                    letterSpacing: 2.5,
+                  ),
                 ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Text('🔥', style: TextStyle(fontSize: 14)),
-                  const SizedBox(width: 4),
-                  Text('${profile?.streakDays ?? 0}d',
-                      style: AppTextStyles.monoSmall),
-                ]),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined, color: AppColors.textMuted),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                Text(
+                  profile?.routineName ?? 'Minha Rotina',
+                  style: AppTextStyles.displayMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-            ]),
-          ),
-          
-          // ── XP Bar ─────────────────────────────────────────
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.0),
-            child: XpBar(),
-          ),
+              ]),
+            ),
 
-          // ── Lista de rotinas ────────────────────────────────
-          Expanded(
-            child: routinesAsync.when(
-              loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary)),
-              error: (e, _) => Center(
-                  child: Text('Erro: $e',
-                      style: const TextStyle(color: AppColors.taskRed))),
-              data: (routines) {
-                if (routines.isEmpty) {
-                  return _EmptyState();
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.only(top: 8, bottom: 100),
-                  itemCount: routines.length,
-                  itemBuilder: (context, i) {
-                    return _RoutineCardLoader(
-                      routine: routines[i],
-                      isToday: _isToday(routines[i]),
-                      onTap: () => _openRoutine(context, ref, routines[i]),
-                      onDelete: () => _deleteRoutine(ref, routines[i]),
-                    );
-                  },
+            // Streak badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppColors.accent.withValues(alpha: 0.35),
+                  width: 0.5,
+                ),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Text('🔥', style: TextStyle(fontSize: 13)),
+                const SizedBox(width: 4),
+                Text(
+                  '${profile?.streakDays ?? 0}',
+                  style: AppTextStyles.monoSmall.copyWith(
+                    color: AppColors.accent,
+                    fontSize: 12,
+                  ),
+                ),
+              ]),
+            ),
+            const SizedBox(width: 4),
+
+            // XP Dashboard
+            _HeaderIconButton(
+              icon: Icons.star_rounded,
+              color: AppColors.accent,
+              tooltip: 'XP',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const XpDashboardScreen()),
+              ),
+            ),
+
+            // Análise (placeholder até Fase 6)
+            _HeaderIconButton(
+              icon: Icons.bar_chart_rounded,
+              color: AppColors.secondary,
+              tooltip: 'Análise',
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Análise em breve!',
+                      style: TextStyle(color: AppColors.textPrimary),
+                    ),
+                    backgroundColor: AppColors.surface,
+                    duration: const Duration(seconds: 1),
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               },
             ),
+
+            // Settings
+            _HeaderIconButton(
+              icon: Icons.settings_outlined,
+              color: AppColors.textSecondary,
+              tooltip: 'Configurações',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              ),
+            ),
+          ]),
+        ),
+
+        // ── XP Bar ──────────────────────────────────────────────
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4.0),
+          child: XpBar(),
+        ),
+
+        // ── Lista de rotinas ─────────────────────────────────────
+        Expanded(
+          child: routinesAsync.when(
+            loading: () => const Center(
+                child: CircularProgressIndicator(color: AppColors.primary)),
+            error: (e, _) => Center(
+                child: Text('Erro: $e',
+                    style: const TextStyle(color: AppColors.taskRed))),
+            data: (routines) {
+              if (routines.isEmpty) return const _EmptyState();
+              return ListView.builder(
+                padding: const EdgeInsets.only(top: 8, bottom: 120),
+                itemCount: routines.length,
+                itemBuilder: (context, i) {
+                  return _RoutineCardLoader(
+                    routine: routines[i],
+                    isToday: _isToday(routines[i]),
+                    onTap: () => _openRoutine(context, ref, routines[i]),
+                    onDelete: () => _deleteRoutine(ref, routines[i]),
+                  );
+                },
+              );
+            },
           ),
-        ]),
-      );
+        ),
+      ]),
+    );
   }
 
   bool _isToday(Routine r) {
@@ -100,7 +153,6 @@ class HomeScreen extends ConsumerWidget {
         r.date.month == now.month &&
         r.date.day == now.day;
   }
-
 
   void _openRoutine(BuildContext context, WidgetRef ref, Routine routine) {
     Navigator.push(
@@ -114,7 +166,38 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-// ── Carrega os days de cada rotina para o card ────────────────────────────────
+// ── Botão de ícone do header ─────────────────────────────────────────────────
+class _HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _HeaderIconButton({
+    required this.icon,
+    required this.color,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          child: Icon(icon, color: color, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Carrega os days de cada rotina para o card ───────────────────────────────
 class _RoutineCardLoader extends ConsumerWidget {
   final Routine routine;
   final bool isToday;
@@ -132,8 +215,11 @@ class _RoutineCardLoader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final daysAsync = ref.watch(routineDaysProvider(routine.id));
     return daysAsync.when(
-      loading: () => const SizedBox(height: 80,
-          child: Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2))),
+      loading: () => const SizedBox(
+          height: 80,
+          child: Center(
+              child: CircularProgressIndicator(
+                  color: AppColors.primary, strokeWidth: 2))),
       error: (_, _) => const SizedBox.shrink(),
       data: (days) => RoutineCard(
         routine: routine,
@@ -146,19 +232,39 @@ class _RoutineCardLoader extends ConsumerWidget {
   }
 }
 
-// ── Estado vazio ──────────────────────────────────────────────────────────────
+// ── Estado vazio ─────────────────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Text('⚡', style: TextStyle(fontSize: 56)),
-        const SizedBox(height: 16),
-        const Text('Nenhuma rotina ainda',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.primary.withValues(alpha: 0.08),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.3),
+            ),
+          ),
+          child: const Icon(Icons.add_rounded, color: AppColors.primary, size: 36),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'Nenhuma rotina ainda',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+        ),
         const SizedBox(height: 8),
-        Text('Toque em + para começar',
-            style: AppTextStyles.monoSmall.copyWith(color: AppColors.primaryDim)),
+        Text(
+          'Toque em + para começar',
+          style: AppTextStyles.monoSmall.copyWith(
+            color: AppColors.primaryDim,
+            fontSize: 11,
+          ),
+        ),
       ]),
     );
   }

@@ -36,10 +36,21 @@ class Task {
   List<int> frequencyDays = []; // ISO weekdays: [1=seg ... 7=dom]
   DateTime? lastAppearedDate;
 
+  // ─── Alarme Individual (Fase 3) ──────────────────────────────
+  /// Horário do alarme. null = sem alarme.
+  DateTime? alarmTime;
+
+  /// Se true: dispara 3 notificações com intervalo de 5 min
+  bool alarmRepeat = false;
+
   // ─── Cache para evitar queries extras no UI ──────────────────
   bool hasImage = false;
   bool hasSubtasks = false;
 
   // ─── Subtasks embedded ───────────────────────────────────────
   List<Subtask> subtasks = [];
+
+  // ─── Getters computados (não persistidos) ────────────────────
+  @ignore
+  bool get hasAlarm => alarmTime != null;
 }

@@ -8,6 +8,7 @@ import '../../shared/models/user_profile.dart';
 import '../../shared/models/enums.dart';
 import 'xp_service.dart';
 import 'image_service.dart';
+import 'alarm_service.dart';
 
 class RoutineService {
   final Isar _isar;
@@ -230,6 +231,11 @@ class RoutineService {
       await _isar.tasks.delete(taskId);
     });
 
+    // Cancelar alarme se existia
+    if (task != null && task.hasAlarm) {
+      await AlarmService.cancelAlarm(taskId);
+    }
+
     // Estornar XP se a task estava concluída
     if (task != null && task.status == TaskStatus.completed) {
       final xpAmount = XpService.xpForAction(task.color);
@@ -344,6 +350,26 @@ class RoutineService {
   Future<void> clearTaskRed(Task task) async {
     task.color = TaskColor.standard;
     task.scheduledDate = null;
+    await _isar.writeTxn(() => _isar.tasks.put(task));
+  }
+
+  // ─── Alarme Individual (Fase 3) ──────────────────────────────────
+
+  /// Define (ou atualiza) o alarme de uma task.
+  /// [time] deve ser um DateTime com a data e hora exatas do alarme.
+  /// [repeat] = true para repetir 3x a cada 5 min.
+  Future<void> setAlarm(Task task, DateTime time, {bool repeat = false}) async {
+    task.alarmTime = time;
+    task.alarmRepeat = repeat;
+    await _isar.writeTxn(() => _isar.tasks.put(task));
+    await AlarmService.scheduleAlarm(task);
+  }
+
+  /// Remove o alarme de uma task.
+  Future<void> clearAlarm(Task task) async {
+    await AlarmService.cancelAlarm(task.id);
+    task.alarmTime = null;
+    task.alarmRepeat = false;
     await _isar.writeTxn(() => _isar.tasks.put(task));
   }
 

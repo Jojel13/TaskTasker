@@ -7,6 +7,7 @@ import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
 import '../../../core/services/image_service.dart';
 import 'task_settings_sheet.dart';
+import 'alarm_sheet.dart';
 import '../task_tree_screen.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -243,57 +244,81 @@ class _TaskCardState extends ConsumerState<TaskCard> {
         ],
       ),
 
-      // ── Swipe direito: Calendário (→vermelho) para tasks amarelas,
-      //                   Frequência para tasks azuis.
-      //                   Não aparece para tasks vermelhas. ─────────
+      // ── Swipe direito ─────────────────────────────────────────
+      // Branco   → [Alarme]
+      // Amarelo  → [Calendário] + [Alarme]
+      // Azul     → [Freq]
+      // Vermelho → sem startPane
       startActionPane: (!widget.isReadOnly &&
               widget.task.color != TaskColor.red)
           ? ActionPane(
               motion: const DrawerMotion(),
-              extentRatio: 0.25,
+              // 2 acões para amarelo (50%), 1 para os demais (25%)
+              extentRatio:
+                  widget.task.color == TaskColor.yellow ? 0.50 : 0.25,
               children: [
+                // ── Azul: Frequência ────────────────────────────
                 if (widget.task.color == TaskColor.blue)
-                  // Azul: ajustar frequência
                   SlidableAction(
-                    onPressed: (_) => TaskSettingsSheet.show(context, widget.task),
+                    onPressed: (_) =>
+                        TaskSettingsSheet.show(context, widget.task),
                     backgroundColor: AppColors.surface,
                     foregroundColor: AppColors.taskBlue,
                     icon: Icons.repeat_rounded,
                     label: 'Freq',
                     borderRadius: BorderRadius.circular(12),
                   )
-                else
-                  // Branco/Amarelo: agendar como vermelho
-                  SlidableAction(
-                    onPressed: (_) async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: widget.task.scheduledDate ?? DateTime.now().add(const Duration(days: 1)),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                        builder: (context, child) => Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: const ColorScheme.dark(
-                              primary: AppColors.taskRed,
-                              onPrimary: Colors.white,
-                              surface: AppColors.background,
-                              onSurface: Colors.white,
+                else ...[
+                  // ── Branco/Amarelo: Calendário (→ vermelha) ────────
+                  if (widget.task.color == TaskColor.yellow)
+                    SlidableAction(
+                      onPressed: (_) async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: widget.task.scheduledDate ??
+                              DateTime.now().add(const Duration(days: 1)),
+                          firstDate: DateTime.now(),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
+                          builder: (context, child) => Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: const ColorScheme.dark(
+                                primary: AppColors.taskRed,
+                                onPrimary: Colors.white,
+                                surface: AppColors.background,
+                                onSurface: Colors.white,
+                              ),
                             ),
+                            child: child!,
                           ),
-                          child: child!,
-                        ),
-                      );
-                      if (date != null && context.mounted) {
-                        await ref.read(routineServiceProvider).setTaskRed(widget.task, date);
-                        setState(() {});
-                      }
-                    },
-                    backgroundColor: AppColors.taskRed.withValues(alpha: 0.12),
-                    foregroundColor: AppColors.taskRed,
-                    icon: Icons.calendar_today_rounded,
-                    label: 'Agendar',
+                        );
+                        if (date != null && context.mounted) {
+                          await ref
+                              .read(routineServiceProvider)
+                              .setTaskRed(widget.task, date);
+                          setState(() {});
+                        }
+                      },
+                      backgroundColor:
+                          AppColors.taskRed.withValues(alpha: 0.12),
+                      foregroundColor: AppColors.taskRed,
+                      icon: Icons.calendar_today_rounded,
+                      label: 'Agendar',
+                    ),
+
+                  // ── Branco + Amarelo: Alarme ──────────────────────
+                  SlidableAction(
+                    onPressed: (_) =>
+                        AlarmSheet.show(context, widget.task),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                    foregroundColor: AppColors.primary,
+                    icon: widget.task.hasAlarm
+                        ? Icons.alarm_on_rounded
+                        : Icons.alarm_add_rounded,
+                    label: widget.task.hasAlarm ? 'Alarme ✓' : 'Alarme',
                     borderRadius: BorderRadius.circular(12),
                   ),
+                ],
               ],
             )
           : null,
@@ -444,6 +469,10 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 ),
               ),
 
+              // ── Alarme badge ────────────────────────────────────
+              if (widget.task.hasAlarm && !_isDone)
+                _AlarmBadge(alarmTime: widget.task.alarmTime!),
+
               // ── Countdown badge (task vermelha) ─────────────────
               if (widget.task.color == TaskColor.red && widget.task.scheduledDate != null)
                 _CountdownBadge(scheduledDate: widget.task.scheduledDate!),
@@ -545,7 +574,7 @@ class _CountdownBadge extends StatelessWidget {
     final label = diff == 0 ? 'Hoje!' : diff < 0 ? 'Atrasado' : '${diff}d';
     final isToday = diff == 0;
     final isOverdue = diff < 0;
-    final badgeColor = isOverdue ? AppColors.taskRed : AppColors.taskRed;
+    const badgeColor = AppColors.taskRed;
 
     return Container(
       margin: const EdgeInsets.only(right: 8),
@@ -565,6 +594,47 @@ class _CountdownBadge extends StatelessWidget {
           fontSize: 10,
           fontWeight: isToday || isOverdue ? FontWeight.w700 : FontWeight.normal,
         ),
+      ),
+    );
+  }
+}
+
+/// Badge que mostra o horário do alarme no card da task.
+class _AlarmBadge extends StatelessWidget {
+  final DateTime alarmTime;
+  const _AlarmBadge({required this.alarmTime});
+
+  @override
+  Widget build(BuildContext context) {
+    final h = alarmTime.hour.toString().padLeft(2, '0');
+    final m = alarmTime.minute.toString().padLeft(2, '0');
+
+    return Container(
+      margin: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.35),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.alarm_on_rounded, size: 11, color: AppColors.primary),
+          const SizedBox(width: 4),
+          Text(
+            '$h:$m',
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }

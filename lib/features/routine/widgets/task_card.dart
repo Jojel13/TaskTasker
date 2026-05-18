@@ -12,6 +12,7 @@ import '../task_tree_screen.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
+import 'dart:ui' as ui;
 
 class TaskCard extends ConsumerStatefulWidget {
   final Task task;
@@ -158,34 +159,42 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 final source = await showDialog<ImageSource>(
                   context: context,
                   barrierDismissible: true,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: AppColors.surface,
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Imagem', style: TextStyle(color: AppColors.textPrimary)),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: AppColors.textMuted, size: 18),
-                          onPressed: () => Navigator.pop(ctx),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
+                  builder: (ctx) => BackdropFilter(
+                    filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    child: Dialog(
+                      backgroundColor: Colors.transparent,
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.taskBlue.withValues(alpha: 0.5)),
+                          boxShadow: AppColors.glowShadow(AppColors.taskBlue, intensity: 0.5),
                         ),
-                      ],
-                    ),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ListTile(
-                          leading: const Icon(Icons.camera_alt, color: AppColors.taskBlue),
-                          title: const Text('Câmera', style: TextStyle(color: AppColors.textPrimary)),
-                          onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Anexar Imagem',
+                                style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 24),
+                            ListTile(
+                              leading: const Icon(Icons.camera_alt, color: AppColors.taskBlue),
+                              title: const Text('Câmera', style: TextStyle(color: AppColors.textPrimary)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              tileColor: AppColors.taskBlue.withValues(alpha: 0.1),
+                              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                            ),
+                            const SizedBox(height: 12),
+                            ListTile(
+                              leading: const Icon(Icons.photo_library, color: AppColors.taskBlue),
+                              title: const Text('Galeria', style: TextStyle(color: AppColors.textPrimary)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              tileColor: AppColors.taskBlue.withValues(alpha: 0.1),
+                              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                            ),
+                          ],
                         ),
-                        ListTile(
-                          leading: const Icon(Icons.photo_library, color: AppColors.taskBlue),
-                          title: const Text('Galeria', style: TextStyle(color: AppColors.textPrimary)),
-                          onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 );

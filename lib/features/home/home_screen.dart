@@ -4,6 +4,7 @@ import '../../core/providers/core_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/routine.dart';
+import '../../shared/models/enums.dart';
 import 'widgets/routine_card.dart';
 import '../routine/routine_screen.dart';
 import 'settings_screen.dart';
@@ -128,17 +129,29 @@ class HomeScreen extends ConsumerWidget {
                     style: const TextStyle(color: AppColors.taskRed))),
             data: (routines) {
               if (routines.isEmpty) return const _EmptyState();
-              return ListView.builder(
-                padding: const EdgeInsets.only(top: 8, bottom: 120),
-                itemCount: routines.length,
-                itemBuilder: (context, i) {
-                  return _RoutineCardLoader(
-                    routine: routines[i],
-                    isToday: _isToday(routines[i]),
-                    onTap: () => _openRoutine(context, ref, routines[i]),
-                    onDelete: () => _deleteRoutine(ref, routines[i]),
-                  );
-                },
+              
+              final idx = routines.indexWhere((r) => _isToday(r));
+              final todayRoutine = idx != -1 ? routines[idx] : null;
+
+              return Column(
+                children: [
+                  if (todayRoutine != null)
+                    _TodayProgressBanner(routine: todayRoutine),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.only(top: 8, bottom: 120),
+                      itemCount: routines.length,
+                      itemBuilder: (context, i) {
+                        return _RoutineCardLoader(
+                          routine: routines[i],
+                          isToday: i == idx,
+                          onTap: () => _openRoutine(context, ref, routines[i]),
+                          onDelete: () => _deleteRoutine(ref, routines[i]),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -266,6 +279,66 @@ class _EmptyState extends StatelessWidget {
           ),
         ),
       ]),
+    );
+  }
+}
+
+// ── Banner de Progresso para a rotina de hoje ────────────────────────────
+class _TodayProgressBanner extends ConsumerWidget {
+  final Routine routine;
+  const _TodayProgressBanner({required this.routine});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final daysAsync = ref.watch(routineDaysProvider(routine.id));
+    
+    return daysAsync.when(
+      data: (days) {
+         final tasks = days.where((d) => d.division != DivisionType.tomorrow).expand((d) => d.tasks).toList();
+         final total = tasks.length;
+         if (total == 0) return const SizedBox.shrink();
+         
+         final done = tasks.where((t) => t.status == TaskStatus.completed).length;
+         final percent = (done / total * 100).toInt();
+         final left = total - done;
+
+         return Container(
+           margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+           decoration: BoxDecoration(
+             gradient: LinearGradient(
+               colors: [AppColors.primary.withValues(alpha: 0.15), AppColors.accent.withValues(alpha: 0.05)],
+               begin: Alignment.topLeft,
+               end: Alignment.bottomRight,
+             ),
+             borderRadius: BorderRadius.circular(12),
+             border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 0.8),
+           ),
+           child: Row(
+             children: [
+               Icon(left == 0 ? Icons.check_circle_rounded : Icons.track_changes_rounded, 
+                 color: left == 0 ? AppColors.accent : AppColors.primary, size: 20),
+               const SizedBox(width: 12),
+               Expanded(
+                 child: Text(
+                   left == 0 ? 'Todas as tarefas concluídas!' : '$left tasks restantes hoje',
+                   style: TextStyle(
+                     color: left == 0 ? AppColors.accent : AppColors.textPrimary, 
+                     fontWeight: FontWeight.w600, 
+                     fontSize: 13,
+                   ),
+                 ),
+               ),
+               Text(
+                 '$percent%',
+                 style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold, fontSize: 13),
+               ),
+             ],
+           ),
+         );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (e, stack) => const SizedBox.shrink(),
     );
   }
 }

@@ -4,6 +4,7 @@ import '../../core/providers/core_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/user_profile.dart';
+import '../../core/services/notification_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -20,6 +21,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late TextEditingController _afternoonCtrl;
   late TextEditingController _nightCtrl;
   late TextEditingController _tomorrowCtrl;
+  
+  double _notificationFrequency = 6;
 
   @override
   void initState() {
@@ -41,6 +44,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _afternoonCtrl.text = profile.divisionAfternoonName;
       _nightCtrl.text = profile.divisionNightName;
       _tomorrowCtrl.text = profile.divisionTomorrowName;
+      _notificationFrequency = profile.notificationFrequencyHours.toDouble();
     }
   }
 
@@ -65,10 +69,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         profile.divisionAfternoonName = _afternoonCtrl.text;
         profile.divisionNightName = _nightCtrl.text;
         profile.divisionTomorrowName = _tomorrowCtrl.text;
+        profile.notificationFrequencyHours = _notificationFrequency.toInt();
         
         await isar.writeTxn(() async {
           await isar.userProfiles.put(profile);
         });
+        
+        // Atualiza o Workmanager com a nova frequência
+        NotificationService.instance.updatePeriodicChecks(_notificationFrequency.toInt());
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -104,22 +112,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('GERAL', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary)),
+                _buildAccordion(
+                  title: 'Personalização de Nomes',
+                  icon: Icons.edit_note_rounded,
+                  children: [
+                    _buildTextField('Nome da Rotina', _routineNameCtrl),
+                    const SizedBox(height: 16),
+                    Text('DIVISÕES DO DIA', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary)),
+                    const SizedBox(height: 12),
+                    _buildTextField('Manhã', _morningCtrl),
+                    const SizedBox(height: 12),
+                    _buildTextField('Tarde', _afternoonCtrl),
+                    const SizedBox(height: 12),
+                    _buildTextField('Noite', _nightCtrl),
+                    const SizedBox(height: 12),
+                    _buildTextField('Para Amanhã', _tomorrowCtrl),
+                  ],
+                ),
+                
                 const SizedBox(height: 16),
-                _buildTextField('Nome da Rotina', _routineNameCtrl),
+                
+                _buildAccordion(
+                  title: 'Notificações (Background)',
+                  icon: Icons.notifications_active_outlined,
+                  children: [
+                    const Text(
+                      'Frequência de lembretes automáticos:',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Text('A cada ${_notificationFrequency.toInt()}h', 
+                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
+                        Expanded(
+                          child: Slider(
+                            value: _notificationFrequency,
+                            min: 1,
+                            max: 24,
+                            divisions: 23,
+                            activeColor: AppColors.primary,
+                            inactiveColor: AppColors.surface,
+                            onChanged: (val) {
+                              setState(() => _notificationFrequency = val);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
                 
                 const SizedBox(height: 32),
-                Text('DIVISÕES DO DIA', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary)),
-                const SizedBox(height: 16),
-                _buildTextField('Manhã', _morningCtrl),
-                const SizedBox(height: 12),
-                _buildTextField('Tarde', _afternoonCtrl),
-                const SizedBox(height: 12),
-                _buildTextField('Noite', _nightCtrl),
-                const SizedBox(height: 12),
-                _buildTextField('Para Amanhã', _tomorrowCtrl),
-                
-                const SizedBox(height: 48),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -235,6 +279,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
         return null;
       },
+    );
+  }
+
+  Widget _buildAccordion({required String title, required IconData icon, required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: true,
+          leading: Icon(icon, color: AppColors.primary, size: 24),
+          title: Text(title, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+          iconColor: AppColors.primary,
+          collapsedIconColor: AppColors.textSecondary,
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          children: children,
+        ),
+      ),
     );
   }
 }

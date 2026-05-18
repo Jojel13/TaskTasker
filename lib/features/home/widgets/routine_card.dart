@@ -73,6 +73,41 @@ class _RoutineCardState extends State<RoutineCard> {
     final tasks = _allTasks();
     final colors = _colors();
 
+    if (!widget.isToday) {
+      return GestureDetector(
+        onLongPress: _showDeleteDialog,
+        onTap: widget.onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surface.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.5), width: 0.5),
+          ),
+          child: Row(
+            children: [
+              Text(dateStr, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0.5)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(widget.routine.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              ),
+              if (colors.isNotEmpty) ...[
+                ...colors.map((c) => Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(left: 4),
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: _colorDot(c)),
+                    )),
+                const SizedBox(width: 12),
+              ],
+              const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.textMuted),
+            ],
+          ),
+        ),
+      ).animate().fade(duration: 300.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad);
+    }
+
     return GestureDetector(
       onLongPress: _showDeleteDialog,
       child: AnimatedContainer(

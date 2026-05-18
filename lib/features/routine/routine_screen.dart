@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'dart:ui' as ui;
 import '../../core/providers/core_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -100,28 +101,49 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
 
           // ── Content ─────────────────────────────────────────
           Expanded(
-            child: daysAsync.when(
-              loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppColors.secondary)),
-              error: (e, _) => Center(
-                  child: Text('Erro: $e',
-                      style: const TextStyle(color: AppColors.taskRed))),
-              data: (days) {
-                // Após carregar, scroll automático se solicitado
-                if (widget.scrollToTaskId != null) {
-                  _scrollToTask(widget.scrollToTaskId!);
-                }
-                return ListView(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                  children: days.map((day) => DivisionSection(
-                    routine: widget.routine,
-                    day: day,
-                    isToday: _isToday,
-                    taskKeys: _taskKeys,
-                  )).toList(),
-                );
-              },
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: daysAsync.when(
+                    loading: () => const Center(
+                        child: CircularProgressIndicator(color: AppColors.secondary)),
+                    error: (e, _) => Center(
+                        child: Text('Erro: $e',
+                            style: const TextStyle(color: AppColors.taskRed))),
+                    data: (days) {
+                      // Após carregar, scroll automático se solicitado
+                      if (widget.scrollToTaskId != null) {
+                        _scrollToTask(widget.scrollToTaskId!);
+                      }
+                      return ListView(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                        children: days.map((day) => DivisionSection(
+                          routine: widget.routine,
+                          day: day,
+                          isToday: _isToday,
+                          taskKeys: _taskKeys,
+                        )).toList(),
+                      );
+                    },
+                  ),
+                ),
+                
+                // Efeito Glass para Histórico (rotinas antigas)
+                if (!_isToday)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: ClipRect(
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
+                          child: Container(
+                            color: AppColors.background.withValues(alpha: 0.15),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ]),

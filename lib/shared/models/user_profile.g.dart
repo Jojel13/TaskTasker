@@ -72,23 +72,28 @@ const UserProfileSchema = CollectionSchema(
       name: r'notifNightOffsetMin',
       type: IsarType.long,
     ),
-    r'routineName': PropertySchema(
+    r'notificationFrequencyHours': PropertySchema(
       id: 11,
+      name: r'notificationFrequencyHours',
+      type: IsarType.long,
+    ),
+    r'routineName': PropertySchema(
+      id: 12,
       name: r'routineName',
       type: IsarType.string,
     ),
     r'streakDays': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'streakDays',
       type: IsarType.long,
     ),
     r'streakRecord': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'streakRecord',
       type: IsarType.long,
     ),
     r'totalXP': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'totalXP',
       type: IsarType.long,
     )
@@ -139,10 +144,11 @@ void _userProfileSerialize(
   writer.writeLong(offsets[8], object.notifAfternoonOffsetMin);
   writer.writeLong(offsets[9], object.notifMorningOffsetMin);
   writer.writeLong(offsets[10], object.notifNightOffsetMin);
-  writer.writeString(offsets[11], object.routineName);
-  writer.writeLong(offsets[12], object.streakDays);
-  writer.writeLong(offsets[13], object.streakRecord);
-  writer.writeLong(offsets[14], object.totalXP);
+  writer.writeLong(offsets[11], object.notificationFrequencyHours);
+  writer.writeString(offsets[12], object.routineName);
+  writer.writeLong(offsets[13], object.streakDays);
+  writer.writeLong(offsets[14], object.streakRecord);
+  writer.writeLong(offsets[15], object.totalXP);
 }
 
 UserProfile _userProfileDeserialize(
@@ -164,10 +170,11 @@ UserProfile _userProfileDeserialize(
   object.notifAfternoonOffsetMin = reader.readLong(offsets[8]);
   object.notifMorningOffsetMin = reader.readLong(offsets[9]);
   object.notifNightOffsetMin = reader.readLong(offsets[10]);
-  object.routineName = reader.readString(offsets[11]);
-  object.streakDays = reader.readLong(offsets[12]);
-  object.streakRecord = reader.readLong(offsets[13]);
-  object.totalXP = reader.readLong(offsets[14]);
+  object.notificationFrequencyHours = reader.readLong(offsets[11]);
+  object.routineName = reader.readString(offsets[12]);
+  object.streakDays = reader.readLong(offsets[13]);
+  object.streakRecord = reader.readLong(offsets[14]);
+  object.totalXP = reader.readLong(offsets[15]);
   return object;
 }
 
@@ -201,12 +208,14 @@ P _userProfileDeserializeProp<P>(
     case 10:
       return (reader.readLong(offset)) as P;
     case 11:
-      return (reader.readString(offset)) as P;
-    case 12:
       return (reader.readLong(offset)) as P;
+    case 12:
+      return (reader.readString(offset)) as P;
     case 13:
       return (reader.readLong(offset)) as P;
     case 14:
+      return (reader.readLong(offset)) as P;
+    case 15:
       return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1412,6 +1421,62 @@ extension UserProfileQueryFilter
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      notificationFrequencyHoursEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'notificationFrequencyHours',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      notificationFrequencyHoursGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'notificationFrequencyHours',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      notificationFrequencyHoursLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'notificationFrequencyHours',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      notificationFrequencyHoursBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'notificationFrequencyHours',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
       routineNameEqualTo(
     String value, {
     bool caseSensitive = true,
@@ -1871,6 +1936,20 @@ extension UserProfileQuerySortBy
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByNotificationFrequencyHours() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notificationFrequencyHours', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByNotificationFrequencyHoursDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notificationFrequencyHours', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByRoutineName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'routineName', Sort.asc);
@@ -2084,6 +2163,20 @@ extension UserProfileQuerySortThenBy
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByNotificationFrequencyHours() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notificationFrequencyHours', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByNotificationFrequencyHoursDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notificationFrequencyHours', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByRoutineName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'routineName', Sort.asc);
@@ -2215,6 +2308,13 @@ extension UserProfileQueryWhereDistinct
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QDistinct>
+      distinctByNotificationFrequencyHours() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'notificationFrequencyHours');
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByRoutineName(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -2321,6 +2421,13 @@ extension UserProfileQueryProperty
       notifNightOffsetMinProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'notifNightOffsetMin');
+    });
+  }
+
+  QueryBuilder<UserProfile, int, QQueryOperations>
+      notificationFrequencyHoursProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'notificationFrequencyHours');
     });
   }
 

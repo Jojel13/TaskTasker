@@ -103,14 +103,26 @@ class NotificationService {
     );
     
     _initialized = true;
-    _schedulePeriodicChecks();
+    
+    // Ler a frequência salva (ou usar 6h como padrão)
+    final dir = await getApplicationDocumentsDirectory();
+    final isar = await Isar.open(
+      [RoutineSchema, RoutineDaySchema, TaskSchema, UserProfileSchema, XPEventSchema],
+      directory: dir.path,
+      name: 'tasktasker_db',
+    );
+    final profile = await isar.userProfiles.get(1);
+    final hours = profile?.notificationFrequencyHours ?? 6;
+    await isar.close();
+    
+    updatePeriodicChecks(hours);
   }
   
-  void _schedulePeriodicChecks() {
+  void updatePeriodicChecks(int hours) {
     Workmanager().registerPeriodicTask(
       "tasktasker_daily_checks",
       "check_routines_and_notify",
-      frequency: const Duration(hours: 6), // Check every 6 hours
+      frequency: Duration(hours: hours),
       constraints: Constraints(
         networkType: NetworkType.connected,
         requiresBatteryNotLow: true,

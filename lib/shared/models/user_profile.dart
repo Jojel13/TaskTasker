@@ -25,6 +25,8 @@ class UserProfile {
   int notifMorningOffsetMin   = 0; // às 07:00
   int notifAfternoonOffsetMin = 0; // às 13:00
   int notifNightOffsetMin     = 0; // às 19:00
+  
+  int notificationFrequencyHours = 6; // Frequência do Workmanager
 
   String appTheme = 'cyberpunk_dark';
 }

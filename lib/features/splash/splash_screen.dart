@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/particles_background.dart';
+import '../../shared/widgets/sapo_mascot_widget.dart';
 import '../home/main_wrapper.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -92,25 +93,8 @@ class _SplashScreenState extends State<SplashScreen> with RestorationMixin {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo placeholder (Double checkmark with glow)
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.surface,
-                    border: Border.all(color: AppColors.primary, width: 2),
-                    boxShadow: [
-                      ...AppColors.glowShadow(AppColors.primary, intensity: 0.8),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: Image.asset(
-                      'assets/images/saposapinho.gif',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ).animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
+                // Mascote Sapo Sapinho animado
+                const SapoMascotWidget(size: 110).animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
                 
                 const SizedBox(height: 16),
                 

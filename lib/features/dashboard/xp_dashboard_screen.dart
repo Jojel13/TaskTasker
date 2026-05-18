@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/core_providers.dart';
 import '../../core/services/xp_service.dart';
+import '../../shared/widgets/sapo_mascot_widget.dart';
 import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
 
 class XpDashboardScreen extends ConsumerWidget {
@@ -42,28 +43,11 @@ class XpDashboardScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Mascot
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.surface,
-                  border: Border.all(color: AppColors.primary, width: 2),
-                  boxShadow: [...AppColors.glowShadow(AppColors.primary, intensity: 0.5)],
-                ),
-                child: ClipOval(
-                  child: Image.asset(
-                    'assets/images/saposapinho.gif',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
+              // Mascot interativo animado
+              const SapoMascotWidget(size: 120),
               const SizedBox(height: 16),
               Text(_getMascotName(level), style: AppTextStyles.titleLarge),
               Text('Nível $level', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary)),
-              
-              const SizedBox(height: 40),
               
               // XP Progress Bar
               Column(

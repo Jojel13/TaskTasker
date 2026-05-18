@@ -36,6 +36,28 @@ class TaskCard extends ConsumerStatefulWidget {
 
 class _TaskCardState extends ConsumerState<TaskCard> {
   bool _expanded = false;
+  bool _wasDone = false;
+  bool _showXpFloat = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _wasDone = widget.task.status == TaskStatus.completed;
+  }
+
+  @override
+  void didUpdateWidget(covariant TaskCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final isDoneNow = widget.task.status == TaskStatus.completed;
+    if (!_wasDone && isDoneNow && !widget.isReadOnly) {
+      // Tarefa foi completada agora
+      setState(() => _showXpFloat = true);
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) setState(() => _showXpFloat = false);
+      });
+    }
+    _wasDone = isDoneNow;
+  }
 
   Color get _taskColor => switch (widget.task.color) {
     TaskColor.standard => AppColors.taskStandard,
@@ -486,33 +508,55 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               if (widget.task.color == TaskColor.red && widget.task.scheduledDate != null)
                 _CountdownBadge(scheduledDate: widget.task.scheduledDate!),
 
-              // ── Checkbox ────────────────────────────────────────
-              GestureDetector(
-                onTap: _isToggleLocked ? null : widget.onToggle,
-                child: Container(
-                  width: 52,
-                  height: 52,
-                  alignment: Alignment.center,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isDone ? _taskColor.withValues(alpha: 0.15) : Colors.transparent,
-                      border: Border.all(
-                        color: _isToggleLocked ? AppColors.textMuted : _taskColor,
-                        width: 1.5,
+              // ── Checkbox & +XP Float ─────────────────────────────
+              Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  GestureDetector(
+                    onTap: _isToggleLocked ? null : widget.onToggle,
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      alignment: Alignment.center,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isDone ? _taskColor.withValues(alpha: 0.15) : Colors.transparent,
+                          border: Border.all(
+                            color: _isToggleLocked ? AppColors.textMuted : _taskColor,
+                            width: 1.5,
+                          ),
+                          boxShadow: _isDone
+                              ? AppColors.glowShadow(_taskColor, intensity: 0.5)
+                              : null,
+                        ),
+                        child: _isDone
+                            ? Icon(Icons.check_rounded, size: 15, color: _taskColor)
+                            : null,
                       ),
-                      boxShadow: _isDone
-                          ? AppColors.glowShadow(_taskColor, intensity: 0.5)
-                          : null,
                     ),
-                    child: _isDone
-                        ? Icon(Icons.check_rounded, size: 15, color: _taskColor)
-                        : null,
                   ),
-                ),
+                  if (_showXpFloat)
+                    Positioned(
+                      top: -10,
+                      child: const Text(
+                        '+15 XP',
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                          .animate()
+                          .fade(duration: 200.ms)
+                          .moveY(begin: 0, end: -30, duration: 800.ms, curve: Curves.easeOut)
+                          .fadeOut(delay: 500.ms, duration: 300.ms),
+                    ),
+                ],
               ),
             ]),
 

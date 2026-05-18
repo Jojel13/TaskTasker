@@ -190,13 +190,19 @@ class _HeaderIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
-          child: Icon(icon, color: color, size: 22),
+      child: Material(
+        color: Colors.transparent,
+        child: InkResponse(
+          onTap: onTap,
+          radius: 24,
+          splashColor: color.withValues(alpha: 0.2),
+          highlightColor: color.withValues(alpha: 0.1),
+          child: Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            child: Icon(icon, color: color, size: 22),
+          ),
         ),
       ),
     );
@@ -295,40 +301,58 @@ class _TodayProgressBanner extends ConsumerWidget {
          final percent = (done / total * 100).toInt();
          final left = total - done;
 
+         final isPerfect = left == 0;
+
          return Container(
            margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
            decoration: BoxDecoration(
              gradient: LinearGradient(
-               colors: [AppColors.primary.withValues(alpha: 0.15), AppColors.accent.withValues(alpha: 0.05)],
+               colors: isPerfect
+                   ? [AppColors.accent.withValues(alpha: 0.2), AppColors.accentDim.withValues(alpha: 0.1)]
+                   : [AppColors.primary.withValues(alpha: 0.15), AppColors.accent.withValues(alpha: 0.05)],
                begin: Alignment.topLeft,
                end: Alignment.bottomRight,
              ),
              borderRadius: BorderRadius.circular(12),
-             border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 0.8),
+             border: Border.all(
+               color: isPerfect ? AppColors.accent.withValues(alpha: 0.6) : AppColors.primary.withValues(alpha: 0.3),
+               width: isPerfect ? 1.5 : 0.8,
+             ),
+             boxShadow: isPerfect ? AppColors.glowShadow(AppColors.accent, intensity: 0.3) : null,
            ),
            child: Row(
              children: [
-               Icon(left == 0 ? Icons.check_circle_rounded : Icons.track_changes_rounded, 
-                 color: left == 0 ? AppColors.accent : AppColors.primary, size: 20),
+               Icon(
+                 isPerfect ? Icons.star_rounded : Icons.track_changes_rounded,
+                 color: isPerfect ? AppColors.taskYellow : AppColors.primary,
+                 size: isPerfect ? 24 : 20,
+               )
+                   .animate(target: isPerfect ? 1 : 0)
+                   .scaleXY(end: 1.2, duration: 600.ms, curve: Curves.easeOutBack)
+                   .shimmer(delay: 1000.ms, duration: 1500.ms),
                const SizedBox(width: 12),
                Expanded(
                  child: Text(
-                   left == 0 ? 'Todas as tarefas concluídas!' : '$left tasks restantes hoje',
+                   isPerfect ? '100% CONCLUÍDO! OTIMIZAÇÃO MÁXIMA!' : '$left tasks restantes hoje',
                    style: TextStyle(
-                     color: left == 0 ? AppColors.accent : AppColors.textPrimary, 
-                     fontWeight: FontWeight.w600, 
-                     fontSize: 13,
+                     color: isPerfect ? AppColors.accent : AppColors.textPrimary, 
+                     fontWeight: FontWeight.bold, 
+                     fontSize: isPerfect ? 14 : 13,
+                     letterSpacing: isPerfect ? 0.5 : 0,
                    ),
+                 )
+                     .animate(target: isPerfect ? 1 : 0)
+                     .fade(duration: 400.ms),
+               ),
+               if (!isPerfect)
+                 Text(
+                   '$percent%',
+                   style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold, fontSize: 13),
                  ),
-               ),
-               Text(
-                 '$percent%',
-                 style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold, fontSize: 13),
-               ),
              ],
            ),
-         );
+         ).animate(target: isPerfect ? 1 : 0).shimmer(duration: 2000.ms, color: AppColors.accent.withValues(alpha: 0.2));
       },
       loading: () => const SizedBox.shrink(),
       error: (e, stack) => const SizedBox.shrink(),

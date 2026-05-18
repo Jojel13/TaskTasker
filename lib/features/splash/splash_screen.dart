@@ -14,6 +14,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   double _progress = 0.0;
+  String _loadingText = "Inicializando núcleo...";
   
   @override
   void initState() {
@@ -24,15 +25,15 @@ class _SplashScreenState extends State<SplashScreen> {
   void _simulateLoading() async {
     // Phase 1: Boot
     await Future.delayed(const Duration(milliseconds: 500));
-    setState(() => _progress = 0.3);
+    setState(() { _progress = 0.3; _loadingText = "Conectando aos servidores neurais..."; });
     
     // Phase 2: Init ISAR (already done in main, but we simulate visual delay)
     await Future.delayed(const Duration(milliseconds: 800));
-    setState(() => _progress = 0.7);
+    setState(() { _progress = 0.7; _loadingText = "Sincronizando rotinas e hábitos..."; });
     
     // Phase 3: Launch
     await Future.delayed(const Duration(milliseconds: 600));
-    setState(() => _progress = 1.0);
+    setState(() { _progress = 1.0; _loadingText = "Sistema operacional pronto."; });
     
     await Future.delayed(const Duration(milliseconds: 400));
     
@@ -118,7 +119,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Inicializando núcleo...',
+                        _loadingText,
                         style: TextStyle(color: AppColors.textMuted.withValues(alpha: 0.5), fontSize: 10, fontFamily: 'Share Tech Mono'),
                       ),
                     ],

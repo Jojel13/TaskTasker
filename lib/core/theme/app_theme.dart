@@ -25,6 +25,13 @@ class AppTheme {
         onError: AppColors.background,
       ),
 
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
+
       // Texto base com Exo 2
       textTheme: GoogleFonts.exo2TextTheme(
         ThemeData.dark().textTheme,

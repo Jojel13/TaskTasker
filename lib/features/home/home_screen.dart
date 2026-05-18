@@ -9,6 +9,7 @@ import 'widgets/routine_card.dart';
 import '../routine/routine_screen.dart';
 import 'settings_screen.dart';
 import '../dashboard/xp_dashboard_screen.dart';
+import '../analytics/analytics_screen.dart';
 import '../../shared/widgets/xp_bar.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -80,24 +81,16 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
 
-            // Análise (placeholder até Fase 6)
+            // Análise
             _HeaderIconButton(
               icon: Icons.bar_chart_rounded,
               color: AppColors.secondary,
               tooltip: 'Análise',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Análise em breve!',
-                      style: TextStyle(color: AppColors.textPrimary),
-                    ),
-                    backgroundColor: AppColors.surface,
-                    duration: const Duration(seconds: 1),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AnalyticsScreen()),
+              ),
+
             ),
 
             // Settings

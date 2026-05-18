@@ -50,6 +50,8 @@ class AnalyticsScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   _buildBarChart(data.dailyStats),
                   
+                  const SizedBox(height: 32),
+                  
                   // Gráfico Donut: Distribuição por Cor
                   const Text('Distribuição de Cores', style: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),

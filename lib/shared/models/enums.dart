@@ -9,3 +9,16 @@ enum DivisionType { morning, afternoon, night, tomorrow }
 
 /// Frequência de repetição (tasks azuis)
 enum FrequencyType { daily, everyOtherDay, custom }
+
+extension FrequencyTypeExtension on FrequencyType {
+  String get label {
+    switch (this) {
+      case FrequencyType.daily:
+        return 'Diário';
+      case FrequencyType.everyOtherDay:
+        return 'Dias alternados';
+      case FrequencyType.custom:
+        return 'Personalizado';
+    }
+  }
+}

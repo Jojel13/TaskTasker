@@ -12,6 +12,7 @@ import '../task_tree_screen.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
+import '../../../core/services/xp_service.dart';
 import 'dart:ui' as ui;
 
 class TaskCard extends ConsumerStatefulWidget {
@@ -543,9 +544,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   if (_showXpFloat)
                     Positioned(
                       top: -10,
-                      child: const Text(
-                        '+15 XP',
-                        style: TextStyle(
+                      child: Text(
+                        '+${XpService.xpForAction(widget.task.color)} XP',
+                        style: const TextStyle(
                           color: AppColors.accent,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

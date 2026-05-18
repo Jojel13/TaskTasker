@@ -48,17 +48,52 @@ final userProfileProvider = StreamProvider<UserProfile?>((ref) {
 });
 
 // ── Radar ────────────────────────────────────────────────────────────────────
-final radarProvider = StreamProvider<List<Task>>((ref) {
+final radarProvider = StreamProvider<List<Task>>((ref) async* {
   final isar = ref.watch(isarProvider);
-  return isar.tasks
-      .filter()
-      .statusEqualTo(TaskStatus.active)
-      .and()
-      .group(
-        (q) =>
-            q.colorEqualTo(TaskColor.red).or().colorEqualTo(TaskColor.yellow),
-      )
-      .watch(fireImmediately: true);
+
+  await for (final _ in isar.tasks.watchLazy(fireImmediately: true)) {
+    final allActive = await isar.tasks
+        .filter()
+        .statusEqualTo(TaskStatus.active)
+        .and()
+        .group((q) => q.colorEqualTo(TaskColor.red).or().colorEqualTo(TaskColor.yellow))
+        .sortByCreatedAtDesc()
+        .findAll();
+
+    final latestRoutine = await isar.routines.where().sortByDateDesc().findFirst();
+    final todayTaskIds = <int>{};
+
+    if (latestRoutine != null) {
+      final now = DateTime.now();
+      final isToday = latestRoutine.date.year == now.year &&
+          latestRoutine.date.month == now.month &&
+          latestRoutine.date.day == now.day;
+
+      if (isToday) {
+        await latestRoutine.days.load();
+        for (final day in latestRoutine.days) {
+          // Removemos do radar as tasks que já estão nas divisões de hoje (exceto Para Amanhã)
+          if (day.division != DivisionType.tomorrow) {
+            await day.tasks.load();
+            todayTaskIds.addAll(day.tasks.map((t) => t.id));
+          }
+        }
+      }
+    }
+
+    final filtered = allActive.where((t) => !todayTaskIds.contains(t.id)).toList();
+
+    // Deduplicar por texto para não mostrar cópias históricas antigas
+    final uniqueTasks = <String, Task>{};
+    for (final t in filtered) {
+      // Como a lista está ordenada por createdAt desc, a primeira que encontrarmos é a mais recente
+      if (!uniqueTasks.containsKey(t.text)) {
+        uniqueTasks[t.text] = t;
+      }
+    }
+
+    yield uniqueTasks.values.toList();
+  }
 });
 
 // ── Dashboard Heatmap ────────────────────────────────────────────────────────

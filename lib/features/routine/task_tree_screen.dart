@@ -227,7 +227,7 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Task Tree', style: AppTextStyles.titleMedium),
+        title: Text('Árvore de Tasks', style: AppTextStyles.titleMedium),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.primary, size: 20),

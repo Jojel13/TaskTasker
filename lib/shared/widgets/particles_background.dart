@@ -26,7 +26,7 @@ class _ParticlesBackgroundState extends State<ParticlesBackground> with SingleTi
     // Generates particles on the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final size = MediaQuery.of(context).size;
-      final count = widget.intensive ? 80 : 30;
+      final count = widget.intensive ? 40 : 15;
       _particles = List.generate(count, (_) => _generateParticle(size));
     });
   }
@@ -35,11 +35,11 @@ class _ParticlesBackgroundState extends State<ParticlesBackground> with SingleTi
     return _Particle(
       x: _rnd.nextDouble() * size.width,
       y: _rnd.nextDouble() * size.height,
-      vx: (_rnd.nextDouble() - 0.5) * (widget.intensive ? 4 : 1.5),
-      vy: (_rnd.nextDouble() - 0.5) * (widget.intensive ? 4 : 1.5) - (widget.intensive ? 2 : 0.5), // Tendency to go up
-      radius: _rnd.nextDouble() * 2 + 1,
+      vx: (_rnd.nextDouble() - 0.5) * (widget.intensive ? 2 : 0.8), // Movimento mais sutil Peak
+      vy: (_rnd.nextDouble() - 0.5) * (widget.intensive ? 2 : 0.8) - (widget.intensive ? 1 : 0.2), 
+      radius: _rnd.nextDouble() * 1.5 + 1,
       color: _rnd.nextBool() ? AppColors.primary : AppColors.secondary,
-      opacity: _rnd.nextDouble() * 0.5 + 0.1,
+      opacity: _rnd.nextDouble() * 0.3 + 0.1, // Opacidade mais discreta
     );
   }
 
@@ -95,31 +95,34 @@ class _ParticlesPainter extends CustomPainter {
     
     // Draw connections (only if close enough, and less in non-intensive to save perf)
     final connectionPaint = Paint()..strokeWidth = 0.5;
-    final threshold = intensive ? 80.0 : 60.0;
+    final threshold = intensive ? 70.0 : 40.0;
+    final thresholdSq = threshold * threshold; // Otimização: evitar sqrt()
     
     for (int i = 0; i < particles.length; i++) {
       final p1 = particles[i];
       
       for (int j = i + 1; j < particles.length; j++) {
         final p2 = particles[j];
-        final dist = sqrt(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2));
         
-        if (dist < threshold) {
+        final dx = p1.x - p2.x;
+        final dy = p1.y - p2.y;
+        final distSq = dx * dx + dy * dy;
+        
+        if (distSq < thresholdSq) {
+          final dist = sqrt(distSq); // Só faz o sqrt se passar no teste rápido
           final opacity = (1 - (dist / threshold)) * 0.3;
           connectionPaint.color = p1.color.withValues(alpha: opacity);
           canvas.drawLine(Offset(p1.x, p1.y), Offset(p2.x, p2.y), connectionPaint);
         }
       }
       
-      // Draw particle
+      // Draw particle (Sem o MaskFilter.blur que é absurdamente caro na CPU/GPU)
       paint.color = p1.color.withValues(alpha: p1.opacity);
       canvas.drawCircle(Offset(p1.x, p1.y), p1.radius, paint);
       
-      // Add glow
-      paint.color = p1.color.withValues(alpha: p1.opacity * 0.5);
-      paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-      canvas.drawCircle(Offset(p1.x, p1.y), p1.radius * 2, paint);
-      paint.maskFilter = null;
+      // Simulate glow using a larger, more transparent circle instead of blur
+      paint.color = p1.color.withValues(alpha: p1.opacity * 0.2);
+      canvas.drawCircle(Offset(p1.x, p1.y), p1.radius * 2.5, paint);
     }
   }
 

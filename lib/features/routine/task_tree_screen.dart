@@ -323,12 +323,12 @@ class _TaskHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       decoration: BoxDecoration(
         color: isDone
-            ? AppColors.surface.withValues(alpha: 0.3)
-            : taskColor.withValues(alpha: 0.06),
+            ? AppColors.background
+            : AppColors.surfaceVariant,
         border: Border(
           bottom: BorderSide(
-            color: taskColor.withValues(alpha: isDone ? 0.1 : 0.25),
-            width: 1,
+            color: isDone ? AppColors.border : taskColor,
+            width: 1.5,
           ),
         ),
       ),
@@ -515,14 +515,14 @@ class _SubtaskItemState extends State<_SubtaskItem> {
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: isDone
-            ? AppColors.surface.withValues(alpha: 0.3)
-            : AppColors.surface.withValues(alpha: 0.6),
+            ? AppColors.background
+            : AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isDone
               ? AppColors.border
-              : widget.taskColor.withValues(alpha: 0.2),
-          width: 0.8,
+              : widget.taskColor,
+          width: 1.0,
         ),
       ),
       child: Column(

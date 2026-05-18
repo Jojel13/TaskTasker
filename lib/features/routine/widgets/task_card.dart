@@ -364,7 +364,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
           border: Border.all(
             color: _isDone
                 ? AppColors.border
-                : _taskColor.withValues(alpha: 0.4),
+                : _taskColor, // Borda sólida Peak
             width: _isDone ? 0.5 : 1.0,
           ),
         ),
@@ -390,14 +390,14 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: _isDone
-                          ? AppColors.textMuted.withValues(alpha: 0.1)
-                          : _taskColor.withValues(alpha: 0.15),
+                          ? AppColors.surfaceVariant
+                          : AppColors.surfaceVariant, // Fundo escuro sólido Peak
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: _isDone
                             ? AppColors.textMuted.withValues(alpha: 0.3)
-                            : _taskColor.withValues(alpha: 0.7),
-                        width: 1,
+                            : _taskColor, // Borda sólida brilhante
+                        width: 1.5, // Levemente mais espessa para compensar falta de preenchimento
                       ),
                       boxShadow: _isDone ? null : [
                         BoxShadow(
@@ -526,7 +526,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                         height: 24,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: _isDone ? _taskColor.withValues(alpha: 0.15) : Colors.transparent,
+                          color: _isDone ? _taskColor : AppColors.surfaceVariant, // Cor sólida
                           border: Border.all(
                             color: _isToggleLocked ? AppColors.textMuted : _taskColor,
                             width: 1.5,
@@ -536,7 +536,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                               : null,
                         ),
                         child: _isDone
-                            ? Icon(Icons.check_rounded, size: 15, color: _taskColor)
+                            ? const Icon(Icons.check_rounded, size: 15, color: AppColors.card) // check escuro
                             : null,
                       ),
                     ),

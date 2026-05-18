@@ -81,9 +81,9 @@ class _RoutineCardState extends State<RoutineCard> {
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.surface.withValues(alpha: 0.4),
+            color: AppColors.surfaceVariant,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.border.withValues(alpha: 0.5), width: 0.5),
+            border: Border.all(color: AppColors.border, width: 0.5),
           ),
           child: Row(
             children: [
@@ -118,7 +118,7 @@ class _RoutineCardState extends State<RoutineCard> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: widget.isToday
-                ? AppColors.primary.withValues(alpha: 0.5)
+                ? AppColors.primary
                 : AppColors.border,
             width: widget.isToday ? 1.5 : 0.5,
           ),

@@ -302,6 +302,28 @@ class RoutineService {
     });
   }
 
+  Future<void> reorderTasks(Id dayId, int oldIndex, int newIndex) async {
+    await _isar.writeTxn(() async {
+      final day = await _isar.routineDays.get(dayId);
+      if (day == null) return;
+      await day.tasks.load();
+      
+      final tasks = day.tasks.toList()
+        ..sort((a, b) => a.sortOrder != b.sortOrder
+            ? a.sortOrder.compareTo(b.sortOrder)
+            : a.createdAt.compareTo(b.createdAt));
+
+      if (oldIndex < newIndex) newIndex -= 1;
+      final task = tasks.removeAt(oldIndex);
+      tasks.insert(newIndex, task);
+
+      for (int i = 0; i < tasks.length; i++) {
+        tasks[i].sortOrder = i;
+        await _isar.tasks.put(tasks[i]);
+      }
+    });
+  }
+
   Future<void> toggleTask(Task task) async {
     final nowCompleted = task.status != TaskStatus.completed;
     task.status = nowCompleted ? TaskStatus.completed : TaskStatus.active;

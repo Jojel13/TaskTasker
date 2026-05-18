@@ -9,20 +9,8 @@ import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
 class XpDashboardScreen extends ConsumerWidget {
   const XpDashboardScreen({super.key});
 
-  String _getMascot(int level) {
-    if (level < 5) return '🥚';
-    if (level < 15) return '🐣';
-    if (level < 30) return '🤖';
-    if (level < 50) return '⚡';
-    return '👾';
-  }
-
   String _getMascotName(int level) {
-    if (level < 5) return 'Glitch Egg';
-    if (level < 15) return 'Byte';
-    if (level < 30) return 'Nano';
-    if (level < 50) return 'Volt';
-    return 'NEXUS';
+    return 'Sapo Sapinho';
   }
 
   @override
@@ -64,10 +52,10 @@ class XpDashboardScreen extends ConsumerWidget {
                   border: Border.all(color: AppColors.primary, width: 2),
                   boxShadow: [...AppColors.glowShadow(AppColors.primary, intensity: 0.5)],
                 ),
-                child: Center(
-                  child: Text(
-                    _getMascot(level),
-                    style: const TextStyle(fontSize: 50),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/saposapinho.gif',
+                    fit: BoxFit.cover,
                   ),
                 ),
               ),

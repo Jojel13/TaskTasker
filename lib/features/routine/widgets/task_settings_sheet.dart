@@ -6,13 +6,6 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
 
-extension FrequencyTypeLabel on FrequencyType {
-  String get label => switch (this) {
-    FrequencyType.daily        => 'Todo dia',
-    FrequencyType.everyOtherDay => 'A cada 2 dias',
-    FrequencyType.custom       => 'Personalizado',
-  };
-}
 
 class TaskSettingsSheet extends ConsumerStatefulWidget {
   final Task task;
@@ -126,7 +119,7 @@ class _TaskSettingsSheetState extends ConsumerState<TaskSettingsSheet> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppColors.taskBlue.withValues(alpha: 0.1)
+                        ? AppColors.cardBlue
                         : AppColors.surfaceVariant,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(

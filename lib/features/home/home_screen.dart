@@ -50,11 +50,11 @@ class HomeScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.1),
+                color: AppColors.surfaceVariant, // Cor sólida Peak
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: AppColors.accent.withValues(alpha: 0.35),
-                  width: 0.5,
+                  color: AppColors.accent, // Borda brilhante
+                  width: 1.0,
                 ),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -308,17 +308,11 @@ class _TodayProgressBanner extends ConsumerWidget {
            margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
            decoration: BoxDecoration(
-             gradient: LinearGradient(
-               colors: isPerfect
-                   ? [AppColors.accent.withValues(alpha: 0.2), AppColors.accentDim.withValues(alpha: 0.1)]
-                   : [AppColors.primary.withValues(alpha: 0.15), AppColors.accent.withValues(alpha: 0.05)],
-               begin: Alignment.topLeft,
-               end: Alignment.bottomRight,
-             ),
+             color: AppColors.surfaceVariant, // Cor sólida Peak
              borderRadius: BorderRadius.circular(12),
              border: Border.all(
-               color: isPerfect ? AppColors.accent.withValues(alpha: 0.6) : AppColors.primary.withValues(alpha: 0.3),
-               width: isPerfect ? 1.5 : 0.8,
+               color: isPerfect ? AppColors.accent : AppColors.primary,
+               width: 1.5,
              ),
              boxShadow: isPerfect ? AppColors.glowShadow(AppColors.accent, intensity: 0.3) : null,
            ),

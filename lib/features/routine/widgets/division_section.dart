@@ -47,8 +47,10 @@ class DivisionSection extends ConsumerWidget {
 
     final completedCount = tasks.where((t) => t.status == TaskStatus.completed).length;
 
-    Widget content = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // ── Division header ───────────────────────────────────────
+    final children = <Widget>[];
+
+    // ── Division header ───────────────────────────────────────
+    children.add(
       Padding(
         padding: const EdgeInsets.fromLTRB(0, 24, 0, 10),
         child: Row(children: [
@@ -83,67 +85,116 @@ class DivisionSection extends ConsumerWidget {
           ),
         ]),
       ),
+    );
 
-      // ── Task list ──────────────────────────────────────────────
-      ...tasks.map((task) {
-        // Registrar GlobalKey para scroll-to-task
-        final gKey = GlobalKey();
-        taskKeys?[task.id] = gKey;
+    // ── Task list ──────────────────────────────────────────────
+    for (int i = 0; i < tasks.length; i++) {
+      final task = tasks[i];
+      final gKey = GlobalKey();
+      taskKeys?[task.id] = gKey;
 
-        final card = TaskCard(
-          key: ValueKey(task.id),
-          task: task,
-          isReadOnly: !isToday,
-          onToggle: () async {
-            await ref.read(routineServiceProvider).toggleTask(task);
-            ref.invalidate(routineDaysProvider(routine.id));
-          },
-          onColorCycle: () async {
-            await ref.read(routineServiceProvider).cycleColor(task);
-            ref.invalidate(routineDaysProvider(routine.id));
-          },
-          onDelete: () async {
-            await ref.read(routineServiceProvider).deleteTask(day.id, task.id);
-            ref.invalidate(routineDaysProvider(routine.id));
-          },
-        );
+      final card = TaskCard(
+        key: ValueKey(task.id),
+        task: task,
+        isReadOnly: !isToday,
+        onToggle: () async {
+          await ref.read(routineServiceProvider).toggleTask(task);
+          ref.invalidate(routineDaysProvider(routine.id));
+        },
+        onColorCycle: () async {
+          await ref.read(routineServiceProvider).cycleColor(task);
+          ref.invalidate(routineDaysProvider(routine.id));
+        },
+        onDelete: () async {
+          await ref.read(routineServiceProvider).deleteTask(day.id, task.id);
+          ref.invalidate(routineDaysProvider(routine.id));
+        },
+      );
 
-        if (!isToday) {
-          return SizedBox(key: gKey, child: card);
-        }
+      if (!isToday) {
+        children.add(SizedBox(key: gKey, child: card));
+        continue;
+      }
 
-        return LongPressDraggable<Task>(
-          key: gKey,
-          data: task,
-          delay: const Duration(milliseconds: 400),
-          feedback: Material(
-            color: Colors.transparent,
-            child: SizedBox(
-              width: MediaQuery.of(context).size.width - 40,
-              child: Opacity(opacity: 0.85, child: card),
-            ),
+      final draggable = LongPressDraggable<Task>(
+        key: gKey,
+        data: task,
+        delay: const Duration(milliseconds: 300),
+        feedback: Material(
+          color: Colors.transparent,
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width - 40,
+            child: Opacity(opacity: 0.85, child: card),
           ),
-          childWhenDragging: Opacity(opacity: 0.2, child: card),
-          child: card,
-        );
-      }),
+        ),
+        childWhenDragging: Opacity(opacity: 0.2, child: card),
+        child: card,
+      );
 
-      // ── Input field ────────────────────────────────────────────
-      if (isToday)
+      children.add(DragTarget<Task>(
+        onWillAcceptWithDetails: (details) => details.data.id != task.id,
+        onAcceptWithDetails: (details) async {
+          final droppedTask = details.data;
+          final oldIndex = tasks.indexWhere((t) => t.id == droppedTask.id);
+          if (oldIndex != -1) {
+            await ref.read(routineServiceProvider).reorderTasks(day.id, oldIndex, i);
+          } else {
+            await ref.read(routineServiceProvider).moveTaskToDay(droppedTask.id, day.id);
+          }
+          ref.invalidate(routineDaysProvider(routine.id));
+        },
+        builder: (context, candidateData, _) {
+          final isHovering = candidateData.isNotEmpty;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (isHovering)
+                Container(
+                  height: 56, // Tamanho aproximado de um card fechado
+                  margin: const EdgeInsets.only(bottom: 6, top: 2),
+                  decoration: BoxDecoration(
+                    color: _accentColor.withValues(alpha: 0.1),
+                    border: Border.all(color: _accentColor, width: 1.5, strokeAlign: BorderSide.strokeAlignOutside),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              draggable,
+            ],
+          );
+        },
+      ));
+    }
+
+    // ── Input field ────────────────────────────────────────────
+    if (isToday) {
+      children.add(
         TaskInputField(
           onSubmit: (text) async {
             await ref.read(routineServiceProvider).addTask(day.id, text);
             ref.invalidate(routineDaysProvider(routine.id));
           },
         ),
-    ]);
+      );
+    }
+
+    Widget content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
 
     if (!isToday) return content;
 
     return DragTarget<Task>(
       onAcceptWithDetails: (details) async {
         final task = details.data;
-        await ref.read(routineServiceProvider).moveTaskToDay(task.id, day.id);
+        final oldIndex = tasks.indexWhere((t) => t.id == task.id);
+        if (oldIndex != -1) {
+          // Soltou no final da própria divisão
+          await ref.read(routineServiceProvider).reorderTasks(day.id, oldIndex, tasks.length);
+        } else {
+          // Veio de outra divisão
+          await ref.read(routineServiceProvider).moveTaskToDay(task.id, day.id);
+        }
         ref.invalidate(routineDaysProvider(routine.id));
       },
       builder: (context, candidateData, rejectedData) {

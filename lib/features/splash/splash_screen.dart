@@ -92,8 +92,8 @@ class _SplashScreenState extends State<SplashScreen> with RestorationMixin {
               children: [
                 // Logo placeholder (Double checkmark with glow)
                 Container(
-                  width: 80,
-                  height: 80,
+                  width: 100,
+                  height: 100,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: AppColors.surface,
@@ -102,10 +102,26 @@ class _SplashScreenState extends State<SplashScreen> with RestorationMixin {
                       ...AppColors.glowShadow(AppColors.primary, intensity: 0.8),
                     ],
                   ),
-                  child: const Center(
-                    child: Icon(Icons.done_all_rounded, color: AppColors.primary, size: 40),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/saposapinho.gif',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ).animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
+                
+                const SizedBox(height: 16),
+                
+                // Tagline sutil abaixo do Sapinho
+                Text(
+                  'SAPO SAPINHO',
+                  style: TextStyle(
+                    color: AppColors.primary.withValues(alpha: 0.6),
+                    fontSize: 9,
+                    fontFamily: 'Share Tech Mono',
+                    letterSpacing: 3,
+                  ),
+                ).animate().fade(delay: 600.ms),
                 
                 const SizedBox(height: 32),
                 

@@ -49,6 +49,7 @@ class TaskTaskerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      restorationScopeId: 'app',
       title: 'TaskTasker',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,

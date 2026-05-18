@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/routine.dart';
 import '../../shared/models/enums.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'widgets/routine_card.dart';
 import '../routine/routine_screen.dart';
 import 'settings_screen.dart';

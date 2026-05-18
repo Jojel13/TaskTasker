@@ -12,41 +12,66 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen> with RestorationMixin {
   double _progress = 0.0;
   String _loadingText = "Inicializando núcleo...";
+  bool _isRestoring = false;
+
+  @override
+  String? get restorationId => 'splash_screen_state';
+
+  @override
+  void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
+    if (initialRestore && oldBucket != null) {
+      _isRestoring = true;
+    }
+  }
   
   @override
   void initState() {
     super.initState();
-    _simulateLoading();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_isRestoring) {
+        _goToHome(animated: false);
+      } else {
+        _simulateLoading();
+      }
+    });
   }
 
   void _simulateLoading() async {
     // Phase 1: Boot
     await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
     setState(() { _progress = 0.3; _loadingText = "Conectando aos servidores neurais..."; });
     
     // Phase 2: Init ISAR (already done in main, but we simulate visual delay)
     await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
     setState(() { _progress = 0.7; _loadingText = "Sincronizando rotinas e hábitos..."; });
     
     // Phase 3: Launch
     await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
     setState(() { _progress = 1.0; _loadingText = "Sistema operacional pronto."; });
     
     await Future.delayed(const Duration(milliseconds: 400));
     
     if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (c, a1, a2) => const MainWrapper(),
-          transitionsBuilder: (c, anim, a2, child) => FadeTransition(opacity: anim, child: child),
-          transitionDuration: const Duration(milliseconds: 800),
-        ),
-      );
+      _goToHome(animated: true);
     }
+  }
+
+  void _goToHome({required bool animated}) {
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (c, a1, a2) => const MainWrapper(),
+        transitionsBuilder: (c, anim, a2, child) => 
+            animated ? FadeTransition(opacity: anim, child: child) : child,
+        transitionDuration: animated ? const Duration(milliseconds: 800) : Duration.zero,
+      ),
+    );
   }
 
   @override

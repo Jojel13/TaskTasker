@@ -55,6 +55,13 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   isar_generator: ^3.1.0
   build_runner: ^2.4.9
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  min_sdk_threshold: 21
 
 flutter:
   uses-material-design: true
@@ -62,11 +69,11 @@ flutter:
     - assets/images/
 
 flutter_native_splash:
-  color: "#080808"
-  color_dark: "#080808"
-  image: assets/images/splash_logo.png
+  color: "#070B14"
+  color_dark: "#070B14"
+  image: assets/images/app_icon.png
   android: true
   ios: true
   android_12:
-    color: "#080808"
-    color_dark: "#080808"
+    color: "#070B14"
+    color_dark: "#070B14"

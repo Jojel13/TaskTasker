@@ -15,32 +15,23 @@ class MainWrapper extends ConsumerStatefulWidget {
   ConsumerState<MainWrapper> createState() => _MainWrapperState();
 }
 
-class _MainWrapperState extends ConsumerState<MainWrapper> with RestorationMixin {
-  final RestorableInt _currentIndex = RestorableInt(0);
+class _MainWrapperState extends ConsumerState<MainWrapper> {
+  int _currentIndex = 0;
   late PageController _pageController;
-
-  @override
-  String? get restorationId => 'main_wrapper_state';
-
-  @override
-  void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
-    registerForRestoration(_currentIndex, 'nav_index');
-  }
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: _currentIndex.value);
+    _pageController = PageController(initialPage: _currentIndex);
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _currentIndex.dispose();
     super.dispose();
   }
 
-  void _onPageChanged(int index) => setState(() => _currentIndex.value = index);
+  void _onPageChanged(int index) => setState(() => _currentIndex = index);
 
   void _onNavTap(int index) {
     _pageController.animateToPage(
@@ -78,11 +69,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with RestorationMixin
       body: Stack(
         children: [
           // Partículas só na Home
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 300),
-            opacity: _currentIndex.value == 0 ? 1.0 : 0.0,
-            child: const Positioned.fill(
-              child: ParticlesBackground(intensive: false),
+          Positioned.fill(
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 300),
+              opacity: _currentIndex == 0 ? 1.0 : 0.0,
+              child: const ParticlesBackground(intensive: false),
             ),
           ),
           PageView(
@@ -98,7 +89,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper> with RestorationMixin
       ),
       extendBody: true,
       bottomNavigationBar: FloatingBottomBar(
-        currentIndex: _currentIndex.value,
+        currentIndex: _currentIndex,
         onNavTap: _onNavTap,
         onPlusTap: _onPlusTap,
       ),

@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:workmanager/workmanager.dart' hide TaskStatus;
 import 'package:path_provider/path_provider.dart';
 import 'package:isar/isar.dart';
+import '../database/isar_service.dart';
 import '../../shared/models/routine.dart';
 import '../../shared/models/routine_day.dart';
 import '../../shared/models/task.dart';
@@ -93,27 +94,16 @@ class NotificationService {
     
     await _flutterLocalNotificationsPlugin.initialize(settings: initializationSettings);
     
-    if (Platform.isAndroid) {
-       _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-         AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
-    }
-    
     Workmanager().initialize(
         callbackDispatcher,
     );
     
     _initialized = true;
     
-    // Ler a frequência salva (ou usar 6h como padrão)
-    final dir = await getApplicationDocumentsDirectory();
-    final isar = await Isar.open(
-      [RoutineSchema, RoutineDaySchema, TaskSchema, UserProfileSchema, XPEventSchema],
-      directory: dir.path,
-      name: 'tasktasker_db',
-    );
+    // Usar o banco já aberto pelo IsarService sem fechar
+    final isar = IsarService.instance;
     final profile = await isar.userProfiles.get(1);
     final hours = profile?.notificationFrequencyHours ?? 6;
-    await isar.close();
     
     updatePeriodicChecks(hours);
   }

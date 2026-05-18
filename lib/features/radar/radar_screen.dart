@@ -57,7 +57,7 @@ class RadarScreen extends ConsumerWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomCenter,
               colors: total == 0
-                  ? [AppColors.background, AppColors.background]
+                  ? [AppColors.background, AppColors.background, AppColors.background]
                   : [topColor, midColor, bottomColor],
               stops: const [0.0, 0.45, 1.0],
             ),

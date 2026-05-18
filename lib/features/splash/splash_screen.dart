@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/particles_background.dart';
-import '../home/main_wrapper.dart'; // We'll create this next
+import '../home/main_wrapper.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -31,6 +32,7 @@ class _SplashScreenState extends State<SplashScreen> with RestorationMixin {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      FlutterNativeSplash.remove();
       if (_isRestoring) {
         _goToHome(animated: false);
       } else {

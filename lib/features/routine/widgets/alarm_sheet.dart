@@ -82,40 +82,44 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
     setState(() => _saving = true);
     HapticFeedback.mediumImpact();
 
-    // Montar o DateTime do alarme com a data de hoje + horário escolhido
-    final now = DateTime.now();
-    var alarmDateTime = DateTime(
-      now.year, now.month, now.day,
-      _selectedTime.hour, _selectedTime.minute,
-    );
-    // Se o horário já passou hoje, agendar para amanhã
-    if (alarmDateTime.isBefore(now)) {
-      alarmDateTime = alarmDateTime.add(const Duration(days: 1));
-    }
-
-    await ref.read(routineServiceProvider).setAlarm(
-      widget.task,
-      alarmDateTime,
-      repeat: _repeat,
-    );
-
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(children: [
-            const Icon(Icons.alarm_on_rounded, color: AppColors.primary, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'Alarme definido para ${_selectedTime.format(context)}',
-              style: const TextStyle(color: AppColors.textPrimary),
-            ),
-          ]),
-          backgroundColor: AppColors.surface,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
+    try {
+      // Montar o DateTime do alarme com a data de hoje + horário escolhido
+      final now = DateTime.now();
+      var alarmDateTime = DateTime(
+        now.year, now.month, now.day,
+        _selectedTime.hour, _selectedTime.minute,
       );
+      // Se o horário já passou hoje, agendar para amanhã
+      if (alarmDateTime.isBefore(now)) {
+        alarmDateTime = alarmDateTime.add(const Duration(days: 1));
+      }
+
+      await ref.read(routineServiceProvider).setAlarm(
+        widget.task,
+        alarmDateTime,
+        repeat: _repeat,
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: [
+              const Icon(Icons.alarm_on_rounded, color: AppColors.primary, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Alarme definido para ${_selectedTime.format(context)}',
+                style: const TextStyle(color: AppColors.textPrimary),
+              ),
+            ]),
+            backgroundColor: AppColors.surface,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 

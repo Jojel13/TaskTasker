@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   clipboard
   file_selector_windows
+  flutter_timezone
   isar_flutter_libs
 )
 

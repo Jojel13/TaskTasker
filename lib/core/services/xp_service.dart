@@ -23,6 +23,14 @@ class XpService {
   // Fórmula exponencial: XP(n) = 100 × n^1.8
   static int xpRequiredForLevel(int level) => (100 * pow(level, 1.8)).round();
 
+  static int xpAccumulatedForLevel(int level) {
+    int accumulated = 0;
+    for (int i = 1; i < level; i++) {
+      accumulated += xpRequiredForLevel(i);
+    }
+    return accumulated;
+  }
+
   static int levelFromTotalXp(int totalXp) {
     int level = 1;
     int accumulated = 0;

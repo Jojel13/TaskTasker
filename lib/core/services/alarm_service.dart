@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart' show Color;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:flutter_timezone/flutter_timezone.dart';
 import '../../shared/models/task.dart';
+import 'notification_service.dart';
 
 /// Serviço de alarmes individuais por task (Fase 3)
 ///
 /// Usa flutter_local_notifications v21+ com timezone para agendar
 /// notificações pontuais. Suporta "repetir 3x a cada 5 min".
 class AlarmService {
-  static final FlutterLocalNotificationsPlugin _plugin =
-      FlutterLocalNotificationsPlugin();
+  static FlutterLocalNotificationsPlugin get _plugin =>
+      NotificationService.instance.plugin;
 
   static bool _initialized = false;
 
@@ -23,6 +26,12 @@ class AlarmService {
 
     // Inicializar dados de timezone
     tz_data.initializeTimeZones();
+    try {
+      final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneInfo.identifier));
+    } catch (e) {
+      debugPrint('Error setting local timezone: $e');
+    }
 
     // Criar canal de alta importância no Android
     const androidChannel = AndroidNotificationChannel(

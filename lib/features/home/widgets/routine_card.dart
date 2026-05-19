@@ -105,7 +105,7 @@ class _RoutineCardState extends State<RoutineCard> {
             ],
           ),
         ),
-      ).animate().fade(duration: 300.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad);
+      ).animate(key: ValueKey('anim_r_${widget.routine.id}')).fade(duration: 300.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad);
     }
 
     return GestureDetector(
@@ -247,6 +247,6 @@ class _RoutineCardState extends State<RoutineCard> {
           ],
         ]),
       ),
-    ).animate().fade(duration: 300.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad);
+    ).animate(key: ValueKey('anim_r_today_${widget.routine.id}')).fade(duration: 300.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad);
   }
 }

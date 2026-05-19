@@ -16,57 +16,50 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with RestorationMixin {
+class _SplashScreenState extends State<SplashScreen> {
   double _progress = 0.0;
   String _loadingText = "Inicializando núcleo...";
-  bool _isRestoring = false;
 
-  @override
-  String? get restorationId => 'splash_screen_state';
-
-  @override
-  void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
-    if (initialRestore && oldBucket != null) {
-      _isRestoring = true;
-    }
-  }
-  
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FlutterNativeSplash.remove();
-      if (_isRestoring) {
-        _goToHome(animated: false);
-      } else {
-        _simulateLoading();
-      }
+      _simulateLoading();
     });
   }
 
-  void _simulateLoading() async {
-    // Phase 1: Boot
-    await Future.delayed(const Duration(milliseconds: 200));
-    if (!mounted) return;
-    setState(() { _progress = 0.3; _loadingText = "Conectando aos servidores neurais..."; });
-    
-    // Phase 2: Init ISAR and services
-    await IsarService.initialize();
-    if (!mounted) return;
-    setState(() { _progress = 0.7; _loadingText = "Sincronizando rotinas e hábitos..."; });
-    
-    await NotificationService.instance.initialize();
-    await AlarmService.initialize();
-    
-    // Phase 3: Launch
-    await Future.delayed(const Duration(milliseconds: 200));
-    if (!mounted) return;
-    setState(() { _progress = 1.0; _loadingText = "Sistema operacional pronto."; });
-    
-    await Future.delayed(const Duration(milliseconds: 400));
-    
-    if (mounted) {
-      _goToHome(animated: true);
+  Future<void> _simulateLoading() async {
+    try {
+      // Phase 1: Boot
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (!mounted) return;
+      setState(() { _progress = 0.3; _loadingText = "Conectando aos servidores neurais..."; });
+      
+      // Phase 2: Init ISAR and services
+      await IsarService.initialize();
+      if (!mounted) return;
+      setState(() { _progress = 0.7; _loadingText = "Sincronizando rotinas e hábitos..."; });
+      
+      await NotificationService.instance.initialize();
+      await AlarmService.initialize();
+      
+      // Phase 3: Launch
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (!mounted) return;
+      setState(() { _progress = 1.0; _loadingText = "Sistema operacional pronto."; });
+      
+      await Future.delayed(const Duration(milliseconds: 400));
+      
+      if (mounted) {
+        _goToHome(animated: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() { _loadingText = "Erro: $e"; });
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) _goToHome(animated: true);
+      }
     }
   }
 

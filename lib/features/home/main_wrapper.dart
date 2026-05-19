@@ -68,12 +68,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Partículas só na Home
           Positioned.fill(
-            child: AnimatedOpacity(
+            child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
-              opacity: _currentIndex == 0 ? 1.0 : 0.0,
-              child: const ParticlesBackground(intensive: false),
+              child: _currentIndex == 0
+                  ? const ParticlesBackground(intensive: false)
+                  : const SizedBox.shrink(),
             ),
           ),
           PageView(

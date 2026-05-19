@@ -21,10 +21,11 @@ class XpDashboardScreen extends ConsumerWidget {
 
     final totalXp = profile.totalXP;
     final level = profile.currentLevel;
-    final xpForCurrent = level == 1 ? 0 : XpService.xpRequiredForLevel(level - 1);
-    final xpForNext = XpService.xpRequiredForLevel(level);
+    final accumulatedBeforeCurrent = XpService.xpAccumulatedForLevel(level);
+    final xpForCurrentLevel = XpService.xpRequiredForLevel(level);
     
-    final progress = (totalXp - xpForCurrent) / (xpForNext - xpForCurrent);
+    final xpInCurrentLevel = totalXp - accumulatedBeforeCurrent;
+    final progress = (xpForCurrentLevel > 0) ? (xpInCurrentLevel / xpForCurrentLevel).clamp(0.0, 1.0) : 0.0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -57,7 +58,7 @@ class XpDashboardScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('XP TOTAL: $totalXp', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted)),
-                      Text('${totalXp - xpForCurrent} / ${xpForNext - xpForCurrent} XP', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary)),
+                      Text('$xpInCurrentLevel / $xpForCurrentLevel XP', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary)),
                     ],
                   ),
                   const SizedBox(height: 8),

@@ -26,8 +26,18 @@ final allRoutinesProvider = StreamProvider<List<Routine>>((ref) {
   return isar.routines.where().sortByDateDesc().watch(fireImmediately: true);
 });
 
-final todayRoutineProvider = FutureProvider<Routine?>((ref) {
-  return ref.watch(routineServiceProvider).findTodayRoutine();
+final todayRoutineProvider = StreamProvider<Routine?>((ref) async* {
+  final isar = ref.watch(isarProvider);
+  final n = DateTime.now();
+  final today = DateTime(n.year, n.month, n.day);
+  
+  await for (final _ in isar.routines.watchLazy(fireImmediately: true)) {
+    final routine = await isar.routines
+        .filter()
+        .dateBetween(today, today.add(const Duration(hours: 23, minutes: 59)))
+        .findFirst();
+    yield routine;
+  }
 });
 
 // ── Routine Days ──────────────────────────────────────────────────────────────
@@ -83,12 +93,10 @@ final radarProvider = StreamProvider<List<Task>>((ref) async* {
 
     final filtered = allActive.where((t) => !todayTaskIds.contains(t.id)).toList();
 
-    // Deduplicar por texto para não mostrar cópias históricas antigas
-    final uniqueTasks = <String, Task>{};
+    final uniqueTasks = <int, Task>{};
     for (final t in filtered) {
-      // Como a lista está ordenada por createdAt desc, a primeira que encontrarmos é a mais recente
-      if (!uniqueTasks.containsKey(t.text)) {
-        uniqueTasks[t.text] = t;
+      if (!uniqueTasks.containsKey(t.id)) {
+        uniqueTasks[t.id] = t;
       }
     }
 
@@ -99,7 +107,12 @@ final radarProvider = StreamProvider<List<Task>>((ref) async* {
 // ── Dashboard Heatmap ────────────────────────────────────────────────────────
 final heatmapProvider = FutureProvider<Map<DateTime, int>>((ref) async {
   final isar = ref.watch(isarProvider);
-  final routines = await isar.routines.where().findAll();
+  
+  // Limitar histórico para os últimos 180 dias para performance
+  final now = DateTime.now();
+  final limitDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 180));
+  
+  final routines = await isar.routines.filter().dateGreaterThan(limitDate).findAll();
   Map<DateTime, int> dataset = {};
 
   for (final r in routines) {
@@ -124,7 +137,13 @@ final heatmapProvider = FutureProvider<Map<DateTime, int>>((ref) async {
       } else if (percentage >= 0.5) {
         weight = 2;
       }
-      dataset[DateTime(r.date.year, r.date.month, r.date.day)] = weight;
+      
+      final date = DateTime(r.date.year, r.date.month, r.date.day);
+      // Se já houver rotina neste dia, mantém a que teve mais tasks (ou funde)
+      // Aqui vamos manter o maior peso
+      if (!dataset.containsKey(date) || weight > dataset[date]!) {
+        dataset[date] = weight;
+      }
     }
   }
   return dataset;

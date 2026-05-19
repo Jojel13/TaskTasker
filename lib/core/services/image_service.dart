@@ -61,4 +61,23 @@ class ImageService {
       debugPrint('Erro ao deletar imagem: $e');
     }
   }
+
+  static Future<String?> copyImage(String sourceFileName) async {
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final imagesDir = Directory('${dir.path}/task_images');
+      final sourceFile = File('${imagesDir.path}/$sourceFileName');
+      
+      if (!await sourceFile.exists()) return null;
+      
+      final newFileName = 'img_copy_${DateTime.now().millisecondsSinceEpoch}_${sourceFileName.hashCode}.jpg';
+      final targetPath = '${imagesDir.path}/$newFileName';
+      
+      await sourceFile.copy(targetPath);
+      return newFileName;
+    } catch (e) {
+      debugPrint('Erro ao copiar imagem: $e');
+      return null;
+    }
+  }
 }

@@ -18,6 +18,7 @@ class XpBar extends ConsumerWidget {
       final prevLevel = previous!.value!.currentLevel;
       final nextLevel = next.value!.currentLevel;
       if (nextLevel > prevLevel) {
+        if (!context.mounted) return;
         _showLevelUpOverlay(context, nextLevel);
       }
     });
@@ -32,13 +33,11 @@ class XpBar extends ConsumerWidget {
         final currentLevel = profile.currentLevel;
         
         // Calcular progresso do nível atual
-        final xpNeededForCurrent = currentLevel == 1 ? 0 : XpService.xpRequiredForLevel(currentLevel - 1);
-        final xpNeededForNext = XpService.xpRequiredForLevel(currentLevel);
+        final accumulatedBeforeCurrent = XpService.xpAccumulatedForLevel(currentLevel);
+        final xpForCurrentLevel = XpService.xpRequiredForLevel(currentLevel);
         
-        final xpInCurrentLevel = currentXp - xpNeededForCurrent;
-        final xpToNextLevel = xpNeededForNext - xpNeededForCurrent;
-        
-        final progress = (xpToNextLevel > 0) ? xpInCurrentLevel / xpToNextLevel : 0.0;
+        final xpInCurrentLevel = currentXp - accumulatedBeforeCurrent;
+        final progress = (xpForCurrentLevel > 0) ? xpInCurrentLevel / xpForCurrentLevel : 0.0;
 
         return GestureDetector(
           onTap: () {
@@ -60,7 +59,7 @@ class XpBar extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      '$xpInCurrentLevel / $xpToNextLevel XP',
+                      '$xpInCurrentLevel / $xpForCurrentLevel XP',
                       style: AppTextStyles.monoSmall.copyWith(
                         color: AppColors.textMuted,
                         fontSize: 10,

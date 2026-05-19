@@ -100,6 +100,19 @@ class RoutineService {
 
     final today = _today();
 
+    // ── Copiar imagens fora da transação (Evitar I/O pesado no writeTxn)
+    final Map<int, String?> copiedImages = {};
+    for (final division in DivisionType.values) {
+      final tasksToCopy = division == DivisionType.morning
+          ? [...(propagate[division] ?? []), ...tomorrowTasks]
+          : (propagate[division] ?? []);
+      for (final t in tasksToCopy) {
+        if (t.imageFileName != null && !copiedImages.containsKey(t.id)) {
+          copiedImages[t.id] = await ImageService.copyImage(t.imageFileName!);
+        }
+      }
+    }
+
     final routine = await _isar.writeTxn(() async {
       final r = Routine()
         ..name = profile.routineName
@@ -118,8 +131,13 @@ class RoutineService {
             : (propagate[division] ?? []);
 
         for (final src in tasks) {
-          final copy = _copyTask(src, division == DivisionType.morning && tomorrowTasks.contains(src)
+          final copy = _copyTask(src, division == DivisionType.morning && tomorrowTasks.any((t) => t.id == src.id)
               ? TaskColor.values[src.color.index] : src.color);
+          if (copiedImages.containsKey(src.id)) {
+            copy.imageFileName = copiedImages[src.id];
+          } else {
+            copy.imageFileName = null;
+          }
           await _isar.tasks.put(copy);
           day.tasks.add(copy);
         }
@@ -217,6 +235,7 @@ class RoutineService {
   Future<void> deleteTask(Id dayId, Id taskId) async {
     // Ler task ANTES da transação para decisão de XP
     final task = await _isar.tasks.get(taskId);
+    final String? imageToDelete = task?.imageFileName;
 
     await _isar.writeTxn(() async {
       final day = await _isar.routineDays.get(dayId);
@@ -225,11 +244,12 @@ class RoutineService {
         day.tasks.removeWhere((t) => t.id == taskId);
         await day.tasks.save();
       }
-      if (task != null && task.imageFileName != null) {
-        await ImageService.deleteImage(task.imageFileName!);
-      }
       await _isar.tasks.delete(taskId);
     });
+
+    if (imageToDelete != null) {
+      await ImageService.deleteImage(imageToDelete);
+    }
 
     // Cancelar alarme se existia
     if (task != null && task.hasAlarm) {
@@ -350,6 +370,11 @@ class RoutineService {
     // Ao voltar para branco, limpar data agendada e frequência
     if (next == TaskColor.standard) {
       task.scheduledDate = null;
+      if (task.hasAlarm) {
+        await AlarmService.cancelAlarm(task.id);
+        task.alarmTime = null;
+        task.alarmRepeat = false;
+      }
     }
     // Ao sair do azul, limpar frequência
     if (task.color == TaskColor.blue && next != TaskColor.blue) {
@@ -410,11 +435,16 @@ class RoutineService {
     await routine.days.load();
     final dayIds = routine.days.map((d) => d.id).toList();
     final taskIds = <Id>[];
+    final imagesToDelete = <String>[];
+    final alarmsToCancel = <int>[];
     for (final day in routine.days) {
       await day.tasks.load();
       for (final t in day.tasks) {
         if (t.imageFileName != null) {
-          await ImageService.deleteImage(t.imageFileName!);
+          imagesToDelete.add(t.imageFileName!);
+        }
+        if (t.hasAlarm) {
+          alarmsToCancel.add(t.id);
         }
       }
       taskIds.addAll(day.tasks.map((t) => t.id));
@@ -424,6 +454,12 @@ class RoutineService {
       await _isar.routineDays.deleteAll(dayIds);
       await _isar.routines.delete(routineId);
     });
+    for (final taskId in alarmsToCancel) {
+      await AlarmService.cancelAlarm(taskId);
+    }
+    for (final image in imagesToDelete) {
+      await ImageService.deleteImage(image);
+    }
   }
 
   Future<void> deleteAllPastRoutines() async {

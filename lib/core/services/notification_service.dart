@@ -17,6 +17,7 @@ void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     try {
       final notifService = NotificationService.instance;
+      await notifService.initializeForBackground();
       
       // Init ISAR in background isolate
       final dir = await getApplicationDocumentsDirectory();
@@ -60,7 +61,7 @@ void callbackDispatcher() {
         }
         
         await notifService.showNotification(
-           id: now.day,
+           id: now.hour * 60 + now.minute,
            title: title,
            body: body,
         );
@@ -79,9 +80,10 @@ class NotificationService {
   static final NotificationService instance = NotificationService._();
   
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  FlutterLocalNotificationsPlugin get plugin => _flutterLocalNotificationsPlugin;
   bool _initialized = false;
   
-  Future<void> initialize() async {
+  Future<void> initializeForBackground() async {
     if (_initialized || kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
 
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -89,10 +91,16 @@ class NotificationService {
         
     const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
-      // iOS: DarwinInitializationSettings(...)
     );
     
     await _flutterLocalNotificationsPlugin.initialize(settings: initializationSettings);
+    _initialized = true;
+  }
+
+  Future<void> initialize() async {
+    if (_initialized || kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
+
+    await initializeForBackground();
     
     Workmanager().initialize(
         callbackDispatcher,
@@ -114,7 +122,6 @@ class NotificationService {
       "check_routines_and_notify",
       frequency: Duration(hours: hours),
       constraints: Constraints(
-        networkType: NetworkType.connected,
         requiresBatteryNotLow: true,
       ),
     );

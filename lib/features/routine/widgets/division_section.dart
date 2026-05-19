@@ -90,8 +90,13 @@ class DivisionSection extends ConsumerWidget {
     // ── Task list ──────────────────────────────────────────────
     for (int i = 0; i < tasks.length; i++) {
       final task = tasks[i];
-      final gKey = GlobalKey();
-      taskKeys?[task.id] = gKey;
+      Key dragKey;
+      if (taskKeys != null) {
+        taskKeys![task.id] ??= GlobalKey();
+        dragKey = taskKeys![task.id]!;
+      } else {
+        dragKey = ValueKey('drag_${task.id}');
+      }
 
       final card = TaskCard(
         key: ValueKey(task.id),
@@ -112,12 +117,12 @@ class DivisionSection extends ConsumerWidget {
       );
 
       if (!isToday) {
-        children.add(SizedBox(key: gKey, child: card));
+        children.add(SizedBox(key: dragKey, child: card));
         continue;
       }
 
       final draggable = LongPressDraggable<Task>(
-        key: gKey,
+        key: dragKey,
         data: task,
         delay: const Duration(milliseconds: 300),
         feedback: Material(

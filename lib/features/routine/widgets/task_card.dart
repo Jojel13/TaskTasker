@@ -9,6 +9,7 @@ import '../../../core/services/image_service.dart';
 import 'task_settings_sheet.dart';
 import 'alarm_sheet.dart';
 import '../task_tree_screen.dart';
+import '../../../shared/widgets/blur_confirm_dialog.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
@@ -96,8 +97,10 @@ class _TaskCardState extends ConsumerState<TaskCard> {
   Widget build(BuildContext context) {
     final bool hasImage = widget.task.imageFileName != null;
 
-    return Slidable(
-      key: ValueKey(widget.task.id),
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      child: Slidable(
+        key: ValueKey(widget.task.id),
 
       // ── Swipe esquerdo: ações (editar, copiar, foto, tree, apagar) ─
       endActionPane: ActionPane(
@@ -262,10 +265,20 @@ class _TaskCardState extends ConsumerState<TaskCard> {
           if (!widget.isReadOnly)
             SlidableAction(
               onPressed: (_) {
-                if (widget.task.imageFileName != null) {
-                  ImageService.deleteImage(widget.task.imageFileName!);
-                }
-                widget.onDelete();
+                showDialog(
+                  context: context,
+                  builder: (_) => BlurConfirmDialog(
+                    title: 'Apagar Tarefa',
+                    message: 'Deseja apagar esta tarefa permanentemente?',
+                    confirmLabel: 'Apagar',
+                    onConfirm: () {
+                      if (widget.task.imageFileName != null) {
+                        ImageService.deleteImage(widget.task.imageFileName!);
+                      }
+                      widget.onDelete();
+                    },
+                  ),
+                );
               },
               backgroundColor: AppColors.taskRed.withValues(alpha: 0.12),
               foregroundColor: AppColors.taskRed,
@@ -357,7 +370,6 @@ class _TaskCardState extends ConsumerState<TaskCard> {
 
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        margin: const EdgeInsets.symmetric(vertical: 3),
         decoration: BoxDecoration(
           color: _isDone ? AppColors.card : _cardBgColor,
           borderRadius: BorderRadius.circular(12),
@@ -611,7 +623,8 @@ class _TaskCardState extends ConsumerState<TaskCard> {
           ],
         ),
       ),
-    ).animate().fade(duration: 200.ms).slideX(begin: 0.04, end: 0, curve: Curves.easeOut);
+    ),
+    ).animate(key: ValueKey('anim_task_${widget.task.id}')).fade(duration: 200.ms).slideX(begin: 0.04, end: 0, curve: Curves.easeOut);
   }
 }
 

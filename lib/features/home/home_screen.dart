@@ -329,7 +329,7 @@ class _TodayProgressBanner extends ConsumerWidget {
                const SizedBox(width: 12),
                Expanded(
                  child: Text(
-                   isPerfect ? '100% CONCLUÍDO! OTIMIZAÇÃO MÁXIMA!' : '$left tasks restantes hoje',
+                   isPerfect ? '100% CONCLUÍDO! OTIMIZAÇÃO MÁXIMA!' : '$left tarefas restantes hoje',
                    style: TextStyle(
                      color: isPerfect ? AppColors.accent : AppColors.textPrimary, 
                      fontWeight: FontWeight.bold, 

@@ -41,17 +41,21 @@ class _SapoMascotWidgetState extends State<SapoMascotWidget> {
     _cycleTimer = Timer.periodic(const Duration(seconds: 4), (timer) async {
       if (_isInteracting || !mounted) return;
       
-      // Sequência de acordar/piscar suave
+      // Sequência de acordar suave e olhar pros lados
       setState(() => _currentFrame = 2);
-      await Future.delayed(const Duration(milliseconds: 250));
+      await Future.delayed(const Duration(milliseconds: 300));
       if (_isInteracting || !mounted) return;
       
-      setState(() => _currentFrame = 3);
-      await Future.delayed(const Duration(milliseconds: 800));
+      setState(() => _currentFrame = 4); // Olha para um lado
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (_isInteracting || !mounted) return;
+      
+      setState(() => _currentFrame = 5); // Olha para o outro
+      await Future.delayed(const Duration(milliseconds: 600));
       if (_isInteracting || !mounted) return;
       
       setState(() => _currentFrame = 2);
-      await Future.delayed(const Duration(milliseconds: 250));
+      await Future.delayed(const Duration(milliseconds: 300));
       if (_isInteracting || !mounted) return;
       
       setState(() => _currentFrame = 1);
@@ -66,8 +70,21 @@ class _SapoMascotWidgetState extends State<SapoMascotWidget> {
       _currentFrame = 3; // Acorda feliz na hora
       _addHearts();
     });
+    
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted) setState(() => _currentFrame = 6);
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (mounted) setState(() => _currentFrame = 7);
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (mounted) setState(() => _currentFrame = 8);
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (mounted) setState(() => _currentFrame = 9);
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (mounted) setState(() => _currentFrame = 10);
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (mounted) setState(() => _currentFrame = 11);
 
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(milliseconds: 1500));
     if (mounted) {
       setState(() {
         _isInteracting = false;

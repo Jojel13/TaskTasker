@@ -18,10 +18,7 @@ void main() async {
   // Locale pt_BR global
   await initializeDateFormatting('pt_BR', null);
 
-  await IsarService.initialize();
-  await NotificationService.instance.initialize();
-  await AlarmService.initialize();
-
+  // Serviços pesados foram movidos para a SplashScreen para não travar a native splash
   // Força orientação portrait
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

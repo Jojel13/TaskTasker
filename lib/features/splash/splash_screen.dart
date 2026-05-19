@@ -5,8 +5,10 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/particles_background.dart';
 import '../../shared/widgets/sapo_mascot_widget.dart';
+import '../../core/database/isar_service.dart';
+import '../../core/services/notification_service.dart';
+import '../../core/services/alarm_service.dart';
 import '../home/main_wrapper.dart';
-
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -44,17 +46,20 @@ class _SplashScreenState extends State<SplashScreen> with RestorationMixin {
 
   void _simulateLoading() async {
     // Phase 1: Boot
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 200));
     if (!mounted) return;
     setState(() { _progress = 0.3; _loadingText = "Conectando aos servidores neurais..."; });
     
-    // Phase 2: Init ISAR (already done in main, but we simulate visual delay)
-    await Future.delayed(const Duration(milliseconds: 800));
+    // Phase 2: Init ISAR and services
+    await IsarService.initialize();
     if (!mounted) return;
     setState(() { _progress = 0.7; _loadingText = "Sincronizando rotinas e hábitos..."; });
     
+    await NotificationService.instance.initialize();
+    await AlarmService.initialize();
+    
     // Phase 3: Launch
-    await Future.delayed(const Duration(milliseconds: 600));
+    await Future.delayed(const Duration(milliseconds: 200));
     if (!mounted) return;
     setState(() { _progress = 1.0; _loadingText = "Sistema operacional pronto."; });
     

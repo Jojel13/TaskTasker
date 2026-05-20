@@ -10,9 +10,19 @@ import '../../shared/models/xp_event.dart';
 class IsarService {
   IsarService._();
 
-  static late Isar _isar;
+  static bool _isInitialized = false;
 
-  static Isar get instance => _isar;
+  static Isar get instance {
+    if (!_isInitialized) {
+      throw StateError(
+        'IsarService não foi inicializado. '
+        'Chame IsarService.initialize() antes de usar o banco.',
+      );
+    }
+    return _isar;
+  }
+
+  static late Isar _isar;
 
   /// Inicializa o banco de dados — deve ser chamado antes do app iniciar
   static Future<void> initialize() async {
@@ -29,6 +39,8 @@ class IsarService {
       directory: dir.path,
       name: 'tasktasker_db',
     );
+
+    _isInitialized = true;
 
     // Garante que o UserProfile singleton existe
     await _ensureUserProfile();

@@ -31,10 +31,7 @@ class RoutineCard extends StatefulWidget {
 class _RoutineCardState extends State<RoutineCard> {
   bool _expanded = false;
 
-  List<Task> _allTasks() => widget.days
-      .where((d) => d.division != DivisionType.tomorrow)
-      .expand((d) => d.tasks)
-      .toList();
+  List<Task> _allTasks() => widget.days.todayTasks;
 
   double _progress() {
     final tasks = _allTasks();

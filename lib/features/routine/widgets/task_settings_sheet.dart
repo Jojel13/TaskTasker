@@ -46,8 +46,22 @@ class _TaskSettingsSheetState extends ConsumerState<TaskSettingsSheet> {
     final task = widget.task;
 
     if (task.color == TaskColor.blue) {
+      // M16: n\u00e3o salvar frequ\u00eancia customizada sem dias selecionados
+      if (_selectedFrequency == FrequencyType.custom && _selectedDays.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Selecione pelo menos um dia da semana.'),
+              backgroundColor: AppColors.taskRed,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
       task.frequency = _selectedFrequency;
       task.frequencyDays = _selectedDays.toList();
+      task.createdAt = DateTime.now(); // M6: Reset cadence reference date on settings change
     }
 
     final isar = ref.read(isarProvider);

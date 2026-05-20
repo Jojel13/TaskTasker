@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/models/enums.dart';
 
 /// Paleta de cores — TaskTasker
 /// Estética Peak-Cyberpunk: dark mode, azul elétrico como identidade principal.
@@ -55,29 +56,29 @@ class AppColors {
   // ─── Helpers ──────────────────────────────────────────────────
 
   /// Cor de fundo do card baseada na cor da task
-  static Color cardBgFromTaskColor(TaskColorType color) => switch (color) {
-    TaskColorType.standard => cardStandard,
-    TaskColorType.blue     => cardBlue,
-    TaskColorType.yellow   => cardYellow,
-    TaskColorType.red      => cardRed,
+  static Color cardBgFromTaskColor(TaskColor color) => switch (color) {
+    TaskColor.standard => cardStandard,
+    TaskColor.blue     => cardBlue,
+    TaskColor.yellow   => cardYellow,
+    TaskColor.red      => cardRed,
   };
 
   /// Cor do dot/badge da task
-  static Color fromTaskColorType(TaskColorType color) => switch (color) {
-    TaskColorType.standard => taskStandard,
-    TaskColorType.blue     => taskBlue,
-    TaskColorType.yellow   => taskYellow,
-    TaskColorType.red      => taskRed,
+  static Color fromTaskColorType(TaskColor color) => switch (color) {
+    TaskColor.standard => taskStandard,
+    TaskColor.blue     => taskBlue,
+    TaskColor.yellow   => taskYellow,
+    TaskColor.red      => taskRed,
   };
 
   /// Cor de borda do card baseada na cor da task
-  static Color cardBorderFromTaskColor(TaskColorType color, {bool isDone = false}) {
+  static Color cardBorderFromTaskColor(TaskColor color, {bool isDone = false}) {
     if (isDone) return const Color(0xFF1E1E1E);
     return switch (color) {
-      TaskColorType.standard => const Color(0xFF2A2A2A),
-      TaskColorType.blue     => const Color(0xFF4A9EFF),
-      TaskColorType.yellow   => const Color(0xFFFFCC00),
-      TaskColorType.red      => const Color(0xFFFF4D4D),
+      TaskColor.standard => const Color(0xFF2A2A2A),
+      TaskColor.blue     => const Color(0xFF4A9EFF),
+      TaskColor.yellow   => const Color(0xFFFFCC00),
+      TaskColor.red      => const Color(0xFFFF4D4D),
     }.withValues(alpha: 0.35);
   }
 
@@ -106,6 +107,3 @@ class AppColors {
     ];
   }
 }
-
-/// Enum auxiliar para acesso às cores de task sem depender do modelo ISAR
-enum TaskColorType { standard, blue, yellow, red }

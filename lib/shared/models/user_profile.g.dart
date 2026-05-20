@@ -20,7 +20,8 @@ const UserProfileSchema = CollectionSchema(
     r'appTheme': PropertySchema(
       id: 0,
       name: r'appTheme',
-      type: IsarType.string,
+      type: IsarType.byte,
+      enumMap: _UserProfileappThemeEnumValueMap,
     ),
     r'currentLevel': PropertySchema(
       id: 1,
@@ -118,7 +119,6 @@ int _userProfileEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
-  bytesCount += 3 + object.appTheme.length * 3;
   bytesCount += 3 + object.divisionAfternoonName.length * 3;
   bytesCount += 3 + object.divisionMorningName.length * 3;
   bytesCount += 3 + object.divisionNightName.length * 3;
@@ -133,7 +133,7 @@ void _userProfileSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.appTheme);
+  writer.writeByte(offsets[0], object.appTheme.index);
   writer.writeLong(offsets[1], object.currentLevel);
   writer.writeString(offsets[2], object.divisionAfternoonName);
   writer.writeString(offsets[3], object.divisionMorningName);
@@ -158,7 +158,9 @@ UserProfile _userProfileDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = UserProfile();
-  object.appTheme = reader.readString(offsets[0]);
+  object.appTheme =
+      _UserProfileappThemeValueEnumMap[reader.readByteOrNull(offsets[0])] ??
+          AppThemeType.cyberpunkDark;
   object.currentLevel = reader.readLong(offsets[1]);
   object.divisionAfternoonName = reader.readString(offsets[2]);
   object.divisionMorningName = reader.readString(offsets[3]);
@@ -186,7 +188,8 @@ P _userProfileDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readString(offset)) as P;
+      return (_UserProfileappThemeValueEnumMap[reader.readByteOrNull(offset)] ??
+          AppThemeType.cyberpunkDark) as P;
     case 1:
       return (reader.readLong(offset)) as P;
     case 2:
@@ -221,6 +224,15 @@ P _userProfileDeserializeProp<P>(
       throw IsarError('Unknown property with id $propertyId');
   }
 }
+
+const _UserProfileappThemeEnumValueMap = {
+  'cyberpunkDark': 0,
+  'light': 1,
+};
+const _UserProfileappThemeValueEnumMap = {
+  0: AppThemeType.cyberpunkDark,
+  1: AppThemeType.light,
+};
 
 Id _userProfileGetId(UserProfile object) {
   return object.id;
@@ -316,56 +328,48 @@ extension UserProfileQueryWhere
 extension UserProfileQueryFilter
     on QueryBuilder<UserProfile, UserProfile, QFilterCondition> {
   QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition> appThemeEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+      AppThemeType value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'appTheme',
         value: value,
-        caseSensitive: caseSensitive,
       ));
     });
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
       appThemeGreaterThan(
-    String value, {
+    AppThemeType value, {
     bool include = false,
-    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
         property: r'appTheme',
         value: value,
-        caseSensitive: caseSensitive,
       ));
     });
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
       appThemeLessThan(
-    String value, {
+    AppThemeType value, {
     bool include = false,
-    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
         property: r'appTheme',
         value: value,
-        caseSensitive: caseSensitive,
       ));
     });
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition> appThemeBetween(
-    String lower,
-    String upper, {
+    AppThemeType lower,
+    AppThemeType upper, {
     bool includeLower = true,
     bool includeUpper = true,
-    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
@@ -374,78 +378,6 @@ extension UserProfileQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
-      appThemeStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'appTheme',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
-      appThemeEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'appTheme',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
-      appThemeContains(String value, {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'appTheme',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition> appThemeMatches(
-      String pattern,
-      {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'appTheme',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
-      appThemeIsEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'appTheme',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
-      appThemeIsNotEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'appTheme',
-        value: '',
       ));
     });
   }
@@ -2229,10 +2161,9 @@ extension UserProfileQuerySortThenBy
 
 extension UserProfileQueryWhereDistinct
     on QueryBuilder<UserProfile, UserProfile, QDistinct> {
-  QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByAppTheme(
-      {bool caseSensitive = true}) {
+  QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByAppTheme() {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'appTheme', caseSensitive: caseSensitive);
+      return query.addDistinctBy(r'appTheme');
     });
   }
 
@@ -2349,7 +2280,7 @@ extension UserProfileQueryProperty
     });
   }
 
-  QueryBuilder<UserProfile, String, QQueryOperations> appThemeProperty() {
+  QueryBuilder<UserProfile, AppThemeType, QQueryOperations> appThemeProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'appTheme');
     });

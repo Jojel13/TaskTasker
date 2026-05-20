@@ -1,4 +1,5 @@
 import 'package:isar/isar.dart';
+import 'enums.dart';
 
 part 'user_profile.g.dart';
 
@@ -28,5 +29,6 @@ class UserProfile {
   
   int notificationFrequencyHours = 6; // Frequência do Workmanager
 
-  String appTheme = 'cyberpunk_dark';
+  @enumerated
+  AppThemeType appTheme = AppThemeType.cyberpunkDark;
 }

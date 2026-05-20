@@ -10,8 +10,15 @@ import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
 class XpDashboardScreen extends ConsumerWidget {
   const XpDashboardScreen({super.key});
 
+  /// M18: nome do mascote baseado no n\u00edvel do usu\u00e1rio
   String _getMascotName(int level) {
-    return 'Sapo Sapinho';
+    if (level <= 2)  return 'Sapo Iniciante';
+    if (level <= 5)  return 'Sapo Treinado';
+    if (level <= 9)  return 'Sapo Dedicado';
+    if (level <= 14) return 'Sapo Expert';
+    if (level <= 19) return 'Sapo Mestre';
+    if (level <= 29) return 'Sapo Lend\u00e1rio';
+    return 'Sapo Imortal';
   }
 
   @override

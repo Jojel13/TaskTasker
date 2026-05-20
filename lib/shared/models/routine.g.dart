@@ -42,8 +42,8 @@ const RoutineSchema = CollectionSchema(
     r'date': IndexSchema(
       id: -7552997827385218417,
       name: r'date',
-      unique: false,
-      replace: false,
+      unique: true,
+      replace: true,
       properties: [
         IndexPropertySchema(
           name: r'date',
@@ -132,6 +132,60 @@ List<IsarLinkBase<dynamic>> _routineGetLinks(Routine object) {
 void _routineAttach(IsarCollection<dynamic> col, Id id, Routine object) {
   object.id = id;
   object.days.attach(col, col.isar.collection<RoutineDay>(), r'days', id);
+}
+
+extension RoutineByIndex on IsarCollection<Routine> {
+  Future<Routine?> getByDate(DateTime date) {
+    return getByIndex(r'date', [date]);
+  }
+
+  Routine? getByDateSync(DateTime date) {
+    return getByIndexSync(r'date', [date]);
+  }
+
+  Future<bool> deleteByDate(DateTime date) {
+    return deleteByIndex(r'date', [date]);
+  }
+
+  bool deleteByDateSync(DateTime date) {
+    return deleteByIndexSync(r'date', [date]);
+  }
+
+  Future<List<Routine?>> getAllByDate(List<DateTime> dateValues) {
+    final values = dateValues.map((e) => [e]).toList();
+    return getAllByIndex(r'date', values);
+  }
+
+  List<Routine?> getAllByDateSync(List<DateTime> dateValues) {
+    final values = dateValues.map((e) => [e]).toList();
+    return getAllByIndexSync(r'date', values);
+  }
+
+  Future<int> deleteAllByDate(List<DateTime> dateValues) {
+    final values = dateValues.map((e) => [e]).toList();
+    return deleteAllByIndex(r'date', values);
+  }
+
+  int deleteAllByDateSync(List<DateTime> dateValues) {
+    final values = dateValues.map((e) => [e]).toList();
+    return deleteAllByIndexSync(r'date', values);
+  }
+
+  Future<Id> putByDate(Routine object) {
+    return putByIndex(r'date', object);
+  }
+
+  Id putByDateSync(Routine object, {bool saveLinks = true}) {
+    return putByIndexSync(r'date', object, saveLinks: saveLinks);
+  }
+
+  Future<List<Id>> putAllByDate(List<Routine> objects) {
+    return putAllByIndex(r'date', objects);
+  }
+
+  List<Id> putAllByDateSync(List<Routine> objects, {bool saveLinks = true}) {
+    return putAllByIndexSync(r'date', objects, saveLinks: saveLinks);
+  }
 }
 
 extension RoutineQueryWhereSort on QueryBuilder<Routine, Routine, QWhere> {

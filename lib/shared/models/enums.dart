@@ -22,3 +22,9 @@ extension FrequencyTypeExtension on FrequencyType {
     }
   }
 }
+
+/// Tema do aplicativo
+enum AppThemeType {
+  cyberpunkDark,
+  light, // Para futura expansão
+}

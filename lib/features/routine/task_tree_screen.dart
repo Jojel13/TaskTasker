@@ -128,7 +128,9 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
   }
 
   Future<void> _saveAndCheckParent() async {
-    final allCompleted = widget.task.subtasks.every((s) => s.isCompleted);
+    // A12: lista vazia => every() retorna true (vacuous truth) => XP indevido
+    final subtasks = widget.task.subtasks;
+    final allCompleted = subtasks.isNotEmpty && subtasks.every((s) => s.isCompleted);
     if (allCompleted && widget.task.status != TaskStatus.completed) {
       widget.task.status = TaskStatus.completed;
       widget.task.completedOnDate = DateTime.now();

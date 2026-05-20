@@ -38,7 +38,21 @@ const XPEventSchema = CollectionSchema(
   deserialize: _xPEventDeserialize,
   deserializeProp: _xPEventDeserializeProp,
   idName: r'id',
-  indexes: {},
+  indexes: {
+    r'earnedAt': IndexSchema(
+      id: -8281250366239188956,
+      name: r'earnedAt',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'earnedAt',
+          type: IndexType.value,
+          caseSensitive: false,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {},
   getId: _xPEventGetId,
@@ -118,6 +132,14 @@ extension XPEventQueryWhereSort on QueryBuilder<XPEvent, XPEvent, QWhere> {
       return query.addWhereClause(const IdWhereClause.any());
     });
   }
+
+  QueryBuilder<XPEvent, XPEvent, QAfterWhere> anyEarnedAt() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'earnedAt'),
+      );
+    });
+  }
 }
 
 extension XPEventQueryWhere on QueryBuilder<XPEvent, XPEvent, QWhereClause> {
@@ -181,6 +203,96 @@ extension XPEventQueryWhere on QueryBuilder<XPEvent, XPEvent, QWhereClause> {
         lower: lowerId,
         includeLower: includeLower,
         upper: upperId,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<XPEvent, XPEvent, QAfterWhereClause> earnedAtEqualTo(
+      DateTime earnedAt) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'earnedAt',
+        value: [earnedAt],
+      ));
+    });
+  }
+
+  QueryBuilder<XPEvent, XPEvent, QAfterWhereClause> earnedAtNotEqualTo(
+      DateTime earnedAt) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'earnedAt',
+              lower: [],
+              upper: [earnedAt],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'earnedAt',
+              lower: [earnedAt],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'earnedAt',
+              lower: [earnedAt],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'earnedAt',
+              lower: [],
+              upper: [earnedAt],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<XPEvent, XPEvent, QAfterWhereClause> earnedAtGreaterThan(
+    DateTime earnedAt, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'earnedAt',
+        lower: [earnedAt],
+        includeLower: include,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<XPEvent, XPEvent, QAfterWhereClause> earnedAtLessThan(
+    DateTime earnedAt, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'earnedAt',
+        lower: [],
+        upper: [earnedAt],
+        includeUpper: include,
+      ));
+    });
+  }
+
+  QueryBuilder<XPEvent, XPEvent, QAfterWhereClause> earnedAtBetween(
+    DateTime lowerEarnedAt,
+    DateTime upperEarnedAt, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'earnedAt',
+        lower: [lowerEarnedAt],
+        includeLower: includeLower,
+        upper: [upperEarnedAt],
         includeUpper: includeUpper,
       ));
     });

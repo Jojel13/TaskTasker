@@ -111,6 +111,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             // Editar texto
             SlidableAction(
               onPressed: (_) async {
+                // M11: criar controller e garantir dispose ap\u00f3s o dialog fechar
                 final ctrl = TextEditingController(text: widget.task.text);
                 final newText = await showDialog<String>(
                   context: context,
@@ -150,8 +151,12 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     ],
                   ),
                 );
-                if (newText != null && newText.trim().isNotEmpty && context.mounted) {
+                ctrl.dispose(); // M11: dispose do controller ap\u00f3s dialog
+                 if (newText != null && newText.trim().isNotEmpty && context.mounted) {
                   widget.task.text = newText.trim();
+                  if (widget.task.color == TaskColor.blue) {
+                    widget.task.createdAt = DateTime.now(); // M6: Reset cadence reference on text edit
+                  }
                   final isar = ref.read(isarProvider);
                   await isar.writeTxn(() async => await isar.tasks.put(widget.task));
                   setState(() {});

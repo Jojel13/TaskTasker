@@ -261,49 +261,20 @@ class RoutineService {
       final xpAmount = XpService.xpForAction(task.color);
       await _xp.deductXp(xpAmount, 'Task concluída deletada (${task.color.name})');
     }
-
-    // Verificar validade do streak para o dia de hoje após deleção
-    await _revalidateStreakForToday();
   }
 
-  /// Após deletar uma task concluída, verifica se ainda existem tasks
-  /// concluídas hoje. Se não houver nenhuma, reseta o streakDays para 0
-  /// apenas se o streakDays foi incrementado hoje.
-  Future<void> _revalidateStreakForToday() async {
-    final today = _today();
-    final todayRoutine = await findTodayRoutine();
-    if (todayRoutine == null) return;
 
-    await todayRoutine.days.load();
-    bool hasAnyCompleted = false;
-    for (final day in todayRoutine.days) {
-      await day.tasks.load();
-      if (day.tasks.any((t) => t.status == TaskStatus.completed)) {
-        hasAnyCompleted = true;
-        break;
-      }
-    }
-
-    if (!hasAnyCompleted) {
-      // Sem tasks concluídas hoje — o streak do dia atual não deve contar
-      // Não tocamos no streakRecord, apenas zera o streakDays do dia
-      final profile = await _isar.userProfiles.get(1);
-      if (profile == null) return;
-      final lastDate = profile.lastRoutineDate;
-      if (lastDate != null) {
-        final lastNorm = DateTime(lastDate.year, lastDate.month, lastDate.day);
-        if (lastNorm == today && profile.streakDays > 0) {
-          profile.streakDays = 0;
-          await _isar.writeTxn(() async => _isar.userProfiles.put(profile));
-        }
-      }
-    }
-  }
 
   Future<void> moveTaskToDay(Id taskId, Id newDayId) async {
     await _isar.writeTxn(() async {
       final task = await _isar.tasks.get(taskId);
       if (task == null) return;
+
+      // M6: Resetar cadência de tasks azuis se movidas
+      if (task.color == TaskColor.blue) {
+        task.createdAt = DateTime.now();
+        await _isar.tasks.put(task);
+      }
 
       final oldDay = await _isar.routineDays.filter().tasks((q) => q.idEqualTo(taskId)).findFirst();
       if (oldDay != null) {
@@ -327,7 +298,7 @@ class RoutineService {
       final day = await _isar.routineDays.get(dayId);
       if (day == null) return;
       await day.tasks.load();
-      
+
       final tasks = day.tasks.toList()
         ..sort((a, b) => a.sortOrder != b.sortOrder
             ? a.sortOrder.compareTo(b.sortOrder)
@@ -337,18 +308,23 @@ class RoutineService {
       final task = tasks.removeAt(oldIndex);
       tasks.insert(newIndex, task);
 
+      // A14: usar putAll para gravar N tasks em uma única operação
       for (int i = 0; i < tasks.length; i++) {
         tasks[i].sortOrder = i;
-        await _isar.tasks.put(tasks[i]);
       }
+      await _isar.tasks.putAll(tasks);
     });
   }
 
   Future<void> toggleTask(Task task) async {
     final nowCompleted = task.status != TaskStatus.completed;
-    task.status = nowCompleted ? TaskStatus.completed : TaskStatus.active;
-    task.completedOnDate = nowCompleted ? DateTime.now() : null;
-    await _isar.writeTxn(() => _isar.tasks.put(task));
+    // A8: todas as mutasão de estado feitas dentro do writeTxn para
+    // garantir consistência módel<->banco em caso de falha
+    await _isar.writeTxn(() async {
+      task.status = nowCompleted ? TaskStatus.completed : TaskStatus.active;
+      task.completedOnDate = nowCompleted ? DateTime.now() : null;
+      await _isar.tasks.put(task);
+    });
     final desc = '${nowCompleted ? "Task" : "Desmarco task"} (${task.color.name})';
     final xp = XpService.xpForAction(task.color);
     if (nowCompleted) {
@@ -421,11 +397,12 @@ class RoutineService {
   }
 
   Future<void> updateTaskSortOrder(List<Task> tasks) async {
+    // A14: putAll é O(1) transação vs N puts individuais
     await _isar.writeTxn(() async {
       for (int i = 0; i < tasks.length; i++) {
         tasks[i].sortOrder = i;
-        await _isar.tasks.put(tasks[i]);
       }
+      await _isar.tasks.putAll(tasks);
     });
   }
 

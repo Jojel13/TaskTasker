@@ -4,6 +4,7 @@ import '../../core/providers/core_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/routine.dart';
+import '../../shared/models/routine_day.dart';
 import '../../shared/models/enums.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'widgets/routine_card.dart';
@@ -294,8 +295,8 @@ class _TodayProgressBanner extends ConsumerWidget {
     
     return daysAsync.when(
       data: (days) {
-         final tasks = days.where((d) => d.division != DivisionType.tomorrow).expand((d) => d.tasks).toList();
-         final total = tasks.length;
+          final tasks = days.todayTasks;
+          final total = tasks.length;
          if (total == 0) return const SizedBox.shrink();
          
          final done = tasks.where((t) => t.status == TaskStatus.completed).length;

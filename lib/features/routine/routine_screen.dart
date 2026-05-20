@@ -23,6 +23,7 @@ class RoutineScreen extends ConsumerStatefulWidget {
 class _RoutineScreenState extends ConsumerState<RoutineScreen> {
   final ScrollController _scrollController = ScrollController();
   final Map<int, GlobalKey> _taskKeys = {};
+  bool _hasScrolled = false; // A17: flag para scroll único
 
   bool get _isToday {
     final now = DateTime.now();
@@ -38,6 +39,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
   }
 
   void _scrollToTask(int taskId) {
+    if (_hasScrolled) return; // A17: só executa uma vez
+    _hasScrolled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final key = _taskKeys[taskId];
       if (key?.currentContext != null) {
@@ -45,7 +48,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
           key!.currentContext!,
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
-          alignment: 0.3, // posicionar a 30% do topo
+          alignment: 0.3,
         );
       }
     });
@@ -111,7 +114,11 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                         child: Text('Erro: $e',
                             style: const TextStyle(color: AppColors.taskRed))),
                     data: (days) {
-                      // Após carregar, scroll automático se solicitado
+                      // A18: remover keys obsoletas de tasks que não existem mais
+                      final currentTaskIds = days.expand((d) => d.tasks.map((t) => t.id)).toSet();
+                      _taskKeys.removeWhere((id, _) => !currentTaskIds.contains(id));
+
+                      // A17: scroll automático apenas na primeira carga
                       if (widget.scrollToTaskId != null) {
                         _scrollToTask(widget.scrollToTaskId!);
                       }

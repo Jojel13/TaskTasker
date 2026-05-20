@@ -36,47 +36,61 @@ class FloatingBottomBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             // Home
-            _NavItem(
-              icon: Icons.home_rounded,
-              isActive: currentIndex == 0,
-              activeColor: AppColors.primary,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onNavTap(0);
-              },
+            Semantics(
+              label: 'Aba Início',
+              selected: currentIndex == 0,
+              button: true,
+              child: _NavItem(
+                icon: Icons.home_rounded,
+                isActive: currentIndex == 0,
+                activeColor: AppColors.primary,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onNavTap(0);
+                },
+              ),
             ),
 
             // Botão + central
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                onPlusTap();
-              },
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary,
-                  boxShadow: AppColors.glowShadowIntense(AppColors.primary),
-                ),
-                child: const Icon(
-                  Icons.add_rounded,
-                  color: AppColors.background,
-                  size: 28,
+            Semantics(
+              label: 'Nova Rotina',
+              button: true,
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  onPlusTap();
+                },
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary,
+                    boxShadow: AppColors.glowShadowIntense(AppColors.primary),
+                  ),
+                  child: const Icon(
+                    Icons.add_rounded,
+                    color: AppColors.background,
+                    size: 28,
+                  ),
                 ),
               ),
             ),
 
             // Radar
-            _NavItem(
-              icon: Icons.radar_rounded,
-              isActive: currentIndex == 1,
-              activeColor: AppColors.taskYellow,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onNavTap(1);
-              },
+            Semantics(
+              label: 'Aba Radar',
+              selected: currentIndex == 1,
+              button: true,
+              child: _NavItem(
+                icon: Icons.radar_rounded,
+                isActive: currentIndex == 1,
+                activeColor: AppColors.taskYellow,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onNavTap(1);
+                },
+              ),
             ),
           ],
         ),

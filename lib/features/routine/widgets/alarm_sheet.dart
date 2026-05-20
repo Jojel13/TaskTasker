@@ -101,8 +101,9 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
       );
 
       if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Row(children: [
               const Icon(Icons.alarm_on_rounded, color: AppColors.primary, size: 18),

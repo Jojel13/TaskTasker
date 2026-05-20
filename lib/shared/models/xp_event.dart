@@ -7,6 +7,7 @@ part 'xp_event.g.dart';
 class XPEvent {
   Id id = Isar.autoIncrement;
 
+  @Index()
   late DateTime earnedAt;
   late int amount; // Positivo = ganho, negativo = desconto
   late String description; // Ex: "Task azul concluída", "Streak 7 dias"

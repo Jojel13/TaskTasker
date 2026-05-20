@@ -62,31 +62,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (_formKey.currentState!.validate()) {
       final isar = ref.read(isarProvider);
       final profile = await isar.userProfiles.get(1);
-      
-      if (profile != null) {
-        profile.routineName = _routineNameCtrl.text;
-        profile.divisionMorningName = _morningCtrl.text;
-        profile.divisionAfternoonName = _afternoonCtrl.text;
-        profile.divisionNightName = _nightCtrl.text;
-        profile.divisionTomorrowName = _tomorrowCtrl.text;
-        profile.notificationFrequencyHours = _notificationFrequency.toInt();
-        
-        await isar.writeTxn(() async {
-          await isar.userProfiles.put(profile);
-        });
-        
-        // Atualiza o Workmanager com a nova frequência
-        NotificationService.instance.updatePeriodicChecks(_notificationFrequency.toInt());
-        
+
+      // A11: feedback explicito se perfil nao existir
+      if (profile == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Configurações salvas com sucesso!'),
-              backgroundColor: AppColors.primary,
+              content: Text('Erro: perfil não encontrado. Reinicie o app.'),
+              backgroundColor: AppColors.taskRed,
             ),
           );
-          Navigator.pop(context);
         }
+        return;
+      }
+
+      profile.routineName = _routineNameCtrl.text;
+      profile.divisionMorningName = _morningCtrl.text;
+      profile.divisionAfternoonName = _afternoonCtrl.text;
+      profile.divisionNightName = _nightCtrl.text;
+      profile.divisionTomorrowName = _tomorrowCtrl.text;
+      profile.notificationFrequencyHours = _notificationFrequency.toInt();
+
+      await isar.writeTxn(() async {
+        await isar.userProfiles.put(profile);
+      });
+
+      // Atualiza o Workmanager com a nova frequência
+      NotificationService.instance.updatePeriodicChecks(_notificationFrequency.toInt());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Configurações salvas com sucesso!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        Navigator.pop(context);
       }
     }
   }

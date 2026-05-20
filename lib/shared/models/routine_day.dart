@@ -17,3 +17,10 @@ class RoutineDay {
 
   final tasks = IsarLinks<Task>();
 }
+
+extension RoutineDayIterableX on Iterable<RoutineDay> {
+  /// Retorna as tasks de hoje (excluindo a divisão "Para Amanhã")
+  List<Task> get todayTasks => where((d) => d.division != DivisionType.tomorrow)
+      .expand((d) => d.tasks)
+      .toList();
+}

@@ -12,7 +12,7 @@ class Routine {
   late String name;
 
   /// Data normalizada: yyyy-MM-dd 00:00:00 (sem hora)
-  @Index()
+  @Index(unique: true, replace: true)
   late DateTime date;
 
   late DateTime createdAt;

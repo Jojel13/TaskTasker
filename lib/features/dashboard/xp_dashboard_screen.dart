@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/core_providers.dart';
@@ -19,6 +20,15 @@ class XpDashboardScreen extends ConsumerWidget {
     if (level <= 19) return 'Sapo Mestre';
     if (level <= 29) return 'Sapo Lend\u00e1rio';
     return 'Sapo Imortal';
+  }
+
+  String _getMascotSpeech(int level, int streak) {
+    if (streak >= 15) return 'Incrível! Você é uma máquina com $streak dias de foco consecutivo!';
+    if (streak >= 7) return 'Excelente ritmo! $streak dias seguidos, continue assim!';
+    if (streak > 0) return 'O sapinho aprova o seu empenho! Mantendo o streak de $streak dias!';
+    if (level <= 2) return 'Olá, novato! Vamos começar a organizar a sua rotina diária hoje?';
+    if (level <= 5) return 'Você está progredindo muito bem! Que tal criarmos novas tarefas no Radar?';
+    return 'Rumo à maestria! Otimize o seu dia para ganhar mais XP!';
   }
 
   @override
@@ -51,6 +61,28 @@ class XpDashboardScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Balão de fala do Sapo Mascot
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.35), width: 1.0),
+                  boxShadow: AppColors.glowShadow(AppColors.accent, intensity: 0.15),
+                ),
+                child: Text(
+                  _getMascotSpeech(level, profile.streakDays),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               // Mascot interativo animado
               const SapoMascotWidget(size: 120),
               const SizedBox(height: 16),
@@ -151,6 +183,89 @@ class XpDashboardScreen extends ConsumerWidget {
                             content: Text('Atividade no dia ${value.day}/${value.month}'),
                             duration: const Duration(seconds: 2),
                           ));
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+              // Histórico de Conquistas de XP
+              const SizedBox(height: 40),
+              Text('CONQUISTAS DE XP RECENTES', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted)),
+              const SizedBox(height: 16),
+              Consumer(
+                builder: (context, ref, child) {
+                  final xpEventsAsync = ref.watch(recentXpEventsProvider);
+                  return xpEventsAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    error: (err, _) => Text('Erro: $err', style: const TextStyle(color: AppColors.taskRed)),
+                    data: (events) {
+                      if (events.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text('Nenhum ganho de XP registrado ainda.', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                          ),
+                        );
+                      }
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: events.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 8),
+                        itemBuilder: (context, idx) {
+                          final event = events[idx];
+                          final timeStr = DateFormat('dd/MM HH:mm').format(event.earnedAt);
+                          final isPositive = event.amount >= 0;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: (isPositive ? AppColors.accent : AppColors.taskRed).withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isPositive ? Icons.add_rounded : Icons.remove_rounded,
+                                    size: 16,
+                                    color: isPositive ? AppColors.accent : AppColors.taskRed,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        event.description,
+                                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        timeStr,
+                                        style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '${isPositive ? "+" : ""}${event.amount} XP',
+                                  style: TextStyle(
+                                    color: isPositive ? AppColors.accent : AppColors.taskRed,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
                         },
                       );
                     },

@@ -142,9 +142,21 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                     child: IgnorePointer(
                       child: ClipRect(
                         child: BackdropFilter(
-                          filter: ui.ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
+                          filter: ui.ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
                           child: Container(
-                            color: AppColors.background.withValues(alpha: 0.15),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withValues(alpha: 0.08),
+                                  Colors.white.withValues(alpha: 0.02),
+                                  Colors.black.withValues(alpha: 0.02),
+                                  Colors.black.withValues(alpha: 0.12),
+                                ],
+                                stops: const [0.0, 0.35, 0.65, 1.0],
+                              ),
+                            ),
                           ),
                         ),
                       ),

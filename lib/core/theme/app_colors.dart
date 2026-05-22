@@ -27,22 +27,22 @@ class AppColors {
   // ─── Cores das Tasks ──────────────────────────────────────────
   static const Color taskStandard = Color(0xFFD0D0D0); // Branco suave
   static const Color taskBlue     = Color(0xFF208AF0); // Azul elétrico
-  static const Color taskYellow   = Color(0xFFFE802B); // Laranja neon (antigo amarelo)
+  static const Color taskYellow   = Color(0xFFFFCC00); // Amarelo cyber gold
   static const Color taskRed      = Color(0xFFFF4D4D); // Vermelho coral
   static const Color taskGreen    = Color(0xFF23C9B1); // Neon Cyan/Teal
 
   // ─── Fundos dos cards por cor de task ─────────────────────────
   static const Color cardStandard = Color(0xFF11111E);
   static const Color cardBlue     = Color(0xFF081428); // Azul muito escuro
-  static const Color cardYellow   = Color(0xFF241308); // Laranja escuro
+  static const Color cardYellow   = Color(0xFF1E1A05); // Amarelo escuro
   static const Color cardRed      = Color(0xFF1C0505); // Vermelho muito escuro
 
   // ─── Glow (semi-transparente) ─────────────────────────────────
   static const Color glowBlue   = Color(0x66208AF0);
-  static const Color glowYellow = Color(0x66FE802B);
+  static const Color glowYellow = Color(0x66FFCC00);
   static const Color glowRed    = Color(0x66FF4D4D);
   static const Color glowGreen  = Color(0x6623C9B1);
-  static const Color glowPurple = Color(0x66FE802B);
+  static const Color glowPurple = Color(0x66FFCC00);
 
   // ─── Texto ────────────────────────────────────────────────────
   static const Color textPrimary   = Color(0xFFF0F0F0); // Branco gelo (texto)

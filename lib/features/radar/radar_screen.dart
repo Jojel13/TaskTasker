@@ -4,7 +4,6 @@ import '../../core/providers/core_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/enums.dart';
-import '../../shared/models/task.dart';
 import '../../shared/models/routine.dart';
 import '../routine/widgets/task_card.dart';
 import '../routine/routine_screen.dart';
@@ -18,12 +17,12 @@ class RadarScreen extends ConsumerWidget {
 
     return radarTasksAsync.when(
       data: (tasks) {
-        final redTasks = tasks.where((t) => t.color == TaskColor.red).toList();
-        final yellowTasks = tasks.where((t) => t.color == TaskColor.yellow).toList();
+        final redTasks = tasks.where((t) => t.task.color == TaskColor.red).toList();
+        final yellowTasks = tasks.where((t) => t.task.color == TaskColor.yellow).toList();
 
         redTasks.sort((a, b) =>
-            (a.scheduledDate ?? DateTime.now()).compareTo(b.scheduledDate ?? DateTime.now()));
-        yellowTasks.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+            (a.task.scheduledDate ?? DateTime.now()).compareTo(b.task.scheduledDate ?? DateTime.now()));
+        yellowTasks.sort((a, b) => a.task.createdAt.compareTo(b.task.createdAt));
 
         // ── Calcula as cores do degradê baseadas na proporção ────
         final int total = redTasks.length + yellowTasks.length;
@@ -176,7 +175,7 @@ class RadarScreen extends ConsumerWidget {
                           delegate: SliverChildBuilderDelegate(
                             (context, index) => Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 20),
-                              child: _RadarTaskCard(task: redTasks[index]),
+                              child: _RadarTaskCard(taskInfo: redTasks[index]),
                             ),
                             childCount: redTasks.length,
                           ),
@@ -215,7 +214,7 @@ class RadarScreen extends ConsumerWidget {
                           delegate: SliverChildBuilderDelegate(
                             (context, index) => Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 20),
-                              child: _RadarTaskCard(task: yellowTasks[index]),
+                              child: _RadarTaskCard(taskInfo: yellowTasks[index]),
                             ),
                             childCount: yellowTasks.length,
                           ),
@@ -267,15 +266,16 @@ class RadarScreen extends ConsumerWidget {
 
 /// Card do Radar — somente leitura. LongPress navega para a rotina.
 class _RadarTaskCard extends ConsumerWidget {
-  final Task task;
-  const _RadarTaskCard({required this.task});
+  final RadarTaskInfo taskInfo;
+  const _RadarTaskCard({required this.taskInfo});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       onLongPress: () => _navigateToRoutine(context, ref),
       child: TaskCard(
-        task: task,
+        task: taskInfo.task,
+        divisionName: taskInfo.divisionName,
         isReadOnly: true,
         onToggle: () {},
         onColorCycle: () {},
@@ -295,7 +295,7 @@ class _RadarTaskCard extends ConsumerWidget {
     for (final routine in allRoutines) {
       final days = await svc.loadDays(routine);
       for (final day in days) {
-        if (day.tasks.any((t) => t.id == task.id)) {
+        if (day.tasks.any((t) => t.id == taskInfo.task.id)) {
           targetRoutine = routine;
           break outer;
         }
@@ -307,7 +307,7 @@ class _RadarTaskCard extends ConsumerWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RoutineScreen(routine: targetRoutine!, scrollToTaskId: task.id),
+        builder: (_) => RoutineScreen(routine: targetRoutine!, scrollToTaskId: taskInfo.task.id),
       ),
     );
   }

@@ -1,13 +1,16 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import '../database/isar_service.dart';
 import '../services/routine_service.dart';
 import '../services/xp_service.dart';
+import '../services/backup_service.dart';
 import '../../shared/models/routine.dart';
 import '../../shared/models/routine_day.dart';
 import '../../shared/models/user_profile.dart';
 import '../../shared/models/task.dart';
 import '../../shared/models/enums.dart';
+import '../../shared/models/xp_event.dart';
 
 // ── Core ─────────────────────────────────────────────────────────────────────
 final isarProvider = Provider<Isar>((ref) => IsarService.instance);
@@ -18,6 +21,10 @@ final routineServiceProvider = Provider<RoutineService>(
 
 final xpServiceProvider = Provider<XpService>(
   (ref) => XpService(ref.watch(isarProvider)),
+);
+
+final backupServiceProvider = Provider<BackupService>(
+  (ref) => BackupService(ref.watch(isarProvider)),
 );
 
 // ── Routines ─────────────────────────────────────────────────────────────────
@@ -58,30 +65,54 @@ final userProfileProvider = StreamProvider<UserProfile?>((ref) {
 });
 
 // ── Radar ────────────────────────────────────────────────────────────────────
-final radarProvider = StreamProvider<List<Task>>((ref) async* {
-  final isar = ref.watch(isarProvider);
+class RadarTaskInfo {
+  final Task task;
+  final String divisionName;
 
-  await for (final _ in isar.tasks.watchLazy(fireImmediately: true)) {
+  RadarTaskInfo({required this.task, required this.divisionName});
+}
+
+final radarProvider = StreamProvider<List<RadarTaskInfo>>((ref) {
+  final isar = ref.watch(isarProvider);
+  
+  final controller = StreamController<void>();
+
+  final subTasks = isar.tasks.watchLazy().listen((_) {
+    if (!controller.isClosed) controller.add(null);
+  });
+  final subRoutines = isar.routines.watchLazy().listen((_) {
+    if (!controller.isClosed) controller.add(null);
+  });
+
+  // Gatilho inicial
+  controller.add(null);
+
+  ref.onDispose(() {
+    subTasks.cancel();
+    subRoutines.cancel();
+    controller.close();
+  });
+
+  return controller.stream.asyncMap((_) async {
     final latestRoutine = await isar.routines.where().sortByDateDesc().findFirst();
-    if (latestRoutine == null) {
-      yield [];
-      continue;
-    }
+    if (latestRoutine == null) return <RadarTaskInfo>[];
 
     await latestRoutine.days.load();
-    final tasksList = <Task>[];
+    final tasksList = <RadarTaskInfo>[];
     for (final day in latestRoutine.days) {
       await day.tasks.load();
-      for (final t in day.tasks) {
-        if (t.status == TaskStatus.active &&
+      final taskIds = day.tasks.map((t) => t.id).toList();
+      final dbTasks = await isar.tasks.getAll(taskIds);
+      for (final t in dbTasks) {
+        if (t != null &&
+            t.status == TaskStatus.active &&
             (t.color == TaskColor.yellow || t.color == TaskColor.red)) {
-          tasksList.add(t);
+          tasksList.add(RadarTaskInfo(task: t, divisionName: day.customName));
         }
       }
     }
-
-    yield tasksList;
-  }
+    return tasksList;
+  });
 });
 
 // ── Dashboard Heatmap ────────────────────────────────────────────────────────
@@ -127,4 +158,10 @@ final heatmapProvider = FutureProvider<Map<DateTime, int>>((ref) async {
     }
   }
   return dataset;
+});
+
+// ── Recent XP Events ──────────────────────────────────────────────────────────
+final recentXpEventsProvider = StreamProvider<List<XPEvent>>((ref) {
+  final isar = ref.watch(isarProvider);
+  return isar.xPEvents.where().sortByEarnedAtDesc().limit(5).watch(fireImmediately: true);
 });

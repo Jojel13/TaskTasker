@@ -44,6 +44,13 @@ class AnalyticsScreen extends ConsumerWidget {
                   _buildSummaryStats(data),
                   
                   const SizedBox(height: 32),
+
+                  // Produtividade por Período
+                  const Text('Produtividade por Período', style: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  _buildDivisionStatsPanel(context, data.divisionStats),
+                  
+                  const SizedBox(height: 32),
                   
                   // Gráfico de Barras: Produtividade nos últimos dias
                   const Text('Desempenho Semanal', style: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -386,6 +393,96 @@ class AnalyticsScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDivisionStatsPanel(BuildContext context, Map<DivisionType, DivisionStats> stats) {
+    String getLabel(DivisionType type) {
+      switch (type) {
+        case DivisionType.morning: return 'Manhã';
+        case DivisionType.afternoon: return 'Tarde';
+        case DivisionType.night: return 'Noite';
+        case DivisionType.tomorrow: return 'Amanhã';
+      }
+    }
+
+    IconData getIcon(DivisionType type) {
+      switch (type) {
+        case DivisionType.morning: return Icons.wb_sunny_rounded;
+        case DivisionType.afternoon: return Icons.wb_cloudy_rounded;
+        case DivisionType.night: return Icons.nightlight_round;
+        case DivisionType.tomorrow: return Icons.arrow_forward_rounded;
+      }
+    }
+
+    Color getColor(DivisionType type) {
+      switch (type) {
+        case DivisionType.morning: return AppColors.taskYellow;
+        case DivisionType.afternoon: return AppColors.secondary;
+        case DivisionType.night: return AppColors.accent;
+        case DivisionType.tomorrow: return AppColors.textSecondary;
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        children: stats.entries.map((entry) {
+          final type = entry.key;
+          final stat = entry.value;
+          final total = stat.total;
+          final completed = stat.completed;
+          final double progress = total == 0 ? 0.0 : completed / total;
+          final percentage = (progress * 100).toInt();
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(getIcon(type), color: getColor(type), size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          getLabel(type),
+                          style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '$completed/$total ($percentage%)',
+                      style: TextStyle(
+                        color: total > 0 && completed == total ? AppColors.accent : AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: AppColors.background,
+                    color: getColor(type),
+                    minHeight: 6,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }

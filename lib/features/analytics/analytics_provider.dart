@@ -13,12 +13,20 @@ class DailyStats {
   DailyStats({required this.date, required this.completed, required this.failed});
 }
 
+class DivisionStats {
+  final int completed;
+  final int total;
+
+  DivisionStats({required this.completed, required this.total});
+}
+
 class AnalyticsData {
   final int totalTasksCompleted;
   final int totalTasksFailed;
   final Map<TaskColor, int> tasksByColor;
   final int streakDays;
   final List<DailyStats> dailyStats;
+  final Map<DivisionType, DivisionStats> divisionStats;
 
   AnalyticsData({
     required this.totalTasksCompleted,
@@ -26,6 +34,7 @@ class AnalyticsData {
     required this.tasksByColor,
     required this.streakDays,
     required this.dailyStats,
+    required this.divisionStats,
   });
 }
 
@@ -54,6 +63,19 @@ final analyticsProvider = FutureProvider.autoDispose<AnalyticsData>((ref) async 
     TaskColor.standard: 0,
   };
   
+  Map<DivisionType, int> divCompleted = {
+    DivisionType.morning: 0,
+    DivisionType.afternoon: 0,
+    DivisionType.night: 0,
+    DivisionType.tomorrow: 0,
+  };
+  Map<DivisionType, int> divTotal = {
+    DivisionType.morning: 0,
+    DivisionType.afternoon: 0,
+    DivisionType.night: 0,
+    DivisionType.tomorrow: 0,
+  };
+
   List<DailyStats> dailyStats = [];
 
   for (final routine in recentRoutines) {
@@ -64,10 +86,12 @@ final analyticsProvider = FutureProvider.autoDispose<AnalyticsData>((ref) async 
     for (final day in routine.days) {
       await day.tasks.load();
       for (final t in day.tasks) {
+        divTotal[day.division] = (divTotal[day.division] ?? 0) + 1;
         if (t.status == TaskStatus.completed) {
           dayCompleted++;
           totalCompleted++;
           byColor[t.color] = (byColor[t.color] ?? 0) + 1;
+          divCompleted[day.division] = (divCompleted[day.division] ?? 0) + 1;
         } else if (t.status == TaskStatus.active || t.status == TaskStatus.scheduled) {
           // Se a data já passou e não foi completada, consideramos como falha ou não-feita
           if (routine.date.isBefore(DateTime(now.year, now.month, now.day))) {
@@ -85,11 +109,20 @@ final analyticsProvider = FutureProvider.autoDispose<AnalyticsData>((ref) async 
     ));
   }
 
+  Map<DivisionType, DivisionStats> divisionStats = {};
+  for (final type in DivisionType.values) {
+    divisionStats[type] = DivisionStats(
+      completed: divCompleted[type] ?? 0,
+      total: divTotal[type] ?? 0,
+    );
+  }
+
   return AnalyticsData(
     totalTasksCompleted: totalCompleted,
     totalTasksFailed: totalFailed,
     tasksByColor: byColor,
     streakDays: streak,
     dailyStats: dailyStats,
+    divisionStats: divisionStats,
   );
 });

@@ -62,45 +62,25 @@ final radarProvider = StreamProvider<List<Task>>((ref) async* {
   final isar = ref.watch(isarProvider);
 
   await for (final _ in isar.tasks.watchLazy(fireImmediately: true)) {
-    final allActive = await isar.tasks
-        .filter()
-        .statusEqualTo(TaskStatus.active)
-        .and()
-        .group((q) => q.colorEqualTo(TaskColor.red).or().colorEqualTo(TaskColor.yellow))
-        .sortByCreatedAtDesc()
-        .findAll();
-
     final latestRoutine = await isar.routines.where().sortByDateDesc().findFirst();
-    final todayTaskIds = <int>{};
+    if (latestRoutine == null) {
+      yield [];
+      continue;
+    }
 
-    if (latestRoutine != null) {
-      final now = DateTime.now();
-      final isToday = latestRoutine.date.year == now.year &&
-          latestRoutine.date.month == now.month &&
-          latestRoutine.date.day == now.day;
-
-      if (isToday) {
-        await latestRoutine.days.load();
-        for (final day in latestRoutine.days) {
-          // Removemos do radar as tasks que já estão nas divisões de hoje (exceto Para Amanhã)
-          if (day.division != DivisionType.tomorrow) {
-            await day.tasks.load();
-            todayTaskIds.addAll(day.tasks.map((t) => t.id));
-          }
+    await latestRoutine.days.load();
+    final tasksList = <Task>[];
+    for (final day in latestRoutine.days) {
+      await day.tasks.load();
+      for (final t in day.tasks) {
+        if (t.status == TaskStatus.active &&
+            (t.color == TaskColor.yellow || t.color == TaskColor.red)) {
+          tasksList.add(t);
         }
       }
     }
 
-    final filtered = allActive.where((t) => !todayTaskIds.contains(t.id)).toList();
-
-    final uniqueTasks = <int, Task>{};
-    for (final t in filtered) {
-      if (!uniqueTasks.containsKey(t.id)) {
-        uniqueTasks[t.id] = t;
-      }
-    }
-
-    yield uniqueTasks.values.toList();
+    yield tasksList;
   }
 });
 

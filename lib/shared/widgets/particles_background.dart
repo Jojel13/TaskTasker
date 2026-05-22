@@ -58,7 +58,11 @@ class _ParticlesBackgroundState extends State<ParticlesBackground> with SingleTi
       vx: (_rnd.nextDouble() - 0.5) * (widget.intensive ? 2 : 0.8),
       vy: (_rnd.nextDouble() - 0.5) * (widget.intensive ? 2 : 0.8) - (widget.intensive ? 1 : 0.2), 
       radius: _rnd.nextDouble() * 1.5 + 1,
-      color: _rnd.nextBool() ? AppColors.primary : AppColors.secondary,
+      color: switch (_rnd.nextInt(3)) {
+        0 => AppColors.primary,
+        1 => AppColors.secondary,
+        _ => AppColors.accent,
+      },
       opacity: _rnd.nextDouble() * 0.3 + 0.1,
     );
   }

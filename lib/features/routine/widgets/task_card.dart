@@ -527,55 +527,58 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 _CountdownBadge(scheduledDate: widget.task.scheduledDate!),
 
               // ── Checkbox & +XP Float ─────────────────────────────
-              Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  GestureDetector(
-                    onTap: _isToggleLocked ? null : widget.onToggle,
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      alignment: Alignment.center,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _isDone ? _taskColor : AppColors.surfaceVariant, // Cor sólida
-                          border: Border.all(
-                            color: _isToggleLocked ? AppColors.textMuted : _taskColor,
-                            width: 1.5,
+              if (!widget.isReadOnly || _isDone)
+                Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    GestureDetector(
+                      onTap: _isToggleLocked ? null : widget.onToggle,
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        alignment: Alignment.center,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _isDone ? _taskColor : AppColors.surfaceVariant, // Cor sólida
+                            border: Border.all(
+                              color: _isToggleLocked ? AppColors.textMuted : _taskColor,
+                              width: 1.5,
+                            ),
+                            boxShadow: _isDone
+                                ? AppColors.glowShadow(_taskColor, intensity: 0.5)
+                                : null,
                           ),
-                          boxShadow: _isDone
-                              ? AppColors.glowShadow(_taskColor, intensity: 0.5)
+                          child: _isDone
+                              ? const Icon(Icons.check_rounded, size: 15, color: AppColors.card) // check escuro
                               : null,
                         ),
-                        child: _isDone
-                            ? const Icon(Icons.check_rounded, size: 15, color: AppColors.card) // check escuro
-                            : null,
                       ),
                     ),
-                  ),
-                  if (_showXpFloat)
-                    Positioned(
-                      top: -10,
-                      child: Text(
-                        '+${XpService.xpForAction(widget.task.color)} XP',
-                        style: const TextStyle(
-                          color: AppColors.accent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                          .animate()
-                          .fade(duration: 200.ms)
-                          .moveY(begin: 0, end: -30, duration: 800.ms, curve: Curves.easeOut)
-                          .fadeOut(delay: 500.ms, duration: 300.ms),
-                    ),
-                ],
-              ),
+                    if (_showXpFloat)
+                      Positioned(
+                        top: -10,
+                        child: Text(
+                          '+${XpService.xpForAction(widget.task.color)} XP',
+                          style: const TextStyle(
+                            color: AppColors.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                            .animate()
+                            .fade(duration: 200.ms)
+                            .moveY(begin: 0, end: -30, duration: 800.ms, curve: Curves.easeOut)
+                            .fadeOut(delay: 500.ms, duration: 300.ms),
+                      ),
+                  ],
+                )
+              else
+                const SizedBox(width: 16),
             ]),
 
             // ── Subtasks Expandables ────────────────────────────

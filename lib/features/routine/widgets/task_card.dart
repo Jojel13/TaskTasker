@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
 import '../../../core/services/image_service.dart';
+import '../../../core/services/alarm_service.dart';
 import 'task_settings_sheet.dart';
 import 'alarm_sheet.dart';
 import '../task_tree_screen.dart';
@@ -23,6 +25,7 @@ class TaskCard extends ConsumerStatefulWidget {
   final VoidCallback onDelete;
   final bool isReadOnly;
   final String? divisionName;
+  final bool showRadarInfo;
 
   const TaskCard({
     super.key,
@@ -32,6 +35,7 @@ class TaskCard extends ConsumerStatefulWidget {
     required this.onDelete,
     this.isReadOnly = false,
     this.divisionName,
+    this.showRadarInfo = false,
   });
 
   @override
@@ -101,7 +105,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 3),
-      child: Slidable(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Slidable(
         key: ValueKey('slidable_${widget.task.id}_${widget.task.color.name}_${widget.task.status.name}'),
 
       // ── Swipe esquerdo: ações (editar, copiar, foto, tree, apagar) ─
@@ -113,7 +119,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             // Editar texto
             SlidableAction(
               onPressed: (_) async {
-                // M11: criar controller e garantir dispose ap\u00f3s o dialog fechar
+                // M11: criar controller e garantir dispose após o dialog fechar
                 final ctrl = TextEditingController(text: widget.task.text);
                 final newText = await showDialog<String>(
                   context: context,
@@ -153,7 +159,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     ],
                   ),
                 );
-                ctrl.dispose(); // M11: dispose do controller ap\u00f3s dialog
+                ctrl.dispose(); // M11: dispose do controller após dialog
                  if (newText != null && newText.trim().isNotEmpty && context.mounted) {
                   widget.task.text = newText.trim();
                   if (widget.task.color == TaskColor.blue) {
@@ -167,6 +173,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               backgroundColor: AppColors.surface,
               foregroundColor: AppColors.taskBlue,
               icon: Icons.edit_rounded,
+              padding: EdgeInsets.zero,
             ),
             // Copiar
             SlidableAction(
@@ -185,6 +192,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               backgroundColor: AppColors.surface,
               foregroundColor: AppColors.textSecondary,
               icon: Icons.copy_rounded,
+              padding: EdgeInsets.zero,
             ),
             // Câmera/Galeria
             SlidableAction(
@@ -252,6 +260,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               backgroundColor: AppColors.surface,
               foregroundColor: AppColors.textSecondary,
               icon: Icons.camera_alt_rounded,
+              padding: EdgeInsets.zero,
             ),
           ],
 
@@ -267,6 +276,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             backgroundColor: AppColors.surface,
             foregroundColor: AppColors.taskYellow,
             icon: Icons.account_tree_rounded,
+            padding: EdgeInsets.zero,
           ),
 
           if (!widget.isReadOnly)
@@ -290,6 +300,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               backgroundColor: AppColors.taskRed.withValues(alpha: 0.12),
               foregroundColor: AppColors.taskRed,
               icon: Icons.delete_outline_rounded,
+              padding: EdgeInsets.zero,
             ),
         ],
       ),
@@ -313,7 +324,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     backgroundColor: AppColors.surface,
                     foregroundColor: AppColors.taskBlue,
                     icon: Icons.repeat_rounded,
-                    label: 'Freq',
+                    padding: EdgeInsets.zero,
                   ),
 
                 // ── Agendar (Standard, Amarela e Azul) ─────────────
@@ -349,7 +360,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                       AppColors.taskRed.withValues(alpha: 0.12),
                   foregroundColor: AppColors.taskRed,
                   icon: Icons.calendar_today_rounded,
-                  label: 'Agendar',
+                  padding: EdgeInsets.zero,
                 ),
 
                 // ── Alarme (Standard, Amarela e Azul) ──────────────
@@ -361,7 +372,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   icon: widget.task.hasAlarm
                       ? Icons.alarm_on_rounded
                       : Icons.alarm_add_rounded,
-                  label: widget.task.hasAlarm ? 'Alarme ✓' : 'Alarme',
+                  padding: EdgeInsets.zero,
                 ),
               ],
             )
@@ -508,6 +519,31 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                                   ),
                                 ),
                               ],
+                              if (widget.showRadarInfo) ...[
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 2,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Criada em: ${DateFormat('dd/MM/yyyy').format(widget.task.createdAt)}',
+                                      style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                    if (widget.task.color == TaskColor.red && widget.task.scheduledDate != null)
+                                      Text(
+                                        '·  Agendada: ${DateFormat('dd/MM/yyyy').format(widget.task.scheduledDate!)}',
+                                        style: const TextStyle(
+                                          color: AppColors.taskRed,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -549,8 +585,43 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 _AlarmBadge(alarmTime: widget.task.alarmTime!),
 
               // ── Countdown badge (task vermelha) ─────────────────
-              if (widget.task.color == TaskColor.red && widget.task.scheduledDate != null)
+              if (widget.task.color == TaskColor.red && widget.task.scheduledDate != null) ...[
+                IconButton(
+                  icon: const Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.taskRed),
+                  onPressed: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: widget.task.scheduledDate ?? DateTime.now(),
+                      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                      builder: (context, child) => Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.dark(
+                            primary: AppColors.taskRed,
+                            onPrimary: Colors.white,
+                            surface: AppColors.background,
+                            onSurface: Colors.white,
+                          ),
+                        ),
+                        child: child!,
+                      ),
+                    );
+                    if (date != null && context.mounted) {
+                      widget.task.scheduledDate = date;
+                      final isar = ref.read(isarProvider);
+                      await isar.writeTxn(() async {
+                        await isar.tasks.put(widget.task);
+                      });
+                      await AlarmService.scheduleRedTaskNotification(widget.task);
+                      ref.invalidate(radarProvider);
+                      setState(() {});
+                    }
+                  },
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                ),
                 _CountdownBadge(scheduledDate: widget.task.scheduledDate!),
+              ],
 
               // ── Checkbox & +XP Float ─────────────────────────────
               if (!widget.isReadOnly || _isDone)
@@ -661,6 +732,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
           ],
         ),
       ),
+    ),
     ),
     ).animate(key: ValueKey('anim_task_${widget.task.id}')).fade(duration: 200.ms).slideX(begin: 0.04, end: 0, curve: Curves.easeOut);
   }

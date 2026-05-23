@@ -30,24 +30,28 @@ class RadarScreen extends ConsumerWidget {
 
         final Color topColor;
         final Color midColor;
-        const Color bottomColor = Color(0xFF0C0808);
-
+        const Color bottomColor = Color(0xFF070B14); // AppColors.background
 
         if (total == 0) {
           topColor = AppColors.background;
           midColor = AppColors.background;
-        } else if (redRatio >= 0.7) {
-          // Maioria vermelha: fundo vermelho intenso
-          topColor = const Color(0xFF3D0808); // vermelho escuro
-          midColor = const Color(0xFF1F0404);
-        } else if (redRatio >= 0.3) {
-          // Misto: vermelho-âmbar
-          topColor = Color.lerp(const Color(0xFF2A1000), const Color(0xFF3D0808), redRatio)!;
-          midColor = Color.lerp(const Color(0xFF180D00), const Color(0xFF1F0404), redRatio)!;
+        } else if (redTasks.isNotEmpty && yellowTasks.isEmpty) {
+          // Full Vermelho
+          topColor = const Color(0xFF4C0E0E); // Vermelho cyber profundo
+          midColor = const Color(0xFF1E0505);
+        } else if (redTasks.isEmpty && yellowTasks.isNotEmpty) {
+          // Full Amarelo
+          topColor = const Color(0xFF362A00); // Amarelo cyber profundo
+          midColor = const Color(0xFF1C1600);
         } else {
-          // Maioria amarela: fundo âmbar escuro
-          topColor = const Color(0xFF2A1A00); // âmbar escuro
-          midColor = const Color(0xFF180D00);
+          // Interpolação inteligente
+          final redTop = const Color(0xFF4C0E0E);
+          final yellowTop = const Color(0xFF362A00);
+          final redMid = const Color(0xFF1E0505);
+          final yellowMid = const Color(0xFF1C1600);
+          
+          topColor = Color.lerp(yellowTop, redTop, redRatio)!;
+          midColor = Color.lerp(yellowMid, redMid, redRatio)!;
         }
 
         return Container(
@@ -93,20 +97,22 @@ class RadarScreen extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(4),
                                   child: Row(
                                     children: [
-                                      Flexible(
-                                        flex: redTasks.length + 1,
-                                        child: Container(
-                                          height: 3,
-                                          color: AppColors.taskRed.withValues(alpha: 0.8),
+                                      if (redTasks.isNotEmpty)
+                                        Flexible(
+                                          flex: redTasks.length,
+                                          child: Container(
+                                            height: 3,
+                                            color: AppColors.taskRed.withValues(alpha: 0.8),
+                                          ),
                                         ),
-                                      ),
-                                      Flexible(
-                                        flex: yellowTasks.length + 1,
-                                        child: Container(
-                                          height: 3,
-                                          color: AppColors.taskYellow.withValues(alpha: 0.8),
+                                      if (yellowTasks.isNotEmpty)
+                                        Flexible(
+                                          flex: yellowTasks.length,
+                                          child: Container(
+                                            height: 3,
+                                            color: AppColors.taskYellow.withValues(alpha: 0.8),
+                                          ),
                                         ),
-                                      ),
                                     ],
                                   ),
                                 ),
@@ -277,6 +283,7 @@ class _RadarTaskCard extends ConsumerWidget {
         task: taskInfo.task,
         divisionName: taskInfo.divisionName,
         isReadOnly: true,
+        showRadarInfo: true,
         onToggle: () {},
         onColorCycle: () {},
         onDelete: () {},

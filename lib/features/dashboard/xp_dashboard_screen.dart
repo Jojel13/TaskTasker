@@ -178,6 +178,8 @@ class XpDashboardScreen extends ConsumerWidget {
                           3: AppColors.accent, // 50-74%
                           4: AppColors.primary, // 75-100%
                         },
+                        defaultColor: AppColors.surfaceVariant,
+                        textColor: AppColors.textSecondary,
                         onClick: (value) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                             content: Text('Atividade no dia ${value.day}/${value.month}'),

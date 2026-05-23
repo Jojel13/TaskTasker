@@ -161,9 +161,15 @@ class AnalyticsScreen extends ConsumerWidget {
 
     Map<DateTime, int> datasets = {};
     for (var stat in dailyStats) {
-      // Remover horas para o HeatmapCalendar funcionar bem
-      final d = DateTime(stat.date.year, stat.date.month, stat.date.day);
-      datasets[d] = stat.completed;
+      if (stat.completed > 0) {
+        // Remover horas para o HeatmapCalendar funcionar bem
+        final d = DateTime(stat.date.year, stat.date.month, stat.date.day);
+        datasets[d] = stat.completed;
+      }
+    }
+
+    if (datasets.isEmpty) {
+      return const Center(child: Text('Ainda não há dados suficientes.', style: TextStyle(color: AppColors.textMuted)));
     }
 
     return Container(

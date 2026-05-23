@@ -38,8 +38,6 @@ class RoutineService {
         .findFirst();
   }
 
-  Future<Routine?> _lastRoutine() async =>
-      _isar.routines.where().sortByDateDesc().findFirst();
 
   Future<List<Routine>> allRoutines() =>
       _isar.routines.where().sortByDateDesc().findAll();
@@ -65,53 +63,76 @@ class RoutineService {
       throw Exception('UserProfile não inicializado. Execute o setup do app.');
     }
 
-    final lastRoutine = await _lastRoutine();
+    final pastRoutines = await _isar.routines.where().sortByDateDesc().findAll();
+    final lastRoutine = pastRoutines.isNotEmpty ? pastRoutines.first : null;
 
     // Coletar dados fora da transaction (reads)
-    Map<DivisionType, List<Task>> propagate = {};
+    Map<DivisionType, List<Task>> propagate = {
+      DivisionType.morning: [],
+      DivisionType.afternoon: [],
+      DivisionType.night: [],
+    };
     List<Task> tomorrowTasks = [];
+
+    final today = _today();
 
     if (lastRoutine != null) {
       await lastRoutine.days.load();
-      final today = _today();
       for (final day in lastRoutine.days) {
         await day.tasks.load();
         final tasks = day.tasks.toList();
-        final eligible = <Task>[];
-        for (final t in tasks) {
-          if (t.color == TaskColor.red) {
-            final sched = t.scheduledDate;
-            if (sched == null || sched.isBefore(today)) continue; // expirada → skip
-            eligible.add(t);
-          } else if (t.color == TaskColor.blue) {
-            if (_blueEligible(t, today)) eligible.add(t);
-          } else if (t.color == TaskColor.yellow) {
-            if (t.completedOnDate == null) eligible.add(t);
-          }
-          // standard: nunca propaga
-        }
+        
         if (day.division == DivisionType.tomorrow) {
-          tomorrowTasks = eligible;
+          // Divisão "Para Amanhã" propaga independente da cor (se não concluída)
+          for (final t in tasks) {
+            if (t.status != TaskStatus.completed) {
+              tomorrowTasks.add(t);
+            }
+          }
         } else {
+          // Outras divisões propagam apenas amarelas não concluídas e vermelhas futuras
+          final eligible = <Task>[];
+          for (final t in tasks) {
+            if (t.color == TaskColor.red) {
+              final sched = t.scheduledDate;
+              if (sched == null || sched.isBefore(today)) continue; // expirada → skip
+              eligible.add(t);
+            } else if (t.color == TaskColor.yellow) {
+              if (t.completedOnDate == null) eligible.add(t);
+            }
+            // blue: tratado separadamente no _getEligibleBlueTasks
+            // standard: nunca propaga
+          }
           propagate[day.division] = eligible;
         }
       }
     }
 
-    final today = _today();
+    // Coletar tasks azuis propagadas
+    final tomorrowTexts = tomorrowTasks.map((t) => t.text.trim()).toSet();
+    final blueTasksMap = await _getEligibleBlueTasks(today, pastRoutines, tomorrowTexts);
 
     // ── Copiar imagens fora da transação (Evitar I/O pesado no writeTxn)
     final Map<int, String?> copiedImages = {};
     for (final division in DivisionType.values) {
       final tasksToCopy = division == DivisionType.morning
-          ? [...(propagate[division] ?? []), ...tomorrowTasks]
-          : (propagate[division] ?? []);
+          ? [
+              ...(propagate[division] ?? []),
+              ...(blueTasksMap[division] ?? []),
+              ...tomorrowTasks,
+            ]
+          : [
+              ...(propagate[division] ?? []),
+              ...(blueTasksMap[division] ?? []),
+            ];
       for (final t in tasksToCopy) {
         if (t.imageFileName != null && !copiedImages.containsKey(t.id)) {
           copiedImages[t.id] = await ImageService.copyImage(t.imageFileName!);
         }
       }
     }
+
+    final List<Task> tasksWithAlarms = [];
 
     final routine = await _isar.writeTxn(() async {
       final r = Routine()
@@ -127,12 +148,18 @@ class RoutineService {
         await _isar.routineDays.put(day);
 
         final tasks = division == DivisionType.morning
-            ? [...(propagate[division] ?? []), ...tomorrowTasks]
-            : (propagate[division] ?? []);
+            ? [
+                ...(propagate[division] ?? []),
+                ...(blueTasksMap[division] ?? []),
+                ...tomorrowTasks,
+              ]
+            : [
+                ...(propagate[division] ?? []),
+                ...(blueTasksMap[division] ?? []),
+              ];
 
         for (final src in tasks) {
-          final copy = _copyTask(src, division == DivisionType.morning && tomorrowTasks.any((t) => t.id == src.id)
-              ? TaskColor.values[src.color.index] : src.color);
+          final copy = _copyTask(src, src.color, today);
           if (copiedImages.containsKey(src.id)) {
             copy.imageFileName = copiedImages[src.id];
           } else {
@@ -140,6 +167,10 @@ class RoutineService {
           }
           await _isar.tasks.put(copy);
           day.tasks.add(copy);
+
+          if (copy.hasAlarm) {
+            tasksWithAlarms.add(copy);
+          }
         }
         await day.tasks.save();
         r.days.add(day);
@@ -147,6 +178,11 @@ class RoutineService {
       await r.days.save();
       return r;
     });
+
+    // Agendar alarmes
+    for (final task in tasksWithAlarms) {
+      await AlarmService.scheduleAlarm(task);
+    }
 
     // ── Streak: verificar se o dia anterior teve tasks concluídas ─
     // Lemos o profile novamente (fora da txn anterior) para evitar
@@ -251,9 +287,13 @@ class RoutineService {
       await ImageService.deleteImage(imageToDelete);
     }
 
-    // Cancelar alarme se existia
-    if (task != null && task.hasAlarm) {
-      await AlarmService.cancelAlarm(taskId);
+    if (task != null) {
+      if (task.hasAlarm) {
+        await AlarmService.cancelAlarm(taskId);
+      }
+      if (task.color == TaskColor.red) {
+        await AlarmService.cancelRedTaskNotification(taskId);
+      }
     }
 
     // Estornar XP se a task estava concluída
@@ -366,7 +406,13 @@ class RoutineService {
   Future<void> setTaskRed(Task task, DateTime scheduledDate) async {
     task.color = TaskColor.red;
     task.scheduledDate = scheduledDate;
+    if (task.hasAlarm) {
+      await AlarmService.cancelAlarm(task.id);
+      task.alarmTime = null;
+      task.alarmRepeat = false;
+    }
     await _isar.writeTxn(() => _isar.tasks.put(task));
+    await AlarmService.scheduleRedTaskNotification(task);
   }
 
   /// Remove o status vermelho, voltando para branco.
@@ -374,6 +420,7 @@ class RoutineService {
     task.color = TaskColor.standard;
     task.scheduledDate = null;
     await _isar.writeTxn(() => _isar.tasks.put(task));
+    await AlarmService.cancelRedTaskNotification(task.id);
   }
 
   // ─── Alarme Individual (Fase 3) ──────────────────────────────────
@@ -449,6 +496,84 @@ class RoutineService {
   }
 
   // ── Helpers ──────────────────────────────────────────────────
+  Future<Map<DivisionType, List<Task>>> _getEligibleBlueTasks(
+    DateTime today,
+    List<Routine> pastRoutines,
+    Set<String> tomorrowTexts,
+  ) async {
+    final allBlueTasks = await _isar.tasks
+        .filter()
+        .colorEqualTo(TaskColor.blue)
+        .findAll();
+    
+    final Map<DivisionType, List<Task>> result = {
+      DivisionType.morning: [],
+      DivisionType.afternoon: [],
+      DivisionType.night: [],
+    };
+
+    if (allBlueTasks.isEmpty) return result;
+
+    // Agrupar por texto para obter a versão mais recente
+    final Map<String, Task> latestTaskMap = {};
+    for (final t in allBlueTasks) {
+      final text = t.text.trim();
+      final existing = latestTaskMap[text];
+      if (existing == null || t.createdAt.isAfter(existing.createdAt)) {
+        latestTaskMap[text] = t;
+      }
+    }
+
+    for (final entry in latestTaskMap.entries) {
+      final text = entry.key;
+      final latestTask = entry.value;
+
+      // Evita duplicidade se já está vindo via divisão amanhã
+      if (tomorrowTexts.contains(text)) continue;
+
+      // Encontrar a rotina mais recente onde esta task deveria ter aparecido
+      Routine? mostRecentEligibleRoutine;
+      for (final r in pastRoutines) {
+        final rDate = DateTime(r.date.year, r.date.month, r.date.day);
+        if (_blueEligible(latestTask, rDate)) {
+          mostRecentEligibleRoutine = r;
+          break;
+        }
+      }
+
+      if (mostRecentEligibleRoutine == null) {
+        // Sem ocorrência elegível passada: se elegível hoje, adiciona à manhã por padrão
+        if (_blueEligible(latestTask, today)) {
+          result[DivisionType.morning]!.add(latestTask);
+        }
+        continue;
+      }
+
+      // Verificar se ela existia na rotina mais recente elegível
+      await mostRecentEligibleRoutine.days.load();
+      bool existsInRoutine = false;
+      DivisionType foundDivision = DivisionType.morning;
+
+      for (final day in mostRecentEligibleRoutine.days) {
+        await day.tasks.load();
+        if (day.tasks.any((t) => t.text.trim() == text && t.color == TaskColor.blue)) {
+          existsInRoutine = true;
+          foundDivision = day.division;
+          break;
+        }
+      }
+
+      if (existsInRoutine) {
+        final targetDivision = foundDivision == DivisionType.tomorrow ? DivisionType.morning : foundDivision;
+        if (_blueEligible(latestTask, today)) {
+          result[targetDivision]!.add(latestTask);
+        }
+      }
+    }
+
+    return result;
+  }
+
   bool _blueEligible(Task t, DateTime today) {
     switch (t.frequency) {
       case FrequencyType.daily: return true;
@@ -460,22 +585,46 @@ class RoutineService {
     }
   }
 
-  Task _copyTask(Task src, TaskColor color) {
+  Task _copyTask(Task src, TaskColor color, DateTime targetDate) {
+    DateTime? newAlarmTime;
+    if (src.alarmTime != null) {
+      newAlarmTime = DateTime(
+        targetDate.year,
+        targetDate.month,
+        targetDate.day,
+        src.alarmTime!.hour,
+        src.alarmTime!.minute,
+      );
+    }
+
+    final copiedSubtasks = _copySubtasks(src, color);
+
+    TaskStatus newStatus = TaskStatus.active;
+    DateTime? newCompletedOnDate;
+    if (color == TaskColor.yellow &&
+        copiedSubtasks.isNotEmpty &&
+        copiedSubtasks.every((s) => s.isCompleted)) {
+      newStatus = TaskStatus.completed;
+      newCompletedOnDate = targetDate;
+    }
+
     final copy = Task()
       ..text = src.text
       ..createdAt = src.createdAt
       ..sortOrder = src.sortOrder
       ..color = color
-      ..status = TaskStatus.active
+      ..status = newStatus
       ..scheduledDate = src.scheduledDate
-      ..completedOnDate = null
+      ..completedOnDate = newCompletedOnDate
       ..imageFileName = src.imageFileName
       ..frequency = src.frequency
       ..frequencyDays = List<int>.from(src.frequencyDays)
       ..lastAppearedDate = src.lastAppearedDate
       ..hasImage = src.hasImage
       ..hasSubtasks = src.hasSubtasks
-      ..subtasks = _copySubtasks(src, color);
+      ..alarmTime = newAlarmTime
+      ..alarmRepeat = src.alarmRepeat
+      ..subtasks = copiedSubtasks;
     return copy;
   }
 

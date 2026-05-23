@@ -5,6 +5,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import '../../shared/models/task.dart';
+import '../../shared/models/enums.dart';
 import 'notification_service.dart';
 
 /// Serviço de alarmes individuais por task (Fase 3)
@@ -97,6 +98,43 @@ class AlarmService {
     for (int i = 0; i <= 2; i++) {
       await _plugin.cancel(id: _notifId(taskId, i));
     }
+  }
+
+  /// Agenda a notificação para a task vermelha às 8h da manhã na data agendada
+  static Future<void> scheduleRedTaskNotification(Task task) async {
+    if (task.color != TaskColor.red || task.scheduledDate == null) return;
+
+    final notifId = _notifId(task.id, 9); // slot 9 para task vermelha
+    await cancelRedTaskNotification(task.id);
+
+    final scheduledDay = task.scheduledDate!;
+    // Criar a data agendada para 8:00 AM no timezone local
+    final alarmAt = DateTime(
+      scheduledDay.year,
+      scheduledDay.month,
+      scheduledDay.day,
+      8,
+      0,
+    );
+
+    final now = DateTime.now();
+    if (alarmAt.isBefore(now)) return; // Se já passou, não agendar
+
+    final tzAlarm = tz.TZDateTime.from(alarmAt, tz.local);
+
+    await _plugin.zonedSchedule(
+      id: notifId,
+      title: '⚠️ Compromisso Eminente!',
+      body: 'Compromisso hoje: ${task.text}',
+      scheduledDate: tzAlarm,
+      notificationDetails: _details(),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+  }
+
+  /// Cancela a notificação de task vermelha (slot 9)
+  static Future<void> cancelRedTaskNotification(int taskId) async {
+    await _plugin.cancel(id: _notifId(taskId, 9));
   }
 
   // ─── Solicitar permissão (Android 13+) ───────────────────────────

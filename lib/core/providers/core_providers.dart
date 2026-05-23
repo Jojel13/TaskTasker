@@ -138,7 +138,7 @@ final heatmapProvider = FutureProvider<Map<DateTime, int>>((ref) async {
       }
     }
 
-    if (total > 0) {
+    if (total > 0 && completed > 0) {
       final percentage = completed / total;
       int weight = 1;
       if (percentage >= 1.0) {

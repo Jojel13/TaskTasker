@@ -338,7 +338,7 @@ class BackupService {
   /// Abre o seletor de arquivos, lê o arquivo backup JSON e restaura os dados
   Future<bool> importBackupFromFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
       );

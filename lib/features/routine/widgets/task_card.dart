@@ -3,7 +3,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/theme_config.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
 import '../../../core/services/image_service.dart';
@@ -58,7 +58,6 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     super.didUpdateWidget(oldWidget);
     final isDoneNow = widget.task.status == TaskStatus.completed;
     if (!_wasDone && isDoneNow && !widget.isReadOnly) {
-      // Tarefa foi completada agora
       setState(() => _showXpFloat = true);
       Future.delayed(const Duration(milliseconds: 1500), () {
         if (mounted) setState(() => _showXpFloat = false);
@@ -67,30 +66,27 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     _wasDone = isDoneNow;
   }
 
-  Color get _taskColor => switch (widget.task.color) {
-    TaskColor.standard => AppColors.taskStandard,
-    TaskColor.blue     => AppColors.taskBlue,
-    TaskColor.yellow   => AppColors.taskYellow,
-    TaskColor.red      => AppColors.taskRed,
+  Color _getTaskColor(AppThemeData theme, TaskColor color) => switch (color) {
+    TaskColor.standard => theme.taskStandard,
+    TaskColor.blue     => theme.taskBlue,
+    TaskColor.yellow   => theme.taskYellow,
+    TaskColor.red      => theme.taskRed,
   };
 
   bool get _isDone => widget.task.status == TaskStatus.completed;
 
-  // Task vermelha futura: bloqueada para toggle mas não para outras ações
   bool get _isToggleLocked => widget.isReadOnly ||
       (widget.task.color == TaskColor.red &&
        widget.task.scheduledDate != null &&
        widget.task.scheduledDate!.isAfter(DateTime.now()));
 
-  // Fundo do card tematizado pela cor da task
-  Color get _cardBgColor => switch (widget.task.color) {
-    TaskColor.standard => AppColors.card,
-    TaskColor.blue     => AppColors.cardBlue,
-    TaskColor.yellow   => AppColors.cardYellow,
-    TaskColor.red      => AppColors.cardRed,
+  Color _getCardBgColor(AppThemeData theme, TaskColor color) => switch (color) {
+    TaskColor.standard => theme.cardStandard,
+    TaskColor.blue     => theme.cardBlue,
+    TaskColor.yellow   => theme.cardYellow,
+    TaskColor.red      => theme.cardRed,
   };
 
-  // Label da pílula de cor
   String get _colorLabel => switch (widget.task.color) {
     TaskColor.standard => 'STD',
     TaskColor.blue     => 'FREQ',
@@ -98,40 +94,41 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     TaskColor.red      => 'DATA',
   };
 
-
   @override
   Widget build(BuildContext context) {
+    final theme = ref.watch(currentThemeProvider);
+    final taskColor = _getTaskColor(theme, widget.task.color);
+    final cardBg = _getCardBgColor(theme, widget.task.color);
     final bool hasImage = widget.task.imageFileName != null;
+
+    final double activeBorderRadius = theme.borderRadius;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 3),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(activeBorderRadius),
         child: Slidable(
         key: ValueKey('slidable_${widget.task.id}_${widget.task.color.name}_${widget.task.status.name}'),
 
-      // ── Swipe esquerdo: ações (editar, copiar, foto, tree, apagar) ─
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
         extentRatio: widget.isReadOnly ? 0.25 : 0.75,
         children: [
           if (!widget.isReadOnly) ...[
-            // Editar texto
             SlidableAction(
               onPressed: (_) async {
-                // M11: criar controller e garantir dispose após o dialog fechar
                 final ctrl = TextEditingController(text: widget.task.text);
                 final newText = await showDialog<String>(
                   context: context,
                   barrierDismissible: true,
                   builder: (ctx) => AlertDialog(
-                    backgroundColor: AppColors.surface,
+                    backgroundColor: theme.surface,
                     title: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Editar Task', style: TextStyle(color: AppColors.textPrimary)),
+                        Text('Editar Task', style: theme.fontStyleBase(TextStyle(color: theme.textPrimary))),
                         IconButton(
-                          icon: const Icon(Icons.close, color: AppColors.textMuted, size: 18),
+                          icon: Icon(Icons.close, color: theme.textMuted, size: 18),
                           onPressed: () => Navigator.pop(ctx),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -140,10 +137,10 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     ),
                     content: TextField(
                       controller: ctrl,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.border)),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+                      style: theme.fontStyleBase(TextStyle(color: theme.textPrimary)),
+                      decoration: InputDecoration(
+                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.border)),
+                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.secondary)),
                       ),
                       autofocus: true,
                     ),
@@ -151,50 +148,48 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                       ElevatedButton(
                         onPressed: () => Navigator.pop(ctx, ctrl.text),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.secondary,
-                          foregroundColor: AppColors.background,
+                          backgroundColor: theme.secondary,
+                          foregroundColor: theme.background,
                         ),
-                        child: const Text('Salvar'),
+                        child: Text('Salvar', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold))),
                       ),
                     ],
                   ),
                 );
-                ctrl.dispose(); // M11: dispose do controller após dialog
-                 if (newText != null && newText.trim().isNotEmpty && context.mounted) {
+                ctrl.dispose();
+                if (newText != null && newText.trim().isNotEmpty && context.mounted) {
                   widget.task.text = newText.trim();
                   if (widget.task.color == TaskColor.blue) {
-                    widget.task.createdAt = DateTime.now(); // M6: Reset cadence reference on text edit
+                    widget.task.createdAt = DateTime.now();
                   }
                   final isar = ref.read(isarProvider);
                   await isar.writeTxn(() async => await isar.tasks.put(widget.task));
                   setState(() {});
                 }
               },
-              backgroundColor: AppColors.surface,
-              foregroundColor: AppColors.taskBlue,
+              backgroundColor: theme.surface,
+              foregroundColor: theme.taskBlue,
               icon: Icons.edit_rounded,
               padding: EdgeInsets.zero,
             ),
-            // Copiar
             SlidableAction(
               onPressed: (_) async {
                 await Clipboard.setData(ClipboardData(text: widget.task.text));
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Texto copiado!', style: TextStyle(color: Colors.white)),
-                      backgroundColor: AppColors.secondary,
-                      duration: Duration(seconds: 1),
+                    SnackBar(
+                      content: Text('Texto copiado!', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+                      backgroundColor: theme.secondary,
+                      duration: const Duration(seconds: 1),
                     ),
                   );
                 }
               },
-              backgroundColor: AppColors.surface,
-              foregroundColor: AppColors.textSecondary,
+              backgroundColor: theme.surface,
+              foregroundColor: theme.textSecondary,
               icon: Icons.copy_rounded,
               padding: EdgeInsets.zero,
             ),
-            // Câmera/Galeria
             SlidableAction(
               onPressed: (_) async {
                 final source = await showDialog<ImageSource>(
@@ -207,30 +202,30 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                       child: Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: AppColors.surface.withValues(alpha: 0.9),
+                          color: theme.surface.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.taskBlue.withValues(alpha: 0.5)),
-                          boxShadow: AppColors.glowShadow(AppColors.taskBlue, intensity: 0.5),
+                          border: Border.all(color: theme.taskBlue.withValues(alpha: 0.5)),
+                          boxShadow: theme.glowShadow(theme.taskBlue, intensity: 0.5),
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('Anexar Imagem',
-                                style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text('Anexar Imagem',
+                                style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold))),
                             const SizedBox(height: 24),
                             ListTile(
-                              leading: const Icon(Icons.camera_alt, color: AppColors.taskBlue),
-                              title: const Text('Câmera', style: TextStyle(color: AppColors.textPrimary)),
+                              leading: Icon(Icons.camera_alt, color: theme.taskBlue),
+                              title: Text('Câmera', style: theme.fontStyleBase(TextStyle(color: theme.textPrimary))),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              tileColor: AppColors.taskBlue.withValues(alpha: 0.1),
+                              tileColor: theme.taskBlue.withValues(alpha: 0.1),
                               onTap: () => Navigator.pop(ctx, ImageSource.camera),
                             ),
                             const SizedBox(height: 12),
                             ListTile(
-                              leading: const Icon(Icons.photo_library, color: AppColors.taskBlue),
-                              title: const Text('Galeria', style: TextStyle(color: AppColors.textPrimary)),
+                              leading: Icon(Icons.photo_library, color: theme.taskBlue),
+                              title: Text('Galeria', style: theme.fontStyleBase(TextStyle(color: theme.textPrimary))),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              tileColor: AppColors.taskBlue.withValues(alpha: 0.1),
+                              tileColor: theme.taskBlue.withValues(alpha: 0.1),
                               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
                             ),
                           ],
@@ -257,14 +252,13 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   }
                 }
               },
-              backgroundColor: AppColors.surface,
-              foregroundColor: AppColors.textSecondary,
+              backgroundColor: theme.surface,
+              foregroundColor: theme.textSecondary,
               icon: Icons.camera_alt_rounded,
               padding: EdgeInsets.zero,
             ),
           ],
 
-          // Task Tree (disponível sempre, inclusive no modo leitura)
           SlidableAction(
             onPressed: (_) async {
               await Navigator.push(
@@ -273,8 +267,8 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               );
               setState(() {});
             },
-            backgroundColor: AppColors.surface,
-            foregroundColor: AppColors.taskYellow,
+            backgroundColor: theme.surface,
+            foregroundColor: theme.taskYellow,
             icon: Icons.account_tree_rounded,
             padding: EdgeInsets.zero,
           ),
@@ -297,37 +291,30 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   ),
                 );
               },
-              backgroundColor: AppColors.taskRed.withValues(alpha: 0.12),
-              foregroundColor: AppColors.taskRed,
+              backgroundColor: theme.taskRed.withValues(alpha: 0.12),
+              foregroundColor: theme.taskRed,
               icon: Icons.delete_outline_rounded,
               padding: EdgeInsets.zero,
             ),
         ],
       ),
 
-      // ── Swipe direito ─────────────────────────────────────────
-      // Branco   → [Alarme]
-      // Amarelo  → [Calendário] + [Alarme]
-      // Azul     → [Freq]
-      // Vermelho → sem startPane
       startActionPane: (!widget.isReadOnly &&
               widget.task.color != TaskColor.red)
           ? ActionPane(
               motion: const DrawerMotion(),
               extentRatio: widget.task.color == TaskColor.blue ? 0.75 : 0.50,
               children: [
-                // ── Azul: Frequência ────────────────────────────
                 if (widget.task.color == TaskColor.blue)
                   SlidableAction(
                     onPressed: (_) =>
                         TaskSettingsSheet.show(context, widget.task),
-                    backgroundColor: AppColors.surface,
-                    foregroundColor: AppColors.taskBlue,
+                    backgroundColor: theme.surface,
+                    foregroundColor: theme.taskBlue,
                     icon: Icons.repeat_rounded,
                     padding: EdgeInsets.zero,
                   ),
 
-                // ── Agendar (Standard, Amarela e Azul) ─────────────
                 SlidableAction(
                   onPressed: (_) async {
                     final date = await showDatePicker(
@@ -339,10 +326,10 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                           DateTime.now().add(const Duration(days: 365)),
                       builder: (context, child) => Theme(
                         data: Theme.of(context).copyWith(
-                          colorScheme: const ColorScheme.dark(
-                            primary: AppColors.taskRed,
+                          colorScheme: ColorScheme.dark(
+                            primary: theme.taskRed,
                             onPrimary: Colors.white,
-                            surface: AppColors.background,
+                            surface: theme.background,
                             onSurface: Colors.white,
                           ),
                         ),
@@ -357,18 +344,17 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     }
                   },
                   backgroundColor:
-                      AppColors.taskRed.withValues(alpha: 0.12),
-                  foregroundColor: AppColors.taskRed,
+                      theme.taskRed.withValues(alpha: 0.12),
+                  foregroundColor: theme.taskRed,
                   icon: Icons.calendar_today_rounded,
                   padding: EdgeInsets.zero,
                 ),
 
-                // ── Alarme (Standard, Amarela e Azul) ──────────────
                 SlidableAction(
                   onPressed: (_) =>
                       AlarmSheet.show(context, widget.task),
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                  foregroundColor: AppColors.primary,
+                  backgroundColor: theme.primary.withValues(alpha: 0.12),
+                  foregroundColor: theme.primary,
                   icon: widget.task.hasAlarm
                       ? Icons.alarm_on_rounded
                       : Icons.alarm_add_rounded,
@@ -381,19 +367,19 @@ class _TaskCardState extends ConsumerState<TaskCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         decoration: BoxDecoration(
-          color: _isDone ? AppColors.card : _cardBgColor,
-          borderRadius: BorderRadius.circular(12),
+          color: _isDone ? theme.card : cardBg,
+          borderRadius: BorderRadius.circular(activeBorderRadius),
           border: Border.all(
             color: _isDone
-                ? AppColors.border
-                : _taskColor, // Borda sólida Peak
-            width: _isDone ? 0.5 : 1.0,
+                ? theme.border
+                : theme.useGlowBorder ? taskColor : taskColor.withValues(alpha: 0.4),
+            width: _isDone ? 0.5 : theme.borderWidth,
           ),
+          boxShadow: (_isDone || !theme.useGlowBorder) ? null : theme.glowShadow(taskColor, intensity: 0.35),
         ),
         child: Column(
           children: [
             Row(children: [
-              // ── Color pill button ──────────────────────────────
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: widget.isReadOnly || _isDone || _isToggleLocked ? null : () {
@@ -411,19 +397,17 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: _isDone
-                          ? AppColors.surfaceVariant
-                          : AppColors.surfaceVariant, // Fundo escuro sólido Peak
+                      color: theme.surfaceVariant,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: _isDone
-                            ? AppColors.textMuted.withValues(alpha: 0.3)
-                            : _taskColor, // Borda sólida brilhante
-                        width: 1.5, // Levemente mais espessa para compensar falta de preenchimento
+                            ? theme.textMuted.withValues(alpha: 0.3)
+                            : taskColor,
+                        width: 1.5,
                       ),
-                      boxShadow: _isDone ? null : [
+                      boxShadow: (_isDone || !theme.useGlowBorder) ? null : [
                         BoxShadow(
-                          color: _taskColor.withValues(alpha: 0.2),
+                          color: taskColor.withValues(alpha: 0.2),
                           blurRadius: 6,
                         )
                       ],
@@ -436,19 +420,19 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                           height: 7,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: _isDone ? AppColors.textMuted : _taskColor,
+                            color: _isDone ? theme.textMuted : taskColor,
                           ),
                         ),
                         if (!widget.isReadOnly && !_isDone) ...[
                           const SizedBox(width: 5),
                           Text(
                             _colorLabel,
-                            style: TextStyle(
-                              color: _taskColor,
+                            style: theme.fontStyleBase(TextStyle(
+                              color: taskColor,
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 0.5,
-                            ),
+                            )),
                           ),
                         ],
                       ],
@@ -457,7 +441,6 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 ),
               ),
 
-              // ── Task text & Indicators ──────────────────────────
               Expanded(
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
@@ -498,25 +481,25 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                             children: [
                               Text(
                                 widget.task.text,
-                                style: TextStyle(
-                                  color: _isDone ? AppColors.textMuted : AppColors.textPrimary,
+                                style: theme.fontStyleBase(TextStyle(
+                                  color: _isDone ? theme.textMuted : theme.textPrimary,
                                   fontSize: 14,
                                   decoration: _isDone ? TextDecoration.lineThrough : null,
-                                  decorationColor: AppColors.textMuted,
-                                ),
+                                  decorationColor: theme.textMuted,
+                                )),
                               ),
                               if (widget.divisionName != null) ...[
                                 const SizedBox(height: 3),
                                 Text(
                                   widget.divisionName!.toUpperCase(),
-                                  style: TextStyle(
+                                  style: theme.fontStyleBase(TextStyle(
                                     color: _isDone
-                                        ? AppColors.textMuted
-                                        : _taskColor.withValues(alpha: 0.75),
+                                        ? theme.textMuted
+                                        : taskColor.withValues(alpha: 0.75),
                                     fontSize: 9,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 1.2,
-                                  ),
+                                  )),
                                 ),
                               ],
                               if (widget.showRadarInfo) ...[
@@ -528,18 +511,18 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                                   children: [
                                     Text(
                                       'Criada em: ${DateFormat('dd/MM/yyyy').format(widget.task.createdAt)}',
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
+                                      style: theme.fontStyleBase(TextStyle(
+                                        color: theme.textSecondary,
                                         fontSize: 10,
-                                      ),
+                                      )),
                                     ),
                                     if (widget.task.color == TaskColor.red && widget.task.scheduledDate != null)
                                       Text(
                                         '·  Agendada: ${DateFormat('dd/MM/yyyy').format(widget.task.scheduledDate!)}',
-                                        style: const TextStyle(
-                                          color: AppColors.taskRed,
+                                        style: theme.fontStyleBase(TextStyle(
+                                          color: theme.taskRed,
                                           fontSize: 10,
-                                        ),
+                                        )),
                                       ),
                                   ],
                                 ),
@@ -547,22 +530,21 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                             ],
                           ),
                         ),
-                        // Indicadores
                         if (hasImage)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 8.0),
-                            child: Icon(Icons.image_outlined, size: 14, color: AppColors.textMuted),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: Icon(Icons.image_outlined, size: 14, color: theme.textMuted),
                           ),
                         if (widget.task.hasSubtasks) ...[
                           Padding(
                             padding: const EdgeInsets.only(left: 8.0),
                             child: Text(
                               '${widget.task.subtasks.where((s) => s.isCompleted).length}/${widget.task.subtasks.length}',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+                              style: theme.fontStyleMono(TextStyle(
+                                color: theme.textSecondary,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                              ),
+                              )),
                             ),
                           ),
                           Padding(
@@ -570,7 +552,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                             child: Icon(
                               _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
                               size: 16,
-                              color: AppColors.textSecondary,
+                              color: theme.textSecondary,
                             ),
                           ),
                         ],
@@ -580,14 +562,12 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 ),
               ),
 
-              // ── Alarme badge ────────────────────────────────────
               if (widget.task.hasAlarm && !_isDone)
                 _AlarmBadge(alarmTime: widget.task.alarmTime!),
 
-              // ── Countdown badge (task vermelha) ─────────────────
               if (widget.task.color == TaskColor.red && widget.task.scheduledDate != null) ...[
                 IconButton(
-                  icon: const Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.taskRed),
+                  icon: Icon(Icons.calendar_month_rounded, size: 16, color: theme.taskRed),
                   onPressed: () async {
                     final date = await showDatePicker(
                       context: context,
@@ -596,10 +576,10 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                       builder: (context, child) => Theme(
                         data: Theme.of(context).copyWith(
-                          colorScheme: const ColorScheme.dark(
-                            primary: AppColors.taskRed,
+                          colorScheme: ColorScheme.dark(
+                            primary: theme.taskRed,
                             onPrimary: Colors.white,
-                            surface: AppColors.background,
+                            surface: theme.background,
                             onSurface: Colors.white,
                           ),
                         ),
@@ -623,7 +603,6 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 _CountdownBadge(scheduledDate: widget.task.scheduledDate!),
               ],
 
-              // ── Checkbox & +XP Float ─────────────────────────────
               if (!widget.isReadOnly || _isDone)
                 Stack(
                   alignment: Alignment.center,
@@ -641,21 +620,21 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                           height: 24,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: _isDone ? _taskColor : AppColors.surfaceVariant, // Cor sólida
+                            color: _isDone ? taskColor : theme.surfaceVariant,
                             border: Border.all(
-                              color: _isToggleLocked ? AppColors.textMuted : _taskColor,
+                              color: _isToggleLocked ? theme.textMuted : taskColor,
                               width: 1.5,
                             ),
-                            boxShadow: _isDone
-                                ? AppColors.glowShadow(_taskColor, intensity: 0.5)
+                            boxShadow: (_isDone && theme.useGlowBorder)
+                                ? theme.glowShadow(taskColor, intensity: 0.5)
                                 : null,
                           ),
                           child: _isDone
-                              ? const Icon(Icons.check_rounded, size: 15, color: AppColors.card) // check escuro
+                              ? Icon(Icons.check_rounded, size: 15, color: theme.card)
                               : (widget.task.color == TaskColor.red &&
                                       widget.task.scheduledDate != null &&
                                       widget.task.scheduledDate!.isAfter(DateTime.now())
-                                  ? const Icon(Icons.lock_rounded, size: 12, color: AppColors.textMuted)
+                                  ? Icon(Icons.lock_rounded, size: 12, color: theme.textMuted)
                                   : null),
                         ),
                       ),
@@ -665,11 +644,11 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                         top: -10,
                         child: Text(
                           '+${XpService.xpForAction(widget.task.color)} XP',
-                          style: const TextStyle(
-                            color: AppColors.accent,
+                          style: theme.fontStyleBase(TextStyle(
+                            color: theme.accent,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                          ),
+                          )),
                         )
                             .animate()
                             .fade(duration: 200.ms)
@@ -682,7 +661,6 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 const SizedBox(width: 16),
             ]),
 
-            // ── Subtasks Expandables ────────────────────────────
             if (_expanded && widget.task.hasSubtasks)
               Padding(
                 padding: const EdgeInsets.only(left: 16, right: 12, bottom: 10),
@@ -690,7 +668,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Divider(
-                      color: _taskColor.withValues(alpha: 0.15),
+                      color: taskColor.withValues(alpha: 0.15),
                       thickness: 0.5,
                       height: 12,
                     ),
@@ -704,24 +682,24 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                                 : Icons.radio_button_unchecked_rounded,
                             size: 15,
                             color: sub.isCompleted
-                                ? AppColors.accent
-                                : _taskColor.withValues(alpha: 0.6),
+                                ? theme.accent
+                                : taskColor.withValues(alpha: 0.6),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               sub.text,
-                              style: TextStyle(
-                                color: sub.isCompleted ? AppColors.textMuted : AppColors.textSecondary,
+                              style: theme.fontStyleBase(TextStyle(
+                                color: sub.isCompleted ? theme.textMuted : theme.textSecondary,
                                 fontSize: 13,
                                 decoration: sub.isCompleted ? TextDecoration.lineThrough : null,
-                              ),
+                              )),
                             ),
                           ),
                           if (sub.isCompleted && sub.completedAt != null)
                             Text(
                               '${sub.completedAt!.hour.toString().padLeft(2, '0')}:${sub.completedAt!.minute.toString().padLeft(2, '0')}',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                              style: theme.fontStyleMono(TextStyle(color: theme.textMuted, fontSize: 10)),
                             ),
                         ],
                       ),
@@ -738,12 +716,13 @@ class _TaskCardState extends ConsumerState<TaskCard> {
   }
 }
 
-class _CountdownBadge extends StatelessWidget {
+class _CountdownBadge extends ConsumerWidget {
   final DateTime scheduledDate;
   const _CountdownBadge({required this.scheduledDate});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(currentThemeProvider);
     final today = DateTime.now();
     final diff = scheduledDate
         .difference(DateTime(today.year, today.month, today.day))
@@ -751,14 +730,14 @@ class _CountdownBadge extends StatelessWidget {
     final label = diff == 0 ? 'Hoje!' : diff < 0 ? 'Atrasado' : '${diff}d';
     final isToday = diff == 0;
     final isOverdue = diff < 0;
-    const badgeColor = AppColors.taskRed;
+    final badgeColor = theme.taskRed;
 
     return Container(
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: badgeColor.withValues(alpha: isToday || isOverdue ? 0.2 : 0.08),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(theme.borderRadius > 6 ? 6 : theme.borderRadius),
         border: Border.all(
           color: badgeColor.withValues(alpha: isToday || isOverdue ? 0.7 : 0.3),
           width: 0.5,
@@ -766,23 +745,23 @@ class _CountdownBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
+        style: theme.fontStyleBase(TextStyle(
           color: badgeColor,
           fontSize: 10,
           fontWeight: isToday || isOverdue ? FontWeight.w700 : FontWeight.normal,
-        ),
+        )),
       ),
     );
   }
 }
 
-/// Badge que mostra o horário do alarme no card da task.
-class _AlarmBadge extends StatelessWidget {
+class _AlarmBadge extends ConsumerWidget {
   final DateTime alarmTime;
   const _AlarmBadge({required this.alarmTime});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(currentThemeProvider);
     final h = alarmTime.hour.toString().padLeft(2, '0');
     final m = alarmTime.minute.toString().padLeft(2, '0');
 
@@ -790,26 +769,26 @@ class _AlarmBadge extends StatelessWidget {
       margin: const EdgeInsets.only(right: 6),
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+        color: theme.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(theme.borderRadius > 6 ? 6 : theme.borderRadius),
         border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.35),
+          color: theme.primary.withValues(alpha: 0.35),
           width: 0.5,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.alarm_on_rounded, size: 11, color: AppColors.primary),
+          Icon(Icons.alarm_on_rounded, size: 11, color: theme.primary),
           const SizedBox(width: 4),
           Text(
             '$h:$m',
-            style: const TextStyle(
-              color: AppColors.primary,
+            style: theme.fontStyleMono(TextStyle(
+              color: theme.primary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
-            ),
+            )),
           ),
         ],
       ),

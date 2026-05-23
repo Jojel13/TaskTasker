@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_config.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/core_providers.dart';
 import '../../core/services/xp_service.dart';
@@ -11,14 +11,13 @@ import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
 class XpDashboardScreen extends ConsumerWidget {
   const XpDashboardScreen({super.key});
 
-  /// M18: nome do mascote baseado no n\u00edvel do usu\u00e1rio
   String _getMascotName(int level) {
     if (level <= 2)  return 'Sapo Iniciante';
     if (level <= 5)  return 'Sapo Treinado';
     if (level <= 9)  return 'Sapo Dedicado';
     if (level <= 14) return 'Sapo Expert';
     if (level <= 19) return 'Sapo Mestre';
-    if (level <= 29) return 'Sapo Lend\u00e1rio';
+    if (level <= 29) return 'Sapo Lendário';
     return 'Sapo Imortal';
   }
 
@@ -33,8 +32,9 @@ class XpDashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(currentThemeProvider);
     final profile = ref.watch(userProfileProvider).valueOrNull;
-    if (profile == null) return const Scaffold(backgroundColor: AppColors.background);
+    if (profile == null) return Scaffold(backgroundColor: theme.background);
 
     final totalXp = profile.totalXP;
     final level = profile.currentLevel;
@@ -45,13 +45,13 @@ class XpDashboardScreen extends ConsumerWidget {
     final progress = (xpForCurrentLevel > 0) ? (xpInCurrentLevel / xpForCurrentLevel).clamp(0.0, 1.0) : 0.0;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Dashboard', style: AppTextStyles.titleMedium),
+        title: Text('Dashboard', style: theme.fontStyleBase(AppTextStyles.titleMedium).copyWith(color: theme.textPrimary)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primary, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.primary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -66,28 +66,29 @@ class XpDashboardScreen extends ConsumerWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+                  color: theme.surfaceVariant.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.35), width: 1.0),
-                  boxShadow: AppColors.glowShadow(AppColors.accent, intensity: 0.15),
+                  border: Border.all(color: theme.accent.withValues(alpha: 0.35), width: 1.0),
+                  boxShadow: theme.useGlowBorder ? theme.glowShadow(theme.accent, intensity: 0.15) : null,
                 ),
                 child: Text(
                   _getMascotSpeech(level, profile.streakDays),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: theme.fontStyleBase(TextStyle(
+                    color: theme.textPrimary,
                     fontSize: 12,
                     fontStyle: FontStyle.italic,
                     fontWeight: FontWeight.w600,
-                  ),
+                  )),
                 ),
               ),
               const SizedBox(height: 12),
               // Mascot interativo animado
               const SapoMascotWidget(size: 120),
               const SizedBox(height: 16),
-              Text(_getMascotName(level), style: AppTextStyles.titleLarge),
-              Text('Nível $level', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary)),
+              Text(_getMascotName(level), style: theme.fontStyleBase(AppTextStyles.titleLarge).copyWith(color: theme.textPrimary)),
+              Text('Nível $level', style: theme.fontStyleBase(AppTextStyles.labelSmall).copyWith(color: theme.primary)),
+              const SizedBox(height: 24),
               
               // XP Progress Bar
               Column(
@@ -96,15 +97,15 @@ class XpDashboardScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('XP TOTAL: $totalXp', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted)),
-                      Text('$xpInCurrentLevel / $xpForCurrentLevel XP', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary)),
+                      Text('XP TOTAL: $totalXp', style: theme.fontStyleMono(AppTextStyles.labelSmall).copyWith(color: theme.textMuted)),
+                      Text('$xpInCurrentLevel / $xpForCurrentLevel XP', style: theme.fontStyleMono(AppTextStyles.labelSmall).copyWith(color: theme.primary)),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Container(
                     height: 8,
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: theme.surface,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: LayoutBuilder(
@@ -114,9 +115,9 @@ class XpDashboardScreen extends ConsumerWidget {
                           child: Container(
                             width: constraints.maxWidth * progress,
                             decoration: BoxDecoration(
-                              color: AppColors.primary,
+                              color: theme.primary,
                               borderRadius: BorderRadius.circular(4),
-                              boxShadow: [...AppColors.glowShadow(AppColors.primary, intensity: 0.8)],
+                              boxShadow: theme.useGlowBorder ? theme.glowShadow(theme.primary, intensity: 0.8) : null,
                             ),
                           ),
                         );
@@ -134,18 +135,20 @@ class XpDashboardScreen extends ConsumerWidget {
                   Expanded(
                     child: _StatCard(
                       icon: Icons.local_fire_department_rounded,
-                      color: AppColors.taskYellow,
+                      color: theme.taskYellow,
                       title: 'STREAK ATUAL',
                       value: '${profile.streakDays} dias',
+                      theme: theme,
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: _StatCard(
                       icon: Icons.emoji_events_rounded,
-                      color: AppColors.taskBlue,
+                      color: theme.taskBlue,
                       title: 'RECORDE',
                       value: '${profile.streakRecord} dias',
+                      theme: theme,
                     ),
                   ),
                 ],
@@ -154,17 +157,17 @@ class XpDashboardScreen extends ConsumerWidget {
               const SizedBox(height: 40),
               
               // Heatmap
-              Text('HISTÓRICO DE PRODUTIVIDADE', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted)),
+              Text('HISTÓRICO DE PRODUTIVIDADE', style: theme.fontStyleBase(AppTextStyles.labelSmall).copyWith(color: theme.textMuted)),
               const SizedBox(height: 16),
               Consumer(
                 builder: (context, ref, child) {
                   final heatmapAsync = ref.watch(heatmapProvider);
                   return heatmapAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                    error: (err, _) => Text('Erro: $err', style: const TextStyle(color: AppColors.taskRed)),
+                    loading: () => Center(child: CircularProgressIndicator(color: theme.primary)),
+                    error: (err, _) => Text('Erro: $err', style: theme.fontStyleBase(TextStyle(color: theme.taskRed))),
                     data: (dataset) {
                       if (dataset.isEmpty) {
-                        return const Center(child: Text('Nenhum dado ainda.', style: TextStyle(color: AppColors.textMuted)));
+                        return Center(child: Text('Nenhum dado ainda.', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))));
                       }
                       return HeatMap(
                         datasets: dataset,
@@ -172,14 +175,14 @@ class XpDashboardScreen extends ConsumerWidget {
                         showText: false,
                         scrollable: true,
                         size: 30,
-                        colorsets: const {
-                          1: AppColors.taskYellow, // 1-24%
-                          2: AppColors.taskBlue, // 25-49%
-                          3: AppColors.accent, // 50-74%
-                          4: AppColors.primary, // 75-100%
+                        colorsets: {
+                          1: theme.taskYellow, // 1-24%
+                          2: theme.taskBlue, // 25-49%
+                          3: theme.accent, // 50-74%
+                          4: theme.primary, // 75-100%
                         },
-                        defaultColor: AppColors.surfaceVariant,
-                        textColor: AppColors.textSecondary,
+                        defaultColor: theme.surfaceVariant,
+                        textColor: theme.textSecondary,
                         onClick: (value) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                             content: Text('Atividade no dia ${value.day}/${value.month}'),
@@ -193,20 +196,20 @@ class XpDashboardScreen extends ConsumerWidget {
               ),
               // Histórico de Conquistas de XP
               const SizedBox(height: 40),
-              Text('CONQUISTAS DE XP RECENTES', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted)),
+              Text('CONQUISTAS DE XP RECENTES', style: theme.fontStyleBase(AppTextStyles.labelSmall).copyWith(color: theme.textMuted)),
               const SizedBox(height: 16),
               Consumer(
                 builder: (context, ref, child) {
                   final xpEventsAsync = ref.watch(recentXpEventsProvider);
                   return xpEventsAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                    error: (err, _) => Text('Erro: $err', style: const TextStyle(color: AppColors.taskRed)),
+                    loading: () => Center(child: CircularProgressIndicator(color: theme.primary)),
+                    error: (err, _) => Text('Erro: $err', style: theme.fontStyleBase(TextStyle(color: theme.taskRed))),
                     data: (events) {
                       if (events.isEmpty) {
-                        return const Center(
+                        return Center(
                           child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text('Nenhum ganho de XP registrado ainda.', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text('Nenhum ganho de XP registrado ainda.', style: theme.fontStyleBase(TextStyle(color: theme.textMuted, fontSize: 13))),
                           ),
                         );
                       }
@@ -219,25 +222,26 @@ class XpDashboardScreen extends ConsumerWidget {
                           final event = events[idx];
                           final timeStr = DateFormat('dd/MM HH:mm').format(event.earnedAt);
                           final isPositive = event.amount >= 0;
+                          final accentOrRed = isPositive ? theme.accent : theme.taskRed;
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.border),
+                              color: theme.surface,
+                              borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius),
+                              border: Border.all(color: theme.border),
                             ),
                             child: Row(
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
-                                    color: (isPositive ? AppColors.accent : AppColors.taskRed).withValues(alpha: 0.1),
+                                    color: accentOrRed.withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
                                     isPositive ? Icons.add_rounded : Icons.remove_rounded,
                                     size: 16,
-                                    color: isPositive ? AppColors.accent : AppColors.taskRed,
+                                    color: accentOrRed,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -247,23 +251,23 @@ class XpDashboardScreen extends ConsumerWidget {
                                     children: [
                                       Text(
                                         event.description,
-                                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                                        style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         timeStr,
-                                        style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                                        style: theme.fontStyleBase(TextStyle(color: theme.textMuted, fontSize: 11)),
                                       ),
                                     ],
                                   ),
                                 ),
                                 Text(
                                   '${isPositive ? "+" : ""}${event.amount} XP',
-                                  style: TextStyle(
-                                    color: isPositive ? AppColors.accent : AppColors.taskRed,
+                                  style: theme.fontStyleMono(TextStyle(
+                                    color: accentOrRed,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
-                                  ),
+                                  )),
                                 ),
                               ],
                             ),
@@ -288,12 +292,14 @@ class _StatCard extends StatelessWidget {
   final Color color;
   final String title;
   final String value;
+  final AppThemeData theme;
 
   const _StatCard({
     required this.icon,
     required this.color,
     required this.title,
     required this.value,
+    required this.theme,
   });
 
   @override
@@ -301,18 +307,18 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(theme.borderRadius > 16 ? 16 : theme.borderRadius),
+        border: Border.all(color: theme.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: color, size: 28),
           const SizedBox(height: 12),
-          Text(title, style: const TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
+          Text(title, style: theme.fontStyleBase(TextStyle(color: theme.textMuted, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1))),
           const SizedBox(height: 4),
-          Text(value, style: AppTextStyles.titleMedium),
+          Text(value, style: theme.fontStyleBase(AppTextStyles.titleMedium).copyWith(color: theme.textPrimary)),
         ],
       ),
     );

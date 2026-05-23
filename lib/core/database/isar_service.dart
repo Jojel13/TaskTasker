@@ -26,6 +26,7 @@ class IsarService {
 
   /// Inicializa o banco de dados — deve ser chamado antes do app iniciar
   static Future<void> initialize() async {
+    if (_isInitialized) return;
     final dir = await getApplicationDocumentsDirectory();
 
     _isar = await Isar.open(

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/theme_config.dart';
+import '../../core/providers/core_providers.dart';
 import '../../shared/models/enums.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
@@ -13,23 +15,24 @@ class AnalyticsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(currentThemeProvider);
     final analyticsAsync = ref.watch(analyticsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Análise', style: AppTextStyles.titleMedium),
+        title: Text('Análise', style: theme.fontStyleBase(AppTextStyles.titleMedium).copyWith(color: theme.textPrimary)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primary, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.primary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SafeArea(
         child: analyticsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-          error: (err, _) => Center(child: Text('Erro ao carregar dados: $err', style: const TextStyle(color: AppColors.taskRed))),
+          loading: () => Center(child: CircularProgressIndicator(color: theme.primary)),
+          error: (err, _) => Center(child: Text('Erro ao carregar dados: $err', style: theme.fontStyleBase(TextStyle(color: theme.taskRed)))),
           data: (data) {
             return SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -37,39 +40,39 @@ class AnalyticsScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Painel de Streak
-                  _buildStreakPanel(data.streakDays),
+                  _buildStreakPanel(theme, data.streakDays),
                   const SizedBox(height: 32),
                   
                   // Resumo Rápido
-                  _buildSummaryStats(data),
+                  _buildSummaryStats(theme, data),
                   
                   const SizedBox(height: 32),
 
                   // Produtividade por Período
-                  const Text('Produtividade por Período', style: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('Produtividade por Período', style: theme.fontStyleBase(TextStyle(color: theme.primary, fontSize: 16, fontWeight: FontWeight.bold))),
                   const SizedBox(height: 16),
-                  _buildDivisionStatsPanel(context, data.divisionStats),
+                  _buildDivisionStatsPanel(theme, context, data.divisionStats),
                   
                   const SizedBox(height: 32),
                   
-                  // Gráfico de Barras: Produtividade nos últimos dias
-                  const Text('Desempenho Semanal', style: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold)),
+                  // Gráfico de Barras: Desempenho Semanal
+                  Text('Desempenho Semanal', style: theme.fontStyleBase(TextStyle(color: theme.primary, fontSize: 16, fontWeight: FontWeight.bold))),
                   const SizedBox(height: 16),
-                  _buildBarChart(data.dailyStats),
+                  _buildBarChart(theme, data.dailyStats),
                   
                   const SizedBox(height: 32),
                   
                   // Gráfico Donut: Distribuição por Cor
-                  const Text('Distribuição de Cores', style: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('Distribuição de Cores', style: theme.fontStyleBase(TextStyle(color: theme.primary, fontSize: 16, fontWeight: FontWeight.bold))),
                   const SizedBox(height: 16),
-                  _buildDonutChart(data.tasksByColor),
+                  _buildDonutChart(theme, data.tasksByColor),
                   
                   const SizedBox(height: 32),
                   
                   // Heatmap: Atividade
-                  const Text('Mapa de Atividades', style: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('Mapa de Atividades', style: theme.fontStyleBase(TextStyle(color: theme.primary, fontSize: 16, fontWeight: FontWeight.bold))),
                   const SizedBox(height: 16),
-                  _buildHeatmap(data.dailyStats),
+                  _buildHeatmap(theme, data.dailyStats),
                 ],
               ),
             );
@@ -79,18 +82,18 @@ class AnalyticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDonutChart(Map<TaskColor, int> byColor) {
+  Widget _buildDonutChart(AppThemeData theme, Map<TaskColor, int> byColor) {
     int total = byColor.values.fold(0, (a, b) => a + b);
     if (total == 0) {
-      return const Center(child: Text('Sem tarefas registradas.', style: TextStyle(color: AppColors.textMuted)));
+      return Center(child: Text('Sem tarefas registradas.', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))));
     }
 
     Color getColor(TaskColor color) {
       switch (color) {
-        case TaskColor.red: return AppColors.taskRed;
-        case TaskColor.yellow: return AppColors.taskYellow;
-        case TaskColor.blue: return AppColors.taskBlue;
-        case TaskColor.standard: return AppColors.primary;
+        case TaskColor.red: return theme.taskRed;
+        case TaskColor.yellow: return theme.taskYellow;
+        case TaskColor.blue: return theme.taskBlue;
+        case TaskColor.standard: return theme.primary;
       }
     }
     
@@ -110,16 +113,16 @@ class AnalyticsScreen extends ConsumerWidget {
         value: e.value.toDouble(),
         title: '$percentage%',
         radius: 40,
-        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+        titleStyle: theme.fontStyleBase(TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.textPrimary)),
       );
     }).toList();
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(theme.borderRadius > 16 ? 16 : theme.borderRadius),
+        border: Border.all(color: theme.border.withValues(alpha: 0.5)),
       ),
       child: Column(
         children: [
@@ -144,7 +147,7 @@ class AnalyticsScreen extends ConsumerWidget {
                 children: [
                   Container(width: 12, height: 12, decoration: BoxDecoration(color: getColor(e.key), shape: BoxShape.circle)),
                   const SizedBox(width: 8),
-                  Text(getLabel(e.key), style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  Text(getLabel(e.key), style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 13))),
                 ],
               );
             }).toList(),
@@ -154,44 +157,41 @@ class AnalyticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeatmap(List<DailyStats> dailyStats) {
+  Widget _buildHeatmap(AppThemeData theme, List<DailyStats> dailyStats) {
     if (dailyStats.isEmpty) {
-      return const Center(child: Text('Ainda não há dados suficientes.', style: TextStyle(color: AppColors.textMuted)));
+      return Center(child: Text('Ainda não há dados suficientes.', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))));
     }
 
     Map<DateTime, int> datasets = {};
     for (var stat in dailyStats) {
       if (stat.completed > 0) {
-        // Remover horas para o HeatmapCalendar funcionar bem
         final d = DateTime(stat.date.year, stat.date.month, stat.date.day);
         datasets[d] = stat.completed;
       }
     }
 
     if (datasets.isEmpty) {
-      return const Center(child: Text('Ainda não há dados suficientes.', style: TextStyle(color: AppColors.textMuted)));
+      return Center(child: Text('Ainda não há dados suficientes.', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))));
     }
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(theme.borderRadius > 16 ? 16 : theme.borderRadius),
+        border: Border.all(color: theme.border.withValues(alpha: 0.5)),
       ),
       child: HeatMap(
         datasets: datasets,
         colorMode: ColorMode.opacity,
         showText: false,
         scrollable: true,
-        colorsets: const {
-          1: AppColors.primary,
+        colorsets: {
+          1: theme.primary,
         },
-        onClick: (value) {
-          // Placeholder para clicar em um dia específico
-        },
-        defaultColor: AppColors.background,
-        textColor: AppColors.textSecondary,
+        onClick: (value) {},
+        defaultColor: theme.background,
+        textColor: theme.textSecondary,
         margin: const EdgeInsets.all(2),
         borderRadius: 4,
         size: 24,
@@ -199,33 +199,29 @@ class AnalyticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildBarChart(List<DailyStats> dailyStats) {
+  Widget _buildBarChart(AppThemeData theme, List<DailyStats> dailyStats) {
     if (dailyStats.isEmpty) {
-      return const Center(child: Text('Ainda não há dados suficientes.', style: TextStyle(color: AppColors.textMuted)));
+      return Center(child: Text('Ainda não há dados suficientes.', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))));
     }
 
-    // Para exibir corretamente no gráfico (eixo X ordenado do mais antigo pro mais recente)
     final sortedStats = List<DailyStats>.from(dailyStats)
       ..sort((a, b) => a.date.compareTo(b.date));
 
-    // Pegamos os últimos 7 dias no máximo
     final displayStats = sortedStats.length > 7 ? sortedStats.sublist(sortedStats.length - 7) : sortedStats;
     double maxY = 1.0;
     for (var stat in displayStats) {
       final total = (stat.completed + stat.failed).toDouble();
       if (total > maxY) maxY = total;
     }
-    
-    // Adicionar margem de respiro no topo
     maxY += 2;
 
     return Container(
       height: 250,
       padding: const EdgeInsets.only(top: 24, right: 16, left: 0, bottom: 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(theme.borderRadius > 16 ? 16 : theme.borderRadius),
+        border: Border.all(color: theme.border.withValues(alpha: 0.5)),
       ),
       child: BarChart(
         BarChartData(
@@ -234,21 +230,21 @@ class AnalyticsScreen extends ConsumerWidget {
           barTouchData: BarTouchData(
             enabled: true,
             touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (_) => AppColors.background.withValues(alpha: 0.9),
+              getTooltipColor: (_) => theme.background.withValues(alpha: 0.9),
               tooltipPadding: const EdgeInsets.all(8),
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 final stat = displayStats[groupIndex];
                 return BarTooltipItem(
                   '${stat.date.day}/${stat.date.month}\n',
-                  const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+                  theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontWeight: FontWeight.bold)),
                   children: [
                     TextSpan(
                       text: '${stat.completed} concluídas\n',
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.normal, fontSize: 12),
+                      style: theme.fontStyleBase(TextStyle(color: theme.primary, fontWeight: FontWeight.normal, fontSize: 12)),
                     ),
                     TextSpan(
                       text: '${stat.failed} falhas',
-                      style: const TextStyle(color: AppColors.taskRed, fontWeight: FontWeight.normal, fontSize: 12),
+                      style: theme.fontStyleBase(TextStyle(color: theme.taskRed, fontWeight: FontWeight.normal, fontSize: 12)),
                     ),
                   ],
                 );
@@ -268,11 +264,11 @@ class AnalyticsScreen extends ConsumerWidget {
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
                       isToday ? 'Hoje' : '${stat.date.day}/${stat.date.month}',
-                      style: TextStyle(
-                        color: isToday ? AppColors.accent : AppColors.textSecondary,
+                      style: theme.fontStyleBase(TextStyle(
+                        color: isToday ? theme.accent : theme.textSecondary,
                         fontSize: 10,
                         fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                      ),
+                      )),
                     ),
                   );
                 },
@@ -280,7 +276,7 @@ class AnalyticsScreen extends ConsumerWidget {
               ),
             ),
             leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false), // Omitimos os números do eixo Y para manter o design limpo
+              sideTitles: SideTitles(showTitles: false),
             ),
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -290,7 +286,7 @@ class AnalyticsScreen extends ConsumerWidget {
             drawVerticalLine: false,
             horizontalInterval: maxY / 4 > 0 ? maxY / 4 : 1,
             getDrawingHorizontalLine: (value) => FlLine(
-              color: AppColors.border.withValues(alpha: 0.2),
+              color: theme.border.withValues(alpha: 0.2),
               strokeWidth: 1,
               dashArray: [4, 4],
             ),
@@ -308,13 +304,13 @@ class AnalyticsScreen extends ConsumerWidget {
                   width: 16,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                   rodStackItems: [
-                    BarChartRodStackItem(0, stat.completed.toDouble(), AppColors.primary),
-                    BarChartRodStackItem(stat.completed.toDouble(), (stat.completed + stat.failed).toDouble(), AppColors.taskRed),
+                    BarChartRodStackItem(0, stat.completed.toDouble(), theme.primary),
+                    BarChartRodStackItem(stat.completed.toDouble(), (stat.completed + stat.failed).toDouble(), theme.taskRed),
                   ],
                   backDrawRodData: BackgroundBarChartRodData(
                     show: true,
                     toY: maxY,
-                    color: AppColors.background.withValues(alpha: 0.5),
+                    color: theme.background.withValues(alpha: 0.5),
                   ),
                 ),
               ],
@@ -325,57 +321,57 @@ class AnalyticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStreakPanel(int streakDays) {
+  Widget _buildStreakPanel(AppThemeData theme, int streakDays) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.taskYellow.withValues(alpha: 0.3)),
-        boxShadow: AppColors.glowShadow(AppColors.taskYellow, intensity: 0.1),
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(theme.borderRadius > 16 ? 16 : theme.borderRadius),
+        border: Border.all(color: theme.taskYellow.withValues(alpha: 0.3)),
+        boxShadow: theme.useGlowBorder ? theme.glowShadow(theme.taskYellow, intensity: 0.1) : null,
       ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.local_fire_department_rounded, color: AppColors.taskYellow, size: 32)
+              const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 32)
                   .animate(onPlay: (controller) => controller.repeat(reverse: true))
                   .scaleXY(begin: 1.0, end: 1.2, duration: 800.ms)
                   .tint(color: Colors.orangeAccent, duration: 800.ms),
               const SizedBox(width: 12),
               Text(
                 '$streakDays',
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: theme.fontStyleBase(TextStyle(
+                  color: theme.textPrimary,
                   fontSize: 48,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -1,
-                ),
+                )),
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'DIAS\nSEGUIDOS',
-                style: TextStyle(
-                  color: AppColors.taskYellow,
+                style: theme.fontStyleBase(TextStyle(
+                  color: theme.taskYellow,
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   height: 1.1,
-                ),
+                )),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Mantenha o foco! Cada dia conta.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 13)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryStats(AnalyticsData data) {
+  Widget _buildSummaryStats(AppThemeData theme, AnalyticsData data) {
     final total = data.totalTasksCompleted + data.totalTasksFailed;
     final successRate = total > 0 ? (data.totalTasksCompleted / total * 100).toInt() : 0;
     
@@ -386,7 +382,8 @@ class AnalyticsScreen extends ConsumerWidget {
             title: 'Taxa de Sucesso',
             value: '$successRate%',
             icon: Icons.track_changes_rounded,
-            color: successRate >= 70 ? AppColors.accent : AppColors.taskYellow,
+            color: successRate >= 70 ? theme.accent : theme.taskYellow,
+            theme: theme,
           ),
         ),
         const SizedBox(width: 16),
@@ -395,14 +392,15 @@ class AnalyticsScreen extends ConsumerWidget {
             title: 'Completadas',
             value: '${data.totalTasksCompleted}',
             icon: Icons.check_circle_outline_rounded,
-            color: AppColors.primary,
+            color: theme.primary,
+            theme: theme,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildDivisionStatsPanel(BuildContext context, Map<DivisionType, DivisionStats> stats) {
+  Widget _buildDivisionStatsPanel(AppThemeData theme, BuildContext context, Map<DivisionType, DivisionStats> stats) {
     String getLabel(DivisionType type) {
       switch (type) {
         case DivisionType.morning: return 'Manhã';
@@ -423,19 +421,19 @@ class AnalyticsScreen extends ConsumerWidget {
 
     Color getColor(DivisionType type) {
       switch (type) {
-        case DivisionType.morning: return AppColors.taskYellow;
-        case DivisionType.afternoon: return AppColors.secondary;
-        case DivisionType.night: return AppColors.accent;
-        case DivisionType.tomorrow: return AppColors.textSecondary;
+        case DivisionType.morning: return theme.taskYellow;
+        case DivisionType.afternoon: return theme.secondary;
+        case DivisionType.night: return theme.accent;
+        case DivisionType.tomorrow: return theme.textSecondary;
       }
     }
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(theme.borderRadius > 16 ? 16 : theme.borderRadius),
+        border: Border.all(color: theme.border.withValues(alpha: 0.5)),
       ),
       child: Column(
         children: stats.entries.map((entry) {
@@ -460,17 +458,17 @@ class AnalyticsScreen extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Text(
                           getLabel(type),
-                          style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
+                          style: theme.fontStyleBase(const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
                         ),
                       ],
                     ),
                     Text(
                       '$completed/$total ($percentage%)',
-                      style: TextStyle(
-                        color: total > 0 && completed == total ? AppColors.accent : AppColors.textSecondary,
+                      style: theme.fontStyleMono(TextStyle(
+                        color: total > 0 && completed == total ? theme.accent : theme.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                      ),
+                      )),
                     ),
                   ],
                 ),
@@ -479,7 +477,7 @@ class AnalyticsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: progress,
-                    backgroundColor: AppColors.background,
+                    backgroundColor: theme.background,
                     color: getColor(type),
                     minHeight: 6,
                   ),
@@ -498,16 +496,17 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final AppThemeData theme;
 
-  const _StatCard({required this.title, required this.value, required this.icon, required this.color});
+  const _StatCard({required this.title, required this.value, required this.icon, required this.color, required this.theme});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
+        color: theme.surface.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
@@ -515,9 +514,9 @@ class _StatCard extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(height: 12),
-          Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(value, style: theme.fontStyleMono(TextStyle(color: theme.textPrimary, fontSize: 24, fontWeight: FontWeight.bold))),
           const SizedBox(height: 4),
-          Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+          Text(title, style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 12))),
         ],
       ),
     );

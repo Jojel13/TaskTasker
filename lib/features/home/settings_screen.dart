@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:clipboard/clipboard.dart';
 import '../../core/providers/core_providers.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_config.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/user_profile.dart';
+import '../../shared/models/enums.dart';
 import '../../core/services/notification_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -25,6 +26,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   
   double _notificationFrequency = 6;
   bool _isBackupLoading = false;
+  AppThemeType _selectedTheme = AppThemeType.cyberpunkDark;
 
   @override
   void initState() {
@@ -47,6 +49,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _nightCtrl.text = profile.divisionNightName;
       _tomorrowCtrl.text = profile.divisionTomorrowName;
       _notificationFrequency = profile.notificationFrequencyHours.toDouble();
+      _selectedTheme = profile.appTheme;
     }
   }
 
@@ -65,13 +68,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final isar = ref.read(isarProvider);
       final profile = await isar.userProfiles.get(1);
 
-      // A11: feedback explicito se perfil nao existir
       if (profile == null) {
         if (mounted) {
+          final theme = ref.read(currentThemeProvider);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Erro: perfil não encontrado. Reinicie o app.'),
-              backgroundColor: AppColors.taskRed,
+            SnackBar(
+              content: Text('Erro: perfil não encontrado. Reinicie o app.', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+              backgroundColor: theme.taskRed,
             ),
           );
         }
@@ -84,60 +87,65 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       profile.divisionNightName = _nightCtrl.text;
       profile.divisionTomorrowName = _tomorrowCtrl.text;
       profile.notificationFrequencyHours = _notificationFrequency.toInt();
+      profile.appTheme = _selectedTheme;
 
       await isar.writeTxn(() async {
         await isar.userProfiles.put(profile);
       });
 
-      // Atualiza o Workmanager com a nova frequência
       NotificationService.instance.updatePeriodicChecks(_notificationFrequency.toInt());
 
       if (mounted) {
+        final theme = ref.read(currentThemeProvider);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Configurações salvas com sucesso!'),
-            backgroundColor: AppColors.primary,
+          SnackBar(
+            content: Text('Configurações salvas com sucesso!', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+            backgroundColor: theme.primary,
           ),
         );
         Navigator.pop(context);
       }
     }
   }
+
   void _exportBackupFile() async {
     setState(() => _isBackupLoading = true);
     final success = await ref.read(backupServiceProvider).shareBackupFile();
     setState(() => _isBackupLoading = false);
 
     if (mounted) {
+      final theme = ref.read(currentThemeProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(success
               ? 'Backup compartilhado com sucesso!'
-              : 'Exportação concluída ou cancelada.'),
-          backgroundColor: success ? AppColors.accent : AppColors.taskRed,
+              : 'Exportação concluída ou cancelada.',
+              style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+          backgroundColor: success ? theme.accent : theme.taskRed,
         ),
       );
     }
   }
 
   void _importBackupFile() async {
+    final theme = ref.read(currentThemeProvider);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Confirmar Importação', style: TextStyle(color: AppColors.taskRed)),
-        content: const Text(
+        backgroundColor: theme.surface,
+        title: Text('Confirmar Importação', style: theme.fontStyleBase(TextStyle(color: theme.taskRed))),
+        content: Text(
           'A importação substituirá permanentemente todos os seus dados atuais (rotinas, tarefas, níveis e XP) pelos dados do backup. Deseja continuar?',
-          style: TextStyle(color: AppColors.textPrimary),
+          style: theme.fontStyleBase(TextStyle(color: theme.textPrimary)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar', style: TextStyle(color: AppColors.textMuted)),
+            child: Text('Cancelar', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Importar', style: TextStyle(color: AppColors.taskRed)),
+            child: Text('Importar', style: theme.fontStyleBase(TextStyle(color: theme.taskRed))),
           ),
         ],
       ),
@@ -156,17 +164,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ref.invalidate(todayRoutineProvider);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Backup importado com sucesso! Recarregando...'),
-            backgroundColor: AppColors.accent,
+          SnackBar(
+            content: Text('Backup importado com sucesso! Recarregando...', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+            backgroundColor: theme.accent,
           ),
         );
         Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Falha ao importar backup. Verifique o arquivo selecionado.'),
-            backgroundColor: AppColors.taskRed,
+          SnackBar(
+            content: Text('Falha ao importar backup. Verifique o arquivo selecionado.', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+            backgroundColor: theme.taskRed,
           ),
         );
       }
@@ -174,23 +182,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _exportBackupClipboard() async {
+    final theme = ref.read(currentThemeProvider);
     try {
       final data = await ref.read(backupServiceProvider).exportBackupData();
       await FlutterClipboard.copy(data);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Código JSON de backup copiado!'),
-            backgroundColor: AppColors.accent,
+          SnackBar(
+            content: Text('Código JSON de backup copiado!', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+            backgroundColor: theme.accent,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erro ao exportar para a área de transferência.'),
-            backgroundColor: AppColors.taskRed,
+          SnackBar(
+            content: Text('Erro ao exportar para a área de transferência.', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+            backgroundColor: theme.taskRed,
           ),
         );
       }
@@ -198,30 +207,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _importBackupClipboard() async {
+    final theme = ref.read(currentThemeProvider);
     final textCtrl = TextEditingController();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Importar Código de Backup', style: TextStyle(color: AppColors.accent)),
+        backgroundColor: theme.surface,
+        title: Text('Importar Código de Backup', style: theme.fontStyleBase(TextStyle(color: theme.accent))),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Cole o código JSON de backup abaixo. Isso substituirá todos os seus dados atuais.',
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
+              style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 13)),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: textCtrl,
               maxLines: 5,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+              style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 12)),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: AppColors.background,
+                fillColor: theme.background,
                 hintText: 'Cole o JSON aqui...',
-                hintStyle: const TextStyle(color: AppColors.textMuted),
+                hintStyle: theme.fontStyleBase(TextStyle(color: theme.textMuted)),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
@@ -230,11 +240,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar', style: TextStyle(color: AppColors.textMuted)),
+            child: Text('Cancelar', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Restaurar', style: TextStyle(color: AppColors.accent)),
+            child: Text('Restaurar', style: theme.fontStyleBase(TextStyle(color: theme.accent))),
           ),
         ],
       ),
@@ -254,9 +264,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Backup restaurado com sucesso!'),
-            backgroundColor: AppColors.accent,
+          SnackBar(
+            content: Text('Backup restaurado com sucesso!', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+            backgroundColor: theme.accent,
           ),
         );
         Navigator.pop(context);
@@ -264,9 +274,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Falha ao decodificar JSON. Formato inválido.'),
-            backgroundColor: AppColors.taskRed,
+          SnackBar(
+            content: Text('Falha ao decodificar JSON. Formato inválido.', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+            backgroundColor: theme.taskRed,
           ),
         );
       }
@@ -276,16 +286,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     }
   }
+
+  Widget _buildColorDot(Color color) {
+    return Container(
+      width: 12,
+      height: 12,
+      margin: const EdgeInsets.only(right: 5),
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white24, width: 0.5),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = ref.watch(currentThemeProvider);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Configurações', style: AppTextStyles.titleMedium),
+        title: Text('Configurações', style: theme.fontStyleBase(AppTextStyles.titleMedium).copyWith(color: theme.textPrimary)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primary, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.primary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -298,46 +324,127 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildAccordion(
+                  theme: theme,
                   title: 'Personalização de Nomes',
                   icon: Icons.edit_note_rounded,
                   children: [
-                    _buildTextField('Nome da Rotina', _routineNameCtrl),
+                    _buildTextField(theme, 'Nome da Rotina', _routineNameCtrl),
                     const SizedBox(height: 16),
-                    Text('DIVISÕES DO DIA', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary)),
+                    Text('DIVISÕES DO DIA', style: theme.fontStyleBase(AppTextStyles.labelSmall).copyWith(color: theme.primary)),
                     const SizedBox(height: 12),
-                    _buildTextField('Manhã', _morningCtrl),
+                    _buildTextField(theme, 'Manhã', _morningCtrl),
                     const SizedBox(height: 12),
-                    _buildTextField('Tarde', _afternoonCtrl),
+                    _buildTextField(theme, 'Tarde', _afternoonCtrl),
                     const SizedBox(height: 12),
-                    _buildTextField('Noite', _nightCtrl),
+                    _buildTextField(theme, 'Noite', _nightCtrl),
                     const SizedBox(height: 12),
-                    _buildTextField('Para Amanhã', _tomorrowCtrl),
+                    _buildTextField(theme, 'Para Amanhã', _tomorrowCtrl),
                   ],
                 ),
                 
                 const SizedBox(height: 16),
+
+                _buildAccordion(
+                  theme: theme,
+                  title: 'Temas e Estilos',
+                  icon: Icons.palette_outlined,
+                  children: [
+                    Text(
+                      'Escolha uma das 12 estéticas exclusivas:',
+                      style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 13)),
+                    ),
+                    const SizedBox(height: 16),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 1.8,
+                      ),
+                      itemCount: AppThemeType.values.length,
+                      itemBuilder: (context, index) {
+                        final themeType = AppThemeType.values[index];
+                        final themeData = AppThemeData.fromType(themeType);
+                        final isSelected = _selectedTheme == themeType;
+
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() => _selectedTheme = themeType);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              color: themeData.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected
+                                    ? themeData.primary
+                                    : themeData.border.withValues(alpha: 0.5),
+                                width: isSelected ? 2.0 : 1.0,
+                              ),
+                              boxShadow: (isSelected && themeData.useGlowBorder)
+                                  ? themeData.glowShadow(themeData.primary, intensity: 0.3)
+                                  : null,
+                            ),
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  themeData.name,
+                                  style: themeData.fontStyleBase(TextStyle(
+                                    color: themeData.textPrimary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  )),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Row(
+                                  children: [
+                                    _buildColorDot(themeData.background),
+                                    _buildColorDot(themeData.primary),
+                                    _buildColorDot(themeData.taskBlue),
+                                    _buildColorDot(themeData.taskYellow),
+                                    _buildColorDot(themeData.taskRed),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
                 
                  _buildAccordion(
+                  theme: theme,
                   title: 'Notificações (Background)',
                   icon: Icons.notifications_active_outlined,
                   children: [
-                    const Text(
+                    Text(
                       'Frequência de lembretes automáticos:',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 13)),
                     ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
                         Text('A cada ${_notificationFrequency.toInt()}h', 
-                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
+                          style: theme.fontStyleMono(TextStyle(color: theme.primary, fontWeight: FontWeight.bold, fontSize: 16))),
                         Expanded(
                           child: Slider(
                             value: _notificationFrequency,
                             min: 1,
                             max: 24,
                             divisions: 23,
-                            activeColor: AppColors.primary,
-                            inactiveColor: AppColors.surface,
+                            activeColor: theme.primary,
+                            inactiveColor: theme.surface,
                             onChanged: (val) {
                               setState(() => _notificationFrequency = val);
                             },
@@ -351,20 +458,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: 16),
                 
                 _buildAccordion(
+                  theme: theme,
                   title: 'Backup e Restauração',
                   icon: Icons.backup_rounded,
                   children: [
                     if (_isBackupLoading)
-                      const Center(
+                      Center(
                         child: Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: CircularProgressIndicator(color: AppColors.primary),
+                          padding: const EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(color: theme.primary),
                         ),
                       )
                     else ...[
-                      const Text(
+                      Text(
                         'Salve seus dados para recuperá-los em caso de formatação ou troca de aparelho. Fotos físicas não são salvas no backup de texto.',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 13)),
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -372,14 +480,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           Expanded(
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.surface,
-                                foregroundColor: AppColors.primary,
-                                side: const BorderSide(color: AppColors.primary, width: 1.0),
+                                backgroundColor: theme.surface,
+                                foregroundColor: theme.primary,
+                                side: BorderSide(color: theme.primary, width: 1.0),
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                               icon: const Icon(Icons.share_rounded, size: 18),
-                              label: const Text('Exportar Arquivo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              label: Text('Exportar Arquivo', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                               onPressed: _exportBackupFile,
                             ),
                           ),
@@ -387,14 +495,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           Expanded(
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.surface,
-                                foregroundColor: AppColors.accent,
-                                side: const BorderSide(color: AppColors.accent, width: 1.0),
+                                backgroundColor: theme.surface,
+                                foregroundColor: theme.accent,
+                                side: BorderSide(color: theme.accent, width: 1.0),
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                               icon: const Icon(Icons.file_open_rounded, size: 18),
-                              label: const Text('Importar Arquivo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              label: Text('Importar Arquivo', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                               onPressed: _importBackupFile,
                             ),
                           ),
@@ -406,13 +514,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.textSecondary,
-                                side: const BorderSide(color: AppColors.border, width: 1.0),
+                                foregroundColor: theme.textSecondary,
+                                side: BorderSide(color: theme.border, width: 1.0),
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                               icon: const Icon(Icons.copy_rounded, size: 16),
-                              label: const Text('Copiar JSON', style: TextStyle(fontSize: 11)),
+                              label: Text('Copiar JSON', style: theme.fontStyleBase(const TextStyle(fontSize: 11))),
                               onPressed: _exportBackupClipboard,
                             ),
                           ),
@@ -420,13 +528,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.textSecondary,
-                                side: const BorderSide(color: AppColors.border, width: 1.0),
+                                foregroundColor: theme.textSecondary,
+                                side: BorderSide(color: theme.border, width: 1.0),
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                               icon: const Icon(Icons.paste_rounded, size: 16),
-                              label: const Text('Colar JSON', style: TextStyle(fontSize: 11)),
+                              label: Text('Colar JSON', style: theme.fontStyleBase(const TextStyle(fontSize: 11))),
                               onPressed: _importBackupClipboard,
                             ),
                           ),
@@ -441,13 +549,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
+                      backgroundColor: theme.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius)),
                     ),
                     onPressed: _saveSettings,
-                    child: const Text('Salvar Alterações', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text('Salvar Alterações', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold))),
                   ),
                 ),
                 
@@ -457,36 +565,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.taskRed.withValues(alpha: 0.1),
-                    border: Border.all(color: AppColors.taskRed.withValues(alpha: 0.5)),
-                    borderRadius: BorderRadius.circular(12),
+                    color: theme.taskRed.withValues(alpha: 0.1),
+                    border: Border.all(color: theme.taskRed.withValues(alpha: 0.5)),
+                    borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.warning_amber_rounded, color: AppColors.taskRed),
-                          SizedBox(width: 8),
-                          Text('Zona de Perigo', style: TextStyle(color: AppColors.taskRed, fontWeight: FontWeight.bold, fontSize: 16)),
+                          Icon(Icons.warning_amber_rounded, color: theme.taskRed),
+                          const SizedBox(width: 8),
+                          Text('Zona de Perigo', style: theme.fontStyleBase(TextStyle(color: theme.taskRed, fontWeight: FontWeight.bold, fontSize: 16))),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Isso apagará permanentemente todas as rotinas e tarefas passadas. Apenas a rotina de hoje será mantida.',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 13)),
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.taskRed,
-                            side: const BorderSide(color: AppColors.taskRed),
+                            foregroundColor: theme.taskRed,
+                            side: BorderSide(color: theme.taskRed),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                           onPressed: _confirmDeleteHistory,
-                          child: const Text('Apagar Histórico Antigo', style: TextStyle(fontWeight: FontWeight.bold)),
+                          child: Text('Apagar Histórico Antigo', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold))),
                         ),
                       ),
                     ],
@@ -501,15 +609,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _confirmDeleteHistory() async {
+    final theme = ref.read(currentThemeProvider);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Tem certeza?', style: TextStyle(color: AppColors.taskRed)),
-        content: const Text('Esta ação é irreversível e todas as fotos de rotinas passadas serão perdidas.', style: TextStyle(color: AppColors.textPrimary)),
+        backgroundColor: theme.surface,
+        title: Text('Tem certeza?', style: theme.fontStyleBase(TextStyle(color: theme.taskRed))),
+        content: Text('Esta ação é irreversível e todas as fotos de rotinas passadas serão perdidas.', style: theme.fontStyleBase(TextStyle(color: theme.textPrimary))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar', style: TextStyle(color: AppColors.textMuted))),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Apagar', style: TextStyle(color: AppColors.taskRed))),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancelar', style: theme.fontStyleBase(TextStyle(color: theme.textMuted)))),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Apagar', style: theme.fontStyleBase(TextStyle(color: theme.taskRed)))),
         ],
       )
     );
@@ -520,19 +629,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await routineService.deleteAllPastRoutines();
     
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Histórico limpo com sucesso!')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Histórico limpo com sucesso!', style: theme.fontStyleBase(const TextStyle(color: Colors.white)))));
     }
   }
 
-  Widget _buildTextField(String label, TextEditingController controller) {
+  Widget _buildTextField(AppThemeData theme, String label, TextEditingController controller) {
     return TextFormField(
       controller: controller,
-      style: const TextStyle(color: AppColors.textPrimary),
+      style: theme.fontStyleBase(TextStyle(color: theme.textPrimary)),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: AppColors.textMuted),
+        labelStyle: theme.fontStyleBase(TextStyle(color: theme.textMuted)),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: theme.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -543,7 +652,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary),
+          borderSide: BorderSide(color: theme.primary),
         ),
       ),
       validator: (val) {
@@ -555,21 +664,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildAccordion({required String title, required IconData icon, required List<Widget> children}) {
+  Widget _buildAccordion({required AppThemeData theme, required String title, required IconData icon, required List<Widget> children}) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.3),
+        color: theme.surface.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        border: Border.all(color: theme.border.withValues(alpha: 0.5)),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          initiallyExpanded: true,
-          leading: Icon(icon, color: AppColors.primary, size: 24),
-          title: Text(title, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-          iconColor: AppColors.primary,
-          collapsedIconColor: AppColors.textSecondary,
+          initiallyExpanded: false,
+          leading: Icon(icon, color: theme.primary, size: 24),
+          title: Text(title, style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontWeight: FontWeight.bold))),
+          iconColor: theme.primary,
+          collapsedIconColor: theme.textSecondary,
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: children,
         ),

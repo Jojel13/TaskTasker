@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui' as ui;
 import '../../core/providers/core_providers.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_config.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/routine.dart';
 import '../../shared/widgets/xp_bar.dart';
@@ -56,11 +56,12 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final AppThemeData theme = ref.watch(currentThemeProvider);
     final daysAsync = ref.watch(routineDaysProvider(widget.routine.id));
     final dateStr = DateFormat("EEEE, dd 'de' MMMM", 'pt_BR').format(widget.routine.date);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.background,
       body: SafeArea(
         child: Column(children: [
           // ── AppBar ──────────────────────────────────────────
@@ -68,30 +69,30 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
             child: Row(children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    size: 20, color: AppColors.textSecondary),
+                icon: Icon(Icons.arrow_back_ios_new_rounded,
+                    size: 20, color: theme.textSecondary),
                 onPressed: () => Navigator.pop(context),
               ),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(widget.routine.name, style: AppTextStyles.titleLarge),
+                  Text(widget.routine.name, style: theme.fontStyleBase(AppTextStyles.titleLarge)),
                   Text(dateStr,
-                      style: AppTextStyles.labelSmall
-                          .copyWith(color: AppColors.textMuted)),
+                      style: theme.fontStyleBase(AppTextStyles.labelSmall)
+                          .copyWith(color: theme.textMuted)),
                 ]),
               ),
               if (!_isToday)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.08),
+                    color: theme.secondary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                        color: AppColors.secondary.withValues(alpha: 0.25)),
+                        color: theme.secondary.withValues(alpha: 0.25)),
                   ),
-                  child: const Text('Histórico',
-                      style: TextStyle(
-                          color: AppColors.secondary, fontSize: 11)),
+                  child: Text('Histórico',
+                      style: theme.fontStyleBase(TextStyle(
+                          color: theme.secondary, fontSize: 11))),
                 ),
             ]),
           ),
@@ -108,11 +109,11 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
               children: [
                 Positioned.fill(
                   child: daysAsync.when(
-                    loading: () => const Center(
-                        child: CircularProgressIndicator(color: AppColors.secondary)),
+                    loading: () => Center(
+                        child: CircularProgressIndicator(color: theme.secondary)),
                     error: (e, _) => Center(
                         child: Text('Erro: $e',
-                            style: const TextStyle(color: AppColors.taskRed))),
+                            style: theme.fontStyleBase(TextStyle(color: theme.taskRed)))),
                     data: (days) {
                       // A18: remover keys obsoletas de tasks que não existem mais
                       final currentTaskIds = days.expand((d) => d.tasks.map((t) => t.id)).toSet();

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/theme_config.dart';
 import '../../../shared/models/routine.dart';
 import '../../../shared/models/routine_day.dart';
 import '../../../shared/models/task.dart';
@@ -24,11 +24,11 @@ class DivisionSection extends ConsumerWidget {
     this.taskKeys,
   });
 
-  Color get _accentColor => switch (day.division) {
-    DivisionType.morning   => AppColors.taskYellow,
-    DivisionType.afternoon => AppColors.secondary,
-    DivisionType.night     => AppColors.accent,
-    DivisionType.tomorrow  => AppColors.textSecondary,
+  Color _accentColor(AppThemeData theme) => switch (day.division) {
+    DivisionType.morning   => theme.taskYellow,
+    DivisionType.afternoon => theme.secondary,
+    DivisionType.night     => theme.accent,
+    DivisionType.tomorrow  => theme.textSecondary,
   };
 
   IconData get _iconData => switch (day.division) {
@@ -40,6 +40,9 @@ class DivisionSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(currentThemeProvider);
+    final accent = _accentColor(theme);
+
     final tasks = day.tasks.toList()
       ..sort((a, b) => a.sortOrder != b.sortOrder
           ? a.sortOrder.compareTo(b.sortOrder)
@@ -54,34 +57,34 @@ class DivisionSection extends ConsumerWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(0, 24, 0, 10),
         child: Row(children: [
-          Icon(_iconData, size: 14, color: _accentColor),
+          Icon(_iconData, size: 14, color: accent),
           const SizedBox(width: 8),
           Text(
             day.customName.toUpperCase(),
-            style: TextStyle(
-              color: _accentColor,
+            style: theme.fontStyleBase(TextStyle(
+              color: accent,
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 2.5,
-            ),
+            )),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Container(
               height: 0.5,
-              color: _accentColor.withValues(alpha: 0.25),
+              color: accent.withValues(alpha: 0.25),
             ),
           ),
           const SizedBox(width: 10),
           Text(
             '$completedCount/${tasks.length}',
-            style: TextStyle(
+            style: theme.fontStyleMono(TextStyle(
               color: completedCount == tasks.length && tasks.isNotEmpty
-                  ? _accentColor
-                  : AppColors.textMuted,
+                  ? accent
+                  : theme.textMuted,
               fontSize: 10,
               fontWeight: FontWeight.w600,
-            ),
+            )),
           ),
         ]),
       ),
@@ -158,9 +161,9 @@ class DivisionSection extends ConsumerWidget {
                   height: 56, // Tamanho aproximado de um card fechado
                   margin: const EdgeInsets.only(bottom: 6, top: 2),
                   decoration: BoxDecoration(
-                    color: _accentColor.withValues(alpha: 0.1),
-                    border: Border.all(color: _accentColor, width: 1.5, strokeAlign: BorderSide.strokeAlignOutside),
-                    borderRadius: BorderRadius.circular(12),
+                    color: accent.withValues(alpha: 0.1),
+                    border: Border.all(color: accent, width: 1.5, strokeAlign: BorderSide.strokeAlignOutside),
+                    borderRadius: BorderRadius.circular(theme.borderRadius),
                   ),
                 ),
               draggable,
@@ -208,11 +211,11 @@ class DivisionSection extends ConsumerWidget {
           duration: const Duration(milliseconds: 150),
           decoration: BoxDecoration(
             color: isHovering
-                ? _accentColor.withValues(alpha: 0.05)
+                ? accent.withValues(alpha: 0.05)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(theme.borderRadius),
             border: isHovering
-                ? Border.all(color: _accentColor.withValues(alpha: 0.3), width: 1)
+                ? Border.all(color: accent.withValues(alpha: 0.3), width: 1)
                 : null,
           ),
           child: content,

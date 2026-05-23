@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/core_providers.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_config.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/routine.dart';
@@ -13,6 +13,7 @@ class RadarScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(currentThemeProvider);
     final radarTasksAsync = ref.watch(radarProvider);
 
     return radarTasksAsync.when(
@@ -30,26 +31,23 @@ class RadarScreen extends ConsumerWidget {
 
         final Color topColor;
         final Color midColor;
-        const Color bottomColor = Color(0xFF070B14); // AppColors.background
+        final Color bottomColor = theme.background;
+
+        final redTop = Color.lerp(theme.background, theme.taskRed, 0.35)!;
+        final redMid = Color.lerp(theme.background, theme.taskRed, 0.15)!;
+        final yellowTop = Color.lerp(theme.background, theme.taskYellow, 0.30)!;
+        final yellowMid = Color.lerp(theme.background, theme.taskYellow, 0.12)!;
 
         if (total == 0) {
-          topColor = AppColors.background;
-          midColor = AppColors.background;
+          topColor = theme.background;
+          midColor = theme.background;
         } else if (redTasks.isNotEmpty && yellowTasks.isEmpty) {
-          // Full Vermelho
-          topColor = const Color(0xFF4C0E0E); // Vermelho cyber profundo
-          midColor = const Color(0xFF1E0505);
+          topColor = redTop;
+          midColor = redMid;
         } else if (redTasks.isEmpty && yellowTasks.isNotEmpty) {
-          // Full Amarelo
-          topColor = const Color(0xFF362A00); // Amarelo cyber profundo
-          midColor = const Color(0xFF1C1600);
+          topColor = yellowTop;
+          midColor = yellowMid;
         } else {
-          // Interpolação inteligente
-          final redTop = const Color(0xFF4C0E0E);
-          final yellowTop = const Color(0xFF362A00);
-          final redMid = const Color(0xFF1E0505);
-          final yellowMid = const Color(0xFF1C1600);
-          
           topColor = Color.lerp(yellowTop, redTop, redRatio)!;
           midColor = Color.lerp(yellowMid, redMid, redRatio)!;
         }
@@ -60,7 +58,7 @@ class RadarScreen extends ConsumerWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomCenter,
               colors: total == 0
-                  ? [AppColors.background, AppColors.background, AppColors.background]
+                  ? [theme.background, theme.background, theme.background]
                   : [topColor, midColor, bottomColor],
               stops: const [0.0, 0.45, 1.0],
             ),
@@ -68,7 +66,7 @@ class RadarScreen extends ConsumerWidget {
 
           child: SafeArea(
             child: tasks.isEmpty
-                ? _buildEmpty()
+                ? _buildEmpty(theme)
                 : CustomScrollView(
                     slivers: [
                       // ── Header ──────────────────────────────────────────
@@ -78,20 +76,19 @@ class RadarScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('RADAR', style: AppTextStyles.displayMedium.copyWith(
-                                color: AppColors.textPrimary,
+                              Text('RADAR', style: theme.fontStyleBase(AppTextStyles.displayMedium).copyWith(
+                                color: theme.textPrimary,
                                 letterSpacing: 4,
                               )),
                               const SizedBox(height: 4),
                               Text(
                                 '${redTasks.length} eminentes · ${yellowTasks.length} pendentes',
-                                style: AppTextStyles.labelSmall.copyWith(
-                                  color: redRatio > 0.5 ? AppColors.taskRed : AppColors.taskYellow,
+                                style: theme.fontStyleBase(AppTextStyles.labelSmall).copyWith(
+                                  color: redRatio > 0.5 ? theme.taskRed : theme.taskYellow,
                                   letterSpacing: 1.5,
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              // Barra de proporção red/yellow
                               if (total > 0) ...[
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(4),
@@ -102,7 +99,7 @@ class RadarScreen extends ConsumerWidget {
                                           flex: redTasks.length,
                                           child: Container(
                                             height: 3,
-                                            color: AppColors.taskRed.withValues(alpha: 0.8),
+                                            color: theme.taskRed.withValues(alpha: 0.8),
                                           ),
                                         ),
                                       if (yellowTasks.isNotEmpty)
@@ -110,7 +107,7 @@ class RadarScreen extends ConsumerWidget {
                                           flex: yellowTasks.length,
                                           child: Container(
                                             height: 3,
-                                            color: AppColors.taskYellow.withValues(alpha: 0.8),
+                                            color: theme.taskYellow.withValues(alpha: 0.8),
                                           ),
                                         ),
                                     ],
@@ -130,18 +127,18 @@ class RadarScreen extends ConsumerWidget {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: AppColors.surface.withValues(alpha: 0.6),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.border),
+                              color: theme.surface.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(theme.borderRadius > 8 ? 8 : theme.borderRadius),
+                              border: Border.all(color: theme.border),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.touch_app_rounded, size: 14, color: AppColors.textMuted),
+                                Icon(Icons.touch_app_rounded, size: 14, color: theme.textMuted),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Segure um card para ir à rotina',
-                                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted),
+                                  style: theme.fontStyleBase(AppTextStyles.labelSmall).copyWith(color: theme.textMuted),
                                 ),
                               ],
                             ),
@@ -161,15 +158,15 @@ class RadarScreen extends ConsumerWidget {
                                   height: 8,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: AppColors.taskRed,
-                                    boxShadow: AppColors.glowShadow(AppColors.taskRed),
+                                    color: theme.taskRed,
+                                    boxShadow: theme.useGlowBorder ? theme.glowShadow(theme.taskRed) : null,
                                   ),
                                 ),
                                 const SizedBox(width: 10),
                                 Text(
                                   'EMINENTES',
-                                  style: AppTextStyles.labelSmall.copyWith(
-                                    color: AppColors.taskRed,
+                                  style: theme.fontStyleBase(AppTextStyles.labelSmall).copyWith(
+                                    color: theme.taskRed,
                                     letterSpacing: 2,
                                   ),
                                 ),
@@ -200,15 +197,15 @@ class RadarScreen extends ConsumerWidget {
                                   height: 8,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: AppColors.taskYellow,
-                                    boxShadow: AppColors.glowShadow(AppColors.taskYellow),
+                                    color: theme.taskYellow,
+                                    boxShadow: theme.useGlowBorder ? theme.glowShadow(theme.taskYellow) : null,
                                   ),
                                 ),
                                 const SizedBox(width: 10),
                                 Text(
                                   'PENDENTES',
-                                  style: AppTextStyles.labelSmall.copyWith(
-                                    color: AppColors.taskYellow,
+                                  style: theme.fontStyleBase(AppTextStyles.labelSmall).copyWith(
+                                    color: theme.taskYellow,
                                     letterSpacing: 2,
                                   ),
                                 ),
@@ -233,14 +230,14 @@ class RadarScreen extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.taskYellow)),
+      loading: () => Center(child: CircularProgressIndicator(color: theme.taskYellow)),
       error: (err, stack) => Center(
-        child: Text('Erro: $err', style: const TextStyle(color: AppColors.taskRed)),
+        child: Text('Erro: $err', style: theme.fontStyleBase(TextStyle(color: theme.taskRed))),
       ),
     );
   }
 
-  Widget _buildEmpty() {
+  Widget _buildEmpty(AppThemeData theme) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -250,19 +247,19 @@ class RadarScreen extends ConsumerWidget {
             height: 80,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.surface,
-              border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
-              boxShadow: AppColors.glowShadow(AppColors.accent, intensity: 0.4),
+              color: theme.surface,
+              border: Border.all(color: theme.accent.withValues(alpha: 0.4)),
+              boxShadow: theme.useGlowBorder ? theme.glowShadow(theme.accent, intensity: 0.4) : null,
             ),
-            child: const Icon(Icons.radar, size: 40, color: AppColors.accent),
+            child: Icon(Icons.radar, size: 40, color: theme.accent),
           ),
           const SizedBox(height: 20),
-          Text('Radar Limpo!', style: AppTextStyles.titleMedium.copyWith(color: AppColors.accent)),
+          Text('Radar Limpo!', style: theme.fontStyleBase(AppTextStyles.titleMedium).copyWith(color: theme.accent)),
           const SizedBox(height: 8),
           Text(
             'Nenhuma pendência\nou compromisso eminente.',
             textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+            style: theme.fontStyleBase(AppTextStyles.bodySmall).copyWith(color: theme.textMuted),
           ),
         ],
       ),

@@ -227,11 +227,31 @@ P _userProfileDeserializeProp<P>(
 
 const _UserProfileappThemeEnumValueMap = {
   'cyberpunkDark': 0,
-  'light': 1,
+  'synthwave': 1,
+  'matrix': 2,
+  'minimalLight': 3,
+  'solarizedOchre': 4,
+  'glassmorphism': 5,
+  'dracula': 6,
+  'monochrome': 7,
+  'steampunk': 8,
+  'sakura': 9,
+  'ocean': 10,
+  'garden': 11,
 };
 const _UserProfileappThemeValueEnumMap = {
   0: AppThemeType.cyberpunkDark,
-  1: AppThemeType.light,
+  1: AppThemeType.synthwave,
+  2: AppThemeType.matrix,
+  3: AppThemeType.minimalLight,
+  4: AppThemeType.solarizedOchre,
+  5: AppThemeType.glassmorphism,
+  6: AppThemeType.dracula,
+  7: AppThemeType.monochrome,
+  8: AppThemeType.steampunk,
+  9: AppThemeType.sakura,
+  10: AppThemeType.ocean,
+  11: AppThemeType.garden,
 };
 
 Id _userProfileGetId(UserProfile object) {

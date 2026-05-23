@@ -11,6 +11,7 @@ import '../../shared/models/user_profile.dart';
 import '../../shared/models/task.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/xp_event.dart';
+import '../theme/theme_config.dart';
 
 // ── Core ─────────────────────────────────────────────────────────────────────
 final isarProvider = Provider<Isar>((ref) => IsarService.instance);
@@ -62,6 +63,12 @@ final routineDaysProvider = FutureProvider.family<List<RoutineDay>, Id>((
 final userProfileProvider = StreamProvider<UserProfile?>((ref) {
   final isar = ref.watch(isarProvider);
   return isar.userProfiles.watchObject(1, fireImmediately: true);
+});
+
+final currentThemeProvider = Provider<AppThemeData>((ref) {
+  final profileAsync = ref.watch(userProfileProvider);
+  final themeType = profileAsync.valueOrNull?.appTheme ?? AppThemeType.cyberpunkDark;
+  return AppThemeData.fromType(themeType);
 });
 
 // ── Radar ────────────────────────────────────────────────────────────────────

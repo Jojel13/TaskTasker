@@ -6,6 +6,9 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/database/isar_service.dart';
+import 'core/services/notification_service.dart';
+import 'core/services/alarm_service.dart';
 import 'features/splash/splash_screen.dart';
 
 void main() async {
@@ -15,7 +18,11 @@ void main() async {
   // Locale pt_BR global
   await initializeDateFormatting('pt_BR', null);
 
-  // Serviços pesados foram movidos para a SplashScreen para não travar a native splash
+  // Inicializa banco de dados e serviços para evitar Bad State nos providers
+  await IsarService.initialize();
+  await NotificationService.instance.initialize();
+  await AlarmService.initialize();
+
   // Força orientação portrait
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/theme_config.dart';
 import '../../../shared/models/task.dart';
 
 class AlarmSheet extends ConsumerStatefulWidget {
@@ -36,13 +36,11 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
   @override
   void initState() {
     super.initState();
-    // Pré-popular com o alarme existente, ou com horário atual arredondado
     if (widget.task.alarmTime != null) {
       final t = widget.task.alarmTime!;
       _selectedTime = TimeOfDay(hour: t.hour, minute: t.minute);
     } else {
       final now = DateTime.now();
-      // Arredondar para próxima meia hora
       final nextMin = now.minute < 30 ? 30 : 0;
       final nextHour = now.minute < 30 ? now.hour : (now.hour + 1) % 24;
       _selectedTime = TimeOfDay(hour: nextHour, minute: nextMin);
@@ -50,26 +48,26 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
     _repeat = widget.task.alarmRepeat;
   }
 
-  Future<void> _pickTime() async {
+  Future<void> _pickTime(AppThemeData theme) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: AppColors.primary,
-            onPrimary: AppColors.background,
-            surface: AppColors.surface,
-            onSurface: AppColors.textPrimary,
+          colorScheme: ColorScheme.dark(
+            primary: theme.primary,
+            onPrimary: theme.background,
+            surface: theme.surface,
+            onSurface: theme.textPrimary,
           ),
           timePickerTheme: TimePickerThemeData(
-            backgroundColor: AppColors.surface,
-            hourMinuteColor: AppColors.surfaceVariant,
-            hourMinuteTextColor: AppColors.textPrimary,
-            dialBackgroundColor: AppColors.surfaceVariant,
-            dialHandColor: AppColors.primary,
-            dialTextColor: AppColors.textPrimary,
-            entryModeIconColor: AppColors.textSecondary,
+            backgroundColor: theme.surface,
+            hourMinuteColor: theme.surfaceVariant,
+            hourMinuteTextColor: theme.textPrimary,
+            dialBackgroundColor: theme.surfaceVariant,
+            dialHandColor: theme.primary,
+            dialTextColor: theme.textPrimary,
+            entryModeIconColor: theme.textSecondary,
           ),
         ),
         child: child!,
@@ -78,18 +76,16 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
     if (picked != null) setState(() => _selectedTime = picked);
   }
 
-  Future<void> _saveAlarm() async {
+  Future<void> _saveAlarm(AppThemeData theme) async {
     setState(() => _saving = true);
     HapticFeedback.mediumImpact();
 
     try {
-      // Montar o DateTime do alarme com a data de hoje + horário escolhido
       final now = DateTime.now();
       var alarmDateTime = DateTime(
         now.year, now.month, now.day,
         _selectedTime.hour, _selectedTime.minute,
       );
-      // Se o horário já passou hoje, agendar para amanhã
       if (alarmDateTime.isBefore(now)) {
         alarmDateTime = alarmDateTime.add(const Duration(days: 1));
       }
@@ -106,14 +102,14 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
         messenger.showSnackBar(
           SnackBar(
             content: Row(children: [
-              const Icon(Icons.alarm_on_rounded, color: AppColors.primary, size: 18),
+              Icon(Icons.alarm_on_rounded, color: theme.primary, size: 18),
               const SizedBox(width: 8),
               Text(
                 'Alarme definido para ${_selectedTime.format(context)}',
-                style: const TextStyle(color: AppColors.textPrimary),
+                style: theme.fontStyleBase(TextStyle(color: theme.textPrimary)),
               ),
             ]),
-            backgroundColor: AppColors.surface,
+            backgroundColor: theme.surface,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 2),
           ),
@@ -132,12 +128,13 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = ref.watch(currentThemeProvider);
     final hasAlarm = widget.task.hasAlarm;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: theme.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(theme.borderRadius > 24 ? 24 : theme.borderRadius)),
       ),
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
       child: Column(
@@ -150,7 +147,7 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
               width: 36, height: 4,
               margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
-                color: AppColors.border,
+                color: theme.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -162,28 +159,28 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: theme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.alarm_add_rounded, color: AppColors.primary, size: 22),
+                child: Icon(Icons.alarm_add_rounded, color: theme.primary, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Configurar Alarme',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        )),
+                    Text(
+                      'Configurar Alarme',
+                      style: theme.fontStyleBase(const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      )).copyWith(color: theme.textPrimary)
+                    ),
                     Text(
                       widget.task.text,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: AppColors.textSecondary, fontSize: 12),
+                      style: theme.fontStyleBase(const TextStyle(fontSize: 12)).copyWith(color: theme.textSecondary),
                     ),
                   ],
                 ),
@@ -193,11 +190,11 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
+                    color: theme.surfaceVariant,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.close_rounded,
-                      size: 18, color: AppColors.textMuted),
+                  child: Icon(Icons.close_rounded,
+                      size: 18, color: theme.textMuted),
                 ),
               ),
             ],
@@ -207,48 +204,46 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
 
           // Seletor de horário (tap para abrir TimePicker)
           GestureDetector(
-            onTap: _pickTime,
+            onTap: () => _pickTime(theme),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
               decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(16),
+                color: theme.surfaceVariant,
+                borderRadius: BorderRadius.circular(theme.borderRadius > 16 ? 16 : theme.borderRadius),
                 border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.25),
+                  color: theme.primary.withValues(alpha: 0.25),
                   width: 1,
                 ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.access_time_rounded,
-                      color: AppColors.primary, size: 28),
+                  Icon(Icons.access_time_rounded,
+                      color: theme.primary, size: 28),
                   const SizedBox(width: 16),
-                  // Exibe o horário grande e elegante
                   Text(
                     _selectedTime.format(context),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: theme.fontStyleMono(const TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.w300,
                       letterSpacing: 4,
-                    ),
+                    )).copyWith(color: theme.textPrimary),
                   ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.edit_rounded,
-                          color: AppColors.textMuted, size: 14),
+                      Icon(Icons.edit_rounded,
+                          color: theme.textMuted, size: 14),
                       const SizedBox(height: 4),
                       Text(
                         'Toque\npara editar',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
+                        style: theme.fontStyleBase(TextStyle(
+                          color: theme.textMuted,
                           fontSize: 9,
                           height: 1.3,
-                        ),
+                        )),
                       ),
                     ],
                   ),
@@ -270,13 +265,13 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
                 color: _repeat
-                    ? AppColors.secondary.withValues(alpha: 0.08)
-                    : AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
+                    ? theme.secondary.withValues(alpha: 0.08)
+                    : theme.surfaceVariant,
+                borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius),
                 border: Border.all(
                   color: _repeat
-                      ? AppColors.secondary.withValues(alpha: 0.35)
-                      : AppColors.border,
+                      ? theme.secondary.withValues(alpha: 0.35)
+                      : theme.border,
                   width: _repeat ? 1 : 0.5,
                 ),
               ),
@@ -284,7 +279,7 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
                 children: [
                   Icon(
                     Icons.repeat_rounded,
-                    color: _repeat ? AppColors.secondary : AppColors.textMuted,
+                    color: _repeat ? theme.secondary : theme.textMuted,
                     size: 20,
                   ),
                   const SizedBox(width: 12),
@@ -294,23 +289,24 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
                       children: [
                         Text(
                           'Repetir 3x a cada 5 minutos',
-                          style: TextStyle(
-                            color: _repeat
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary,
+                          style: theme.fontStyleBase(TextStyle(
                             fontSize: 14,
                             fontWeight: _repeat
                                 ? FontWeight.w600
                                 : FontWeight.normal,
+                          )).copyWith(
+                            color: _repeat
+                                ? theme.textPrimary
+                                : theme.textSecondary,
                           ),
                         ),
                         if (_repeat)
                           Text(
                             'Alarme dispara às ${_selectedTime.format(context)}, +5min e +10min',
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
+                            style: theme.fontStyleBase(TextStyle(
+                              color: theme.textMuted,
                               fontSize: 11,
-                            ),
+                            )),
                           ),
                       ],
                     ),
@@ -321,13 +317,13 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
                     height: 24,
                     decoration: BoxDecoration(
                       color: _repeat
-                          ? AppColors.secondary
-                          : AppColors.surfaceVariant,
+                          ? theme.secondary
+                          : theme.surfaceVariant,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                           color: _repeat
-                              ? AppColors.secondary
-                              : AppColors.border),
+                              ? theme.secondary
+                              : theme.border),
                     ),
                     child: AnimatedAlign(
                       duration: const Duration(milliseconds: 200),
@@ -354,53 +350,51 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
 
           // Botões de ação
           Row(children: [
-            // Remover alarme (só aparece se já existe)
             if (hasAlarm) ...[
               Expanded(
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.taskRed,
+                    foregroundColor: theme.taskRed,
                     side: BorderSide(
-                        color: AppColors.taskRed.withValues(alpha: 0.4)),
+                        color: theme.taskRed.withValues(alpha: 0.4)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius)),
                   ),
                   icon: const Icon(Icons.alarm_off_rounded, size: 18),
-                  label: const Text('Remover'),
+                  label: Text('Remover', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold))),
                   onPressed: _saving ? null : _clearAlarm,
                 ),
               ),
               const SizedBox(width: 12),
             ],
 
-            // Ativar alarme
             Expanded(
               flex: hasAlarm ? 2 : 1,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.background,
+                  backgroundColor: theme.primary,
+                  foregroundColor: theme.background,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius)),
                   elevation: 0,
                   shadowColor: Colors.transparent,
                 ),
                 icon: _saving
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
-                            color: AppColors.background, strokeWidth: 2),
+                            color: theme.background, strokeWidth: 2),
                       )
                     : const Icon(Icons.alarm_on_rounded, size: 18),
                 label: Text(
                   hasAlarm ? 'Atualizar Alarme' : 'Ativar Alarme',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 15),
+                  style: theme.fontStyleBase(const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 15)),
                 ),
-                onPressed: _saving ? null : _saveAlarm,
+                onPressed: _saving ? null : () => _saveAlarm(theme),
               ),
             ),
           ]),

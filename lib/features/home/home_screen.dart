@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/core_providers.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/routine.dart';
 import '../../shared/models/routine_day.dart';
@@ -21,6 +20,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final routinesAsync = ref.watch(allRoutinesProvider);
     final profile = ref.watch(userProfileProvider).valueOrNull;
+    final theme = ref.watch(currentThemeProvider);
 
     return SafeArea(
       child: Column(children: [
@@ -33,15 +33,15 @@ class HomeScreen extends ConsumerWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(
                   'TASKTASKER',
-                  style: AppTextStyles.monoSmall.copyWith(
-                    color: AppColors.primary,
+                  style: theme.fontStyleMono(AppTextStyles.monoSmall).copyWith(
+                    color: theme.primary,
                     letterSpacing: 2.5,
                   ),
                 ),
                 Text(
                   profile?.routineName ?? 'Minha Rotina',
-                  style: AppTextStyles.displayMedium.copyWith(
-                    color: AppColors.textPrimary,
+                  style: theme.fontStyleBase(AppTextStyles.displayMedium).copyWith(
+                    color: theme.textPrimary,
                   ),
                 ),
               ]),
@@ -51,10 +51,10 @@ class HomeScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.surfaceVariant, // Cor sólida Peak
+                color: theme.surfaceVariant, // Cor sólida Peak
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: AppColors.accent, // Borda brilhante
+                  color: theme.accent, // Borda brilhante
                   width: 1.0,
                 ),
               ),
@@ -63,8 +63,8 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(width: 4),
                 Text(
                   '${profile?.streakDays ?? 0}',
-                  style: AppTextStyles.monoSmall.copyWith(
-                    color: AppColors.accent,
+                  style: theme.fontStyleMono(AppTextStyles.monoSmall).copyWith(
+                    color: theme.accent,
                     fontSize: 12,
                   ),
                 ),
@@ -75,7 +75,7 @@ class HomeScreen extends ConsumerWidget {
             // XP Dashboard
             _HeaderIconButton(
               icon: Icons.star_rounded,
-              color: AppColors.accent,
+              color: theme.accent,
               tooltip: 'XP',
               onTap: () => Navigator.push(
                 context,
@@ -86,7 +86,7 @@ class HomeScreen extends ConsumerWidget {
             // Análise
             _HeaderIconButton(
               icon: Icons.bar_chart_rounded,
-              color: AppColors.secondary,
+              color: theme.secondary,
               tooltip: 'Análise',
               onTap: () => Navigator.push(
                 context,
@@ -98,7 +98,7 @@ class HomeScreen extends ConsumerWidget {
             // Settings
             _HeaderIconButton(
               icon: Icons.settings_outlined,
-              color: AppColors.textSecondary,
+              color: theme.textSecondary,
               tooltip: 'Configurações',
               onTap: () => Navigator.push(
                 context,
@@ -117,11 +117,11 @@ class HomeScreen extends ConsumerWidget {
         // ── Lista de rotinas ─────────────────────────────────────
         Expanded(
           child: routinesAsync.when(
-            loading: () => const Center(
-                child: CircularProgressIndicator(color: AppColors.primary)),
+            loading: () => Center(
+                child: CircularProgressIndicator(color: theme.primary)),
             error: (e, _) => Center(
                 child: Text('Erro: $e',
-                    style: const TextStyle(color: AppColors.taskRed))),
+                    style: TextStyle(color: theme.taskRed))),
             data: (routines) {
               if (routines.isEmpty) return const _EmptyState();
               
@@ -228,12 +228,13 @@ class _RoutineCardLoader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final daysAsync = ref.watch(routineDaysProvider(routine.id));
+    final theme = ref.watch(currentThemeProvider);
     return daysAsync.when(
-      loading: () => const SizedBox(
+      loading: () => SizedBox(
           height: 80,
           child: Center(
               child: CircularProgressIndicator(
-                  color: AppColors.primary, strokeWidth: 2))),
+                  color: theme.primary, strokeWidth: 2))),
       error: (_, _) => const SizedBox.shrink(),
       data: (days) => RoutineCard(
         routine: routine,
@@ -247,11 +248,12 @@ class _RoutineCardLoader extends ConsumerWidget {
 }
 
 // ── Estado vazio ─────────────────────────────────────────────────────────────
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget {
   const _EmptyState();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(currentThemeProvider);
     return Center(
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Container(
@@ -259,23 +261,23 @@ class _EmptyState extends StatelessWidget {
           height: 72,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.primary.withValues(alpha: 0.08),
+            color: theme.primary.withValues(alpha: 0.08),
             border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.3),
+              color: theme.primary.withValues(alpha: 0.3),
             ),
           ),
-          child: const Icon(Icons.add_rounded, color: AppColors.primary, size: 36),
+          child: Icon(Icons.add_rounded, color: theme.primary, size: 36),
         ),
         const SizedBox(height: 20),
-        const Text(
+        Text(
           'Nenhuma rotina ainda',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+          style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 16)),
         ),
         const SizedBox(height: 8),
         Text(
           'Toque em + para começar',
-          style: AppTextStyles.monoSmall.copyWith(
-            color: AppColors.primaryDim,
+          style: theme.fontStyleMono(AppTextStyles.monoSmall).copyWith(
+            color: theme.primaryDim,
             fontSize: 11,
           ),
         ),
@@ -292,6 +294,7 @@ class _TodayProgressBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final daysAsync = ref.watch(routineDaysProvider(routine.id));
+    final theme = ref.watch(currentThemeProvider);
     
     return daysAsync.when(
       data: (days) {
@@ -309,19 +312,19 @@ class _TodayProgressBanner extends ConsumerWidget {
            margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
            decoration: BoxDecoration(
-             color: AppColors.surfaceVariant, // Cor sólida Peak
+             color: theme.surfaceVariant, // Cor sólida Peak
              borderRadius: BorderRadius.circular(12),
              border: Border.all(
-               color: isPerfect ? AppColors.accent : AppColors.primary,
+               color: isPerfect ? theme.accent : theme.primary,
                width: 1.5,
              ),
-             boxShadow: isPerfect ? AppColors.glowShadow(AppColors.accent, intensity: 0.3) : null,
+             boxShadow: isPerfect ? theme.glowShadow(theme.accent, intensity: 0.3) : null,
            ),
            child: Row(
              children: [
                Icon(
                  isPerfect ? Icons.star_rounded : Icons.track_changes_rounded,
-                 color: isPerfect ? AppColors.taskYellow : AppColors.primary,
+                 color: isPerfect ? theme.taskYellow : theme.primary,
                  size: isPerfect ? 24 : 20,
                )
                    .animate(target: isPerfect ? 1 : 0)
@@ -331,12 +334,12 @@ class _TodayProgressBanner extends ConsumerWidget {
                Expanded(
                  child: Text(
                    isPerfect ? '100% CONCLUÍDO! OTIMIZAÇÃO MÁXIMA!' : '$left tarefas restantes hoje',
-                   style: TextStyle(
-                     color: isPerfect ? AppColors.accent : AppColors.textPrimary, 
+                   style: theme.fontStyleBase(TextStyle(
+                     color: isPerfect ? theme.accent : theme.textPrimary, 
                      fontWeight: FontWeight.bold, 
                      fontSize: isPerfect ? 14 : 13,
                      letterSpacing: isPerfect ? 0.5 : 0,
-                   ),
+                   ))
                  )
                      .animate(target: isPerfect ? 1 : 0)
                      .fade(duration: 400.ms),
@@ -344,11 +347,11 @@ class _TodayProgressBanner extends ConsumerWidget {
                if (!isPerfect)
                  Text(
                    '$percent%',
-                   style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold, fontSize: 13),
+                   style: theme.fontStyleMono(TextStyle(color: theme.textSecondary, fontWeight: FontWeight.bold, fontSize: 13)),
                  ),
              ],
            ),
-         ).animate(target: isPerfect ? 1 : 0).shimmer(duration: 2000.ms, color: AppColors.accent.withValues(alpha: 0.2));
+         ).animate(target: isPerfect ? 1 : 0).shimmer(duration: 2000.ms, color: theme.accent.withValues(alpha: 0.2));
       },
       loading: () => const SizedBox.shrink(),
       error: (e, stack) => const SizedBox.shrink(),

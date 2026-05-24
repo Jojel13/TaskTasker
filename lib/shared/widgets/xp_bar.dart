@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/core_providers.dart';
 import '../../core/services/xp_service.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_config.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../features/dashboard/xp_dashboard_screen.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -13,13 +13,14 @@ class XpBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(currentThemeProvider);
     ref.listen<AsyncValue>(userProfileProvider, (previous, next) {
       if (previous?.value == null || next.value == null) return;
       final prevLevel = previous!.value!.currentLevel;
       final nextLevel = next.value!.currentLevel;
       if (nextLevel > prevLevel) {
         if (!context.mounted) return;
-        _showLevelUpOverlay(context, nextLevel);
+        _showLevelUpOverlay(context, nextLevel, theme);
       }
     });
 
@@ -53,15 +54,15 @@ class XpBar extends ConsumerWidget {
                   children: [
                     Text(
                       'LVL $currentLevel',
-                      style: AppTextStyles.monoSmall.copyWith(
-                        color: AppColors.primary,
+                      style: theme.fontStyleMono(AppTextStyles.monoSmall).copyWith(
+                        color: theme.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
                       '$xpInCurrentLevel / $xpForCurrentLevel XP',
-                      style: AppTextStyles.monoSmall.copyWith(
-                        color: AppColors.textMuted,
+                      style: theme.fontStyleMono(AppTextStyles.monoSmall).copyWith(
+                        color: theme.textMuted,
                         fontSize: 10,
                       ),
                     ),
@@ -73,8 +74,8 @@ class XpBar extends ConsumerWidget {
                   child: LinearProgressIndicator(
                     value: progress.clamp(0.0, 1.0),
                     minHeight: 6,
-                    backgroundColor: AppColors.surface,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    backgroundColor: theme.surface,
+                    valueColor: AlwaysStoppedAnimation<Color>(theme.primary),
                   ),
                 ),
               ],
@@ -87,7 +88,7 @@ class XpBar extends ConsumerWidget {
     );
   }
 
-  void _showLevelUpOverlay(BuildContext context, int newLevel) {
+  void _showLevelUpOverlay(BuildContext context, int newLevel, AppThemeData theme) {
     showDialog(
       context: context,
       barrierColor: Colors.black87,
@@ -98,36 +99,36 @@ class XpBar extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.star_rounded, color: AppColors.taskYellow, size: 80)
+              Icon(Icons.star_rounded, color: theme.taskYellow, size: 80)
                   .animate(onPlay: (controller) => controller.repeat(reverse: true))
                   .scaleXY(begin: 1.0, end: 1.2, duration: 600.ms)
                   .tint(color: Colors.white, duration: 600.ms),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'LEVEL UP!',
-                style: TextStyle(
-                  color: AppColors.taskYellow,
+                style: theme.fontStyleBase(TextStyle(
+                  color: theme.taskYellow,
                   fontSize: 32,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 4,
                   shadows: [
-                    Shadow(color: AppColors.taskYellow, blurRadius: 20),
+                    Shadow(color: theme.taskYellow, blurRadius: 20),
                   ],
-                ),
+                )),
               ).animate().fade(duration: 400.ms).slideY(begin: 0.5, end: 0, curve: Curves.easeOutBack),
               const SizedBox(height: 16),
               Text(
                 'Nível $newLevel Alcançado',
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 18),
+                style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 18)),
               ).animate().fade(delay: 300.ms),
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.taskYellow.withValues(alpha: 0.2),
-                  foregroundColor: AppColors.taskYellow,
-                  side: const BorderSide(color: AppColors.taskYellow),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  backgroundColor: theme.taskYellow.withValues(alpha: 0.2),
+                  foregroundColor: theme.taskYellow,
+                  side: BorderSide(color: theme.taskYellow),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(theme.borderRadius)),
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                 ),
                 child: const Text('Continuar', style: TextStyle(fontWeight: FontWeight.bold)),

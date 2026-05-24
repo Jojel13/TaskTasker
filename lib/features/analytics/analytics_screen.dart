@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/theme_config.dart';
 import '../../core/providers/core_providers.dart';
@@ -458,7 +457,7 @@ class AnalyticsScreen extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Text(
                           getLabel(type),
-                          style: theme.fontStyleBase(const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
+                          style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
                         ),
                       ],
                     ),

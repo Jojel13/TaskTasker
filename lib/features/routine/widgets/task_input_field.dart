@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../core/theme/app_colors.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/providers/core_providers.dart';
+import '../../../core/theme/theme_config.dart';
 /// Campo de input para adicionar tasks/subtasks/mini-tasks.
 ///
 /// Quando [collapsed] = true (padrão), exibe apenas um botão
 /// "+ Adicionar" sutil. Ao tocar, expande para o campo de texto
 /// com autofocus. Ao enviar ou perder foco, colapsa de volta.
-class TaskInputField extends StatefulWidget {
+class TaskInputField extends ConsumerStatefulWidget {
   final String placeholder;
   final Function(String) onSubmit;
 
@@ -27,10 +28,10 @@ class TaskInputField extends StatefulWidget {
   });
 
   @override
-  State<TaskInputField> createState() => _TaskInputFieldState();
+  ConsumerState<TaskInputField> createState() => _TaskInputFieldState();
 }
 
-class _TaskInputFieldState extends State<TaskInputField> {
+class _TaskInputFieldState extends ConsumerState<TaskInputField> {
   final _ctrl = TextEditingController();
   final _focus = FocusNode();
   bool _expanded = false;
@@ -38,7 +39,7 @@ class _TaskInputFieldState extends State<TaskInputField> {
   // Se não for colapsável, começa expandido
   bool get _isCollapsable => widget.collapsed;
 
-  Color get _accent => widget.accentColor ?? AppColors.primary;
+  Color _getAccent(AppThemeData theme) => widget.accentColor ?? theme.primary;
 
   @override
   void initState() {
@@ -77,6 +78,9 @@ class _TaskInputFieldState extends State<TaskInputField> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = ref.watch(currentThemeProvider);
+    final accent = _getAccent(theme);
+
     // ── Modo colapsado: botão "+ Adicionar" ─────────────────────
     if (_isCollapsable && !_expanded) {
       return GestureDetector(
@@ -87,15 +91,15 @@ class _TaskInputFieldState extends State<TaskInputField> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_rounded, size: 14, color: _accent.withValues(alpha: 0.6)),
+              Icon(Icons.add_rounded, size: 14, color: accent.withValues(alpha: 0.6)),
               const SizedBox(width: 6),
               Text(
                 _collapsedLabel,
-                style: TextStyle(
-                  color: _accent.withValues(alpha: 0.6),
+                style: theme.fontStyleBase(TextStyle(
+                  color: accent.withValues(alpha: 0.6),
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                ),
+                )),
               ),
             ],
           ),
@@ -109,15 +113,15 @@ class _TaskInputFieldState extends State<TaskInputField> {
       margin: const EdgeInsets.only(top: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(10),
+        color: theme.surfaceVariant,
+        borderRadius: BorderRadius.circular(theme.borderRadius > 10 ? 10 : theme.borderRadius),
         border: Border.all(
-          color: _accent.withValues(alpha: 0.35),
+          color: accent.withValues(alpha: 0.35),
           width: 1,
         ),
       ),
       child: Row(children: [
-        Icon(Icons.add_rounded, size: 16, color: _accent),
+        Icon(Icons.add_rounded, size: 16, color: accent),
         const SizedBox(width: 10),
         Expanded(
           child: TextField(
@@ -125,12 +129,12 @@ class _TaskInputFieldState extends State<TaskInputField> {
             focusNode: _focus,
             onSubmitted: (_) => _submit(),
             textInputAction: TextInputAction.done,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+            style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 13)),
             decoration: InputDecoration(
               isDense: true,
               border: InputBorder.none,
               hintText: widget.placeholder,
-              hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+              hintStyle: theme.fontStyleBase(TextStyle(color: theme.textMuted, fontSize: 13)),
             ),
           ),
         ),
@@ -138,7 +142,7 @@ class _TaskInputFieldState extends State<TaskInputField> {
           onTap: _submit,
           child: Container(
             padding: const EdgeInsets.all(4),
-            child: Icon(Icons.send_rounded, size: 16, color: _accent),
+            child: Icon(Icons.send_rounded, size: 16, color: accent),
           ),
         ),
         if (_isCollapsable)
@@ -150,8 +154,8 @@ class _TaskInputFieldState extends State<TaskInputField> {
             },
             child: Container(
               padding: const EdgeInsets.all(4),
-              child: const Icon(Icons.close_rounded,
-                  size: 14, color: AppColors.textMuted),
+              child: Icon(Icons.close_rounded,
+                  size: 14, color: theme.textMuted),
             ),
           ),
       ]),

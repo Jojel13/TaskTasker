@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../core/theme/app_colors.dart';
-
-class FloatingBottomBar extends StatelessWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/providers/core_providers.dart';
+class FloatingBottomBar extends ConsumerWidget {
   final int currentIndex;
   final ValueChanged<int> onNavTap;
   final VoidCallback onPlusTap;
@@ -15,15 +15,17 @@ class FloatingBottomBar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(currentThemeProvider);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 0, 32, 28),
       child: Container(
         height: 64,
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: theme.surface,
           borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: AppColors.border, width: 0.5),
+          border: Border.all(color: theme.border, width: 0.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.5),
@@ -43,11 +45,12 @@ class FloatingBottomBar extends StatelessWidget {
               child: _NavItem(
                 icon: Icons.home_rounded,
                 isActive: currentIndex == 0,
-                activeColor: AppColors.primary,
+                activeColor: theme.primary,
                 onTap: () {
                   HapticFeedback.selectionClick();
                   onNavTap(0);
                 },
+                textSecondaryColor: theme.textSecondary,
               ),
             ),
 
@@ -65,12 +68,12 @@ class FloatingBottomBar extends StatelessWidget {
                   height: 52,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppColors.primary,
-                    boxShadow: AppColors.glowShadowIntense(AppColors.primary),
+                    color: theme.primary,
+                    boxShadow: theme.glowShadow(theme.primary, intensity: 1.5),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.add_rounded,
-                    color: AppColors.background,
+                    color: theme.background,
                     size: 28,
                   ),
                 ),
@@ -85,11 +88,12 @@ class FloatingBottomBar extends StatelessWidget {
               child: _NavItem(
                 icon: Icons.radar_rounded,
                 isActive: currentIndex == 1,
-                activeColor: AppColors.taskYellow,
+                activeColor: theme.taskYellow,
                 onTap: () {
                   HapticFeedback.selectionClick();
                   onNavTap(1);
                 },
+                textSecondaryColor: theme.textSecondary,
               ),
             ),
           ],
@@ -104,12 +108,14 @@ class _NavItem extends StatelessWidget {
   final bool isActive;
   final Color activeColor;
   final VoidCallback onTap;
+  final Color textSecondaryColor;
 
   const _NavItem({
     required this.icon,
     required this.isActive,
     required this.activeColor,
     required this.onTap,
+    required this.textSecondaryColor,
   });
 
   @override
@@ -134,7 +140,7 @@ class _NavItem extends StatelessWidget {
             : null,
         child: Icon(
           icon,
-          color: isActive ? activeColor : AppColors.textSecondary,
+          color: isActive ? activeColor : textSecondaryColor,
           size: 26,
         ),
       ),

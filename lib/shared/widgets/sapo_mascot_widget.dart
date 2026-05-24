@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/providers/core_providers.dart';
 
-class SapoMascotWidget extends StatefulWidget {
+class SapoMascotWidget extends ConsumerStatefulWidget {
   final double size;
   final bool isHeader;
   
@@ -15,10 +16,10 @@ class SapoMascotWidget extends StatefulWidget {
   });
 
   @override
-  State<SapoMascotWidget> createState() => _SapoMascotWidgetState();
+  ConsumerState<SapoMascotWidget> createState() => _SapoMascotWidgetState();
 }
 
-class _SapoMascotWidgetState extends State<SapoMascotWidget> {
+class _SapoMascotWidgetState extends ConsumerState<SapoMascotWidget> {
   int _currentFrame = 1; // 1: dormindo, 2: abrindo olho, 3: feliz/acordado
   Timer? _cycleTimer;
   bool _isInteracting = false;
@@ -109,6 +110,7 @@ class _SapoMascotWidgetState extends State<SapoMascotWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = ref.watch(currentThemeProvider);
     final framePath = 'assets/images/sapo_frame_$_currentFrame.png';
 
     Widget sapo = Container(
@@ -116,10 +118,10 @@ class _SapoMascotWidgetState extends State<SapoMascotWidget> {
       height: widget.size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.primary, width: 2),
+        color: theme.surface,
+        border: Border.all(color: theme.primary, width: 2),
         boxShadow: [
-          ...AppColors.glowShadow(AppColors.primary, intensity: _currentFrame == 3 ? 0.8 : 0.4),
+          ...theme.glowShadow(theme.primary, intensity: _currentFrame == 3 ? 0.8 : 0.4),
         ],
       ),
       child: ClipOval(

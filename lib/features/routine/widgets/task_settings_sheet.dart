@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/theme_config.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
-
 
 class TaskSettingsSheet extends ConsumerStatefulWidget {
   final Task task;
@@ -14,12 +13,9 @@ class TaskSettingsSheet extends ConsumerStatefulWidget {
   static Future<void> show(BuildContext context, Task task) {
     return showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Colors.transparent,
       isScrollControlled: true,
       barrierColor: Colors.black.withValues(alpha: 0.6),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: TaskSettingsSheet(task: task),
@@ -42,17 +38,16 @@ class _TaskSettingsSheetState extends ConsumerState<TaskSettingsSheet> {
     _selectedDays = Set.from(widget.task.frequencyDays);
   }
 
-  Future<void> _save() async {
+  Future<void> _save(AppThemeData theme) async {
     final task = widget.task;
 
     if (task.color == TaskColor.blue) {
-      // M16: n\u00e3o salvar frequ\u00eancia customizada sem dias selecionados
       if (_selectedFrequency == FrequencyType.custom && _selectedDays.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Selecione pelo menos um dia da semana.'),
-              backgroundColor: AppColors.taskRed,
+            SnackBar(
+              content: const Text('Selecione pelo menos um dia da semana.'),
+              backgroundColor: theme.taskRed,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -61,7 +56,7 @@ class _TaskSettingsSheetState extends ConsumerState<TaskSettingsSheet> {
       }
       task.frequency = _selectedFrequency;
       task.frequencyDays = _selectedDays.toList();
-      task.createdAt = DateTime.now(); // M6: Reset cadence reference date on settings change
+      task.createdAt = DateTime.now();
     }
 
     final isar = ref.read(isarProvider);
@@ -74,174 +69,182 @@ class _TaskSettingsSheetState extends ConsumerState<TaskSettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Handle + Header ──────────────────────────────────
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
+    final theme = ref.watch(currentThemeProvider);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(theme.borderRadius > 20 ? 20 : theme.borderRadius)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Handle + Header ──────────────────────────────────
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: theme.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.task.color == TaskColor.blue
+                      ? 'Frequência da Task'
+                      : 'Configurar Task',
+                  style: theme.fontStyleBase(AppTextStyles.titleMedium).copyWith(color: theme.textPrimary),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: theme.surfaceVariant,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.close_rounded, size: 18, color: theme.textMuted),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // ── Conteúdo por tipo de task ────────────────────────
+            if (widget.task.color == TaskColor.blue) ...[
+              Text('Com que frequência essa task aparece?',
+                  style: theme.fontStyleBase(AppTextStyles.bodySmall).copyWith(color: theme.textMuted)),
+              const SizedBox(height: 16),
+
+              // Seleção de frequência
+              ...FrequencyType.values.map((freq) {
+                final isSelected = _selectedFrequency == freq;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedFrequency = freq),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? theme.cardBlue
+                          : theme.surfaceVariant,
+                      borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius),
+                      border: Border.all(
+                        color: isSelected ? theme.taskBlue : theme.border,
+                        width: isSelected ? 1 : 0.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSelected
+                              ? Icons.radio_button_checked_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          size: 18,
+                          color: isSelected ? theme.taskBlue : theme.textMuted,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          freq.label,
+                          style: theme.fontStyleBase(TextStyle(
+                            color: isSelected ? theme.textPrimary : theme.textSecondary,
+                            fontSize: 14,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          )),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+
+              // Dias da semana (modo personalizado)
+              if (_selectedFrequency == FrequencyType.custom) ...[
+                const SizedBox(height: 8),
+                Text('Dias da semana:',
+                    style: theme.fontStyleBase(AppTextStyles.labelSmall).copyWith(color: theme.textMuted)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: List.generate(7, (index) {
+                    final day = index + 1;
+                    final isSelected = _selectedDays.contains(day);
+                    final labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+                    return GestureDetector(
+                      onTap: () => setState(() {
+                        if (isSelected) {
+                          _selectedDays.remove(day);
+                        } else {
+                          _selectedDays.add(day);
+                        }
+                      }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? theme.taskBlue.withValues(alpha: 0.15)
+                              : theme.surfaceVariant,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? theme.taskBlue : theme.border,
+                            width: isSelected ? 1 : 0.5,
+                          ),
+                        ),
+                        child: Text(
+                          labels[index],
+                          style: theme.fontStyleBase(TextStyle(
+                            color: isSelected ? theme.taskBlue : theme.textMuted,
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                          )),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ] else ...[
               Text(
-                widget.task.color == TaskColor.blue
-                    ? 'Frequência da Task'
-                    : 'Configurar Task',
-                style: AppTextStyles.titleMedium,
-              ),
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
-                ),
+                'Esta task não possui configurações adicionais.',
+                style: theme.fontStyleBase(AppTextStyles.bodySmall).copyWith(color: theme.textMuted),
               ),
             ],
-          ),
-          const SizedBox(height: 24),
 
-          // ── Conteúdo por tipo de task ────────────────────────
-          if (widget.task.color == TaskColor.blue) ...[
-            Text('Com que frequência essa task aparece?',
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
-            const SizedBox(height: 16),
+            const SizedBox(height: 28),
 
-            // Seleção de frequência
-            ...FrequencyType.values.map((freq) {
-              final isSelected = _selectedFrequency == freq;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedFrequency = freq),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.cardBlue
-                        : AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected ? AppColors.taskBlue : AppColors.border,
-                      width: isSelected ? 1 : 0.5,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isSelected
-                            ? Icons.radio_button_checked_rounded
-                            : Icons.radio_button_unchecked_rounded,
-                        size: 18,
-                        color: isSelected ? AppColors.taskBlue : AppColors.textMuted,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        freq.label,
-                        style: TextStyle(
-                          color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
-                          fontSize: 14,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
-                    ],
-                  ),
+            // ── Botão Salvar ─────────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.taskBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius)),
+                  elevation: 0,
                 ),
-              );
-            }),
-
-            // Dias da semana (modo personalizado)
-            if (_selectedFrequency == FrequencyType.custom) ...[
-              const SizedBox(height: 8),
-              Text('Dias da semana:',
-                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted)),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: List.generate(7, (index) {
-                  final day = index + 1;
-                  final isSelected = _selectedDays.contains(day);
-                  final labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-                  return GestureDetector(
-                    onTap: () => setState(() {
-                      if (isSelected) {
-                        _selectedDays.remove(day);
-                      } else {
-                        _selectedDays.add(day);
-                      }
-                    }),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.taskBlue.withValues(alpha: 0.15)
-                            : AppColors.surfaceVariant,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected ? AppColors.taskBlue : AppColors.border,
-                          width: isSelected ? 1 : 0.5,
-                        ),
-                      ),
-                      child: Text(
-                        labels[index],
-                        style: TextStyle(
-                          color: isSelected ? AppColors.taskBlue : AppColors.textMuted,
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  );
-                }),
+                onPressed: () => _save(theme),
+                child: Text(
+                  'Salvar',
+                  style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.white)),
+                ),
               ),
-            ],
-          ] else ...[
-            Text(
-              'Esta task não possui configurações adicionais.',
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
             ),
           ],
-
-          const SizedBox(height: 28),
-
-          // ── Botão Salvar ─────────────────────────────────────
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.taskBlue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              onPressed: _save,
-              child: const Text(
-                'Salvar',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

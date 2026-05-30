@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:math';
 import '../../core/providers/core_providers.dart';
 import '../../core/services/xp_service.dart';
 import '../../core/theme/theme_config.dart';
@@ -8,11 +9,16 @@ import '../../features/dashboard/xp_dashboard_screen.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui' as ui;
 
-class XpBar extends ConsumerWidget {
+class XpBar extends ConsumerStatefulWidget {
   const XpBar({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<XpBar> createState() => _XpBarState();
+}
+
+class _XpBarState extends ConsumerState<XpBar> {
+  @override
+  Widget build(BuildContext context) {
     final theme = ref.watch(currentThemeProvider);
     ref.listen<AsyncValue>(userProfileProvider, (previous, next) {
       if (previous?.value == null || next.value == null) return;
@@ -99,10 +105,42 @@ class XpBar extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.star_rounded, color: theme.taskYellow, size: 80)
-                  .animate(onPlay: (controller) => controller.repeat(reverse: true))
-                  .scaleXY(begin: 1.0, end: 1.2, duration: 600.ms)
-                  .tint(color: Colors.white, duration: 600.ms),
+              Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(Icons.star_rounded, color: theme.taskYellow, size: 80)
+                      .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                      .scaleXY(begin: 1.0, end: 1.2, duration: 600.ms)
+                      .tint(color: Colors.white, duration: 600.ms),
+                  ...List.generate(12, (index) {
+                    final angle = index * (2 * pi / 12);
+                    final distance = 60.0;
+                    final targetX = cos(angle) * distance;
+                    final targetY = sin(angle) * distance;
+                    
+                    return Positioned(
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: index % 2 == 0 ? theme.primary : theme.accent,
+                        ),
+                      )
+                          .animate(onPlay: (controller) => controller.repeat())
+                          .scale(begin: Offset.zero, end: const Offset(1.5, 1.5), duration: 1000.ms)
+                          .move(
+                            begin: Offset.zero,
+                            end: Offset(targetX, targetY),
+                            duration: 1000.ms,
+                            curve: Curves.easeOutCubic,
+                          )
+                          .fadeOut(delay: 600.ms, duration: 400.ms),
+                    );
+                  }),
+                ],
+              ),
               const SizedBox(height: 24),
               Text(
                 'LEVEL UP!',

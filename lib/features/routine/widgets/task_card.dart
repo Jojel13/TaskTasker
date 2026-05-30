@@ -3,6 +3,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as math;
 import '../../../core/theme/theme_config.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
@@ -11,6 +12,7 @@ import '../../../core/services/alarm_service.dart';
 import 'task_settings_sheet.dart';
 import 'alarm_sheet.dart';
 import '../task_tree_screen.dart';
+import '../../focus/focus_screen.dart';
 import '../../../shared/widgets/blur_confirm_dialog.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -158,13 +160,26 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 );
                 ctrl.dispose();
                 if (newText != null && newText.trim().isNotEmpty && context.mounted) {
-                  widget.task.text = newText.trim();
+                  final trimmed = newText.trim();
+                  final originalText = widget.task.text;
+                  final originalCreatedAt = widget.task.createdAt;
+                  
+                  widget.task.text = trimmed;
                   if (widget.task.color == TaskColor.blue) {
                     widget.task.createdAt = DateTime.now();
                   }
-                  final isar = ref.read(isarProvider);
-                  await isar.writeTxn(() async => await isar.tasks.put(widget.task));
-                  setState(() {});
+                  
+                  try {
+                    final isar = ref.read(isarProvider);
+                    await isar.writeTxn(() async => await isar.tasks.put(widget.task));
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  } catch (e) {
+                    widget.task.text = originalText;
+                    widget.task.createdAt = originalCreatedAt;
+                    rethrow;
+                  }
                 }
               },
               backgroundColor: theme.surface,
@@ -270,6 +285,20 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             backgroundColor: theme.surface,
             foregroundColor: theme.taskYellow,
             icon: Icons.account_tree_rounded,
+            padding: EdgeInsets.zero,
+          ),
+
+          SlidableAction(
+            onPressed: (_) async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => FocusScreen(task: widget.task)),
+              );
+              setState(() {});
+            },
+            backgroundColor: theme.surface,
+            foregroundColor: theme.accent,
+            icon: Icons.timer_rounded,
             padding: EdgeInsets.zero,
           ),
 
@@ -466,10 +495,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                       );
                     }
                   } : null,
-                  onLongPress: widget.isReadOnly ? null :
-                      (widget.task.color == TaskColor.blue)
-                          ? () => TaskSettingsSheet.show(context, widget.task)
-                          : null,
+                  onLongPress: widget.isReadOnly
+                      ? null
+                      : () => TaskSettingsSheet.show(context, widget.task),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     child: Row(
@@ -639,7 +667,34 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                         ),
                       ),
                     ),
-                    if (_showXpFloat)
+                    if (_showXpFloat) ...[
+                      ...List.generate(8, (index) {
+                        final angle = index * (2 * math.pi / 8);
+                        final distance = 24.0;
+                        final targetX = math.cos(angle) * distance;
+                        final targetY = -15.0 + math.sin(angle) * distance;
+                        return Positioned(
+                          top: 14,
+                          left: 14,
+                          child: Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: taskColor.withValues(alpha: 0.6 + 0.4 * (index % 2)),
+                            ),
+                          )
+                              .animate()
+                              .scale(begin: Offset.zero, end: const Offset(1.2, 1.2), duration: 250.ms)
+                              .move(
+                                begin: Offset.zero,
+                                end: Offset(targetX, targetY),
+                                duration: 500.ms,
+                                curve: Curves.easeOutCubic,
+                              )
+                              .fadeOut(delay: 350.ms, duration: 200.ms),
+                        );
+                      }),
                       Positioned(
                         top: -10,
                         child: Text(
@@ -655,6 +710,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                             .moveY(begin: 0, end: -30, duration: 800.ms, curve: Curves.easeOut)
                             .fadeOut(delay: 500.ms, duration: 300.ms),
                       ),
+                    ],
                   ],
                 )
               else

@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart' show Color;
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -71,8 +72,9 @@ class AlarmService {
       title: '⏰ ${task.text}',
       body: _body(task, 1),
       scheduledDate: tzAlarm,
-      notificationDetails: _details(),
+      notificationDetails: _details(task, 1),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: 'complete_task_${task.id}',
     );
 
     // ── Notificações repetidas (2 disparos extras a +5 e +10 min) ──
@@ -84,8 +86,9 @@ class AlarmService {
           title: '⏰ ${task.text} (${i + 1}/3)',
           body: _body(task, i + 1),
           scheduledDate: tzRepeat,
-          notificationDetails: _details(),
+          notificationDetails: _details(task, i + 1),
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          payload: 'complete_task_${task.id}',
         );
       }
     }
@@ -127,8 +130,9 @@ class AlarmService {
       title: '⚠️ Compromisso Eminente!',
       body: 'Compromisso hoje: ${task.text}',
       scheduledDate: tzAlarm,
-      notificationDetails: _details(),
+      notificationDetails: _redTaskDetails(task),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: 'complete_task_${task.id}',
     );
   }
 
@@ -158,26 +162,129 @@ class AlarmService {
     return 'Disparo $shot/3 · ${shot < 3 ? "Próximo em 5 min" : "Último lembrete"}';
   }
 
-  static NotificationDetails _details() {
-    const androidDetails = AndroidNotificationDetails(
+  static NotificationDetails _details(Task task, int shot) {
+    Color ledColor;
+    if (shot > 1) {
+      ledColor = const Color(0xFFFF9500); // Âmbar para repetições
+    } else {
+      switch (task.color) {
+        case TaskColor.red:
+          ledColor = const Color(0xFFFF2D55);
+          break;
+        case TaskColor.yellow:
+          ledColor = const Color(0xFFFFCC00);
+          break;
+        case TaskColor.blue:
+        case TaskColor.standard:
+          ledColor = const Color(0xFF007AFF);
+          break;
+      }
+    }
+
+    final Int64List vibrationPattern = Int64List.fromList([0, 500, 200, 500]);
+    final timeStr = task.alarmTime != null 
+        ? '${task.alarmTime!.hour.toString().padLeft(2, '0')}:${task.alarmTime!.minute.toString().padLeft(2, '0')}' 
+        : '';
+
+    final bigTextStyleInfo = BigTextStyleInformation(
+      'Compromisso: ${task.text}\nHorário: $timeStr\nStatus: Pendente',
+      htmlFormatBigText: false,
+      contentTitle: shot > 1 ? '⏰ Alarme (Repetição $shot/3)' : '⏰ Alarme de Task',
+      htmlFormatContentTitle: false,
+      summaryText: 'TaskTasker Alarme',
+      htmlFormatSummaryText: false,
+    );
+
+    final androidDetails = AndroidNotificationDetails(
       'task_alarms',
-      'Alarmes de Tasks',
-      channelDescription: 'Alarmes individuais do TaskTasker',
-      importance: Importance.high,
+      '⏰ Alarme de Task',
+      channelDescription: 'Alarmes individuais configurados para cada tarefa',
+      importance: Importance.max,
       priority: Priority.high,
       icon: '@mipmap/ic_launcher',
-      color: Color(0xFF4A9EFF),
+      color: ledColor,
       enableLights: true,
-      ledColor: Color(0xFF4A9EFF),
+      ledColor: ledColor,
       ledOnMs: 1000,
       ledOffMs: 500,
+      vibrationPattern: vibrationPattern,
       playSound: true,
+      sound: const RawResourceAndroidNotificationSound('alarm'),
+      styleInformation: bigTextStyleInfo,
+      actions: <AndroidNotificationAction>[
+        const AndroidNotificationAction(
+          'action_complete_task',
+          '✓ Concluir',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+      ],
     );
+
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
-    return const NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    return NotificationDetails(android: androidDetails, iOS: iosDetails);
+  }
+
+  static NotificationDetails _redTaskDetails(Task task) {
+    final Int64List vibrationPattern = Int64List.fromList([0, 800, 300, 800, 300, 800]);
+    
+    final now = DateTime.now();
+    final isToday = task.scheduledDate != null &&
+        task.scheduledDate!.year == now.year &&
+        task.scheduledDate!.month == now.month &&
+        task.scheduledDate!.day == now.day;
+        
+    final dateFormatted = task.scheduledDate != null
+        ? '${task.scheduledDate!.day.toString().padLeft(2, '0')}/${task.scheduledDate!.month.toString().padLeft(2, '0')}/${task.scheduledDate!.year}'
+        : '';
+
+    final bigTextStyleInfo = BigTextStyleInformation(
+      'Compromisso para hoje: $dateFormatted\nEsta é uma tarefa urgente e inadiável. Conclua hoje!',
+      htmlFormatBigText: false,
+      contentTitle: '⚠️ ${task.text}',
+      htmlFormatContentTitle: false,
+      summaryText: 'Compromisso Urgente',
+      htmlFormatSummaryText: false,
+    );
+
+    final androidDetails = AndroidNotificationDetails(
+      'task_red_alert',
+      '🔴 Compromisso Urgente',
+      channelDescription: 'Notificações para tarefas vermelhas inadiáveis',
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      color: const Color(0xFFFF3B30),
+      enableLights: true,
+      ledColor: const Color(0xFFFF3B30),
+      ledOnMs: 1000,
+      ledOffMs: 500,
+      vibrationPattern: vibrationPattern,
+      playSound: true,
+      sound: const RawResourceAndroidNotificationSound('urgent'),
+      styleInformation: bigTextStyleInfo,
+      ongoing: isToday,
+      actions: <AndroidNotificationAction>[
+        const AndroidNotificationAction(
+          'action_complete_task',
+          '✓ Concluir',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+      ],
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    return NotificationDetails(android: androidDetails, iOS: iosDetails);
   }
 }

@@ -67,8 +67,18 @@ final userProfileProvider = StreamProvider<UserProfile?>((ref) {
 
 final currentThemeProvider = Provider<AppThemeData>((ref) {
   final profileAsync = ref.watch(userProfileProvider);
-  final themeType = profileAsync.valueOrNull?.appTheme ?? AppThemeType.cyberpunkDark;
-  return AppThemeData.fromType(themeType);
+  final profile = profileAsync.valueOrNull;
+  final themeType = profile?.appTheme ?? AppThemeType.cyberpunkDark;
+  var theme = AppThemeData.fromType(themeType);
+  
+  if (profile != null && profile.useBrightnessOverride) {
+    if (profile.brightnessOverride) {
+      theme = theme.toDark();
+    } else {
+      theme = theme.toLight();
+    }
+  }
+  return theme;
 });
 
 // ── Radar ────────────────────────────────────────────────────────────────────
@@ -172,3 +182,7 @@ final recentXpEventsProvider = StreamProvider<List<XPEvent>>((ref) {
   final isar = ref.watch(isarProvider);
   return isar.xPEvents.where().sortByEarnedAtDesc().limit(5).watch(fireImmediately: true);
 });
+
+// ── Drag & Drop auto-scroll State ─────────────────────────────────────────────
+final isDraggingTaskProvider = StateProvider<bool>((ref) => false);
+

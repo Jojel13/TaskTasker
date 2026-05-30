@@ -61,9 +61,17 @@ class XpDashboardScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Balão de fala do Sapo Mascot
+              // Mascot interativo animado
+              const SapoMascotWidget(size: 120),
+              const SizedBox(height: 8),
+              // Setinha apontando para cima (△)
+              CustomPaint(
+                size: const Size(16, 8),
+                painter: _TrianglePainter(color: theme.surfaceVariant.withValues(alpha: 0.8)),
+              ),
+              // Balão de fala do Sapo Mascot posicionado abaixo do mascote
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                margin: const EdgeInsets.symmetric(horizontal: 16),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: theme.surfaceVariant.withValues(alpha: 0.8),
@@ -82,9 +90,6 @@ class XpDashboardScreen extends ConsumerWidget {
                   )),
                 ),
               ),
-              const SizedBox(height: 12),
-              // Mascot interativo animado
-              const SapoMascotWidget(size: 120),
               const SizedBox(height: 16),
               Text(_getMascotName(level), style: theme.fontStyleBase(AppTextStyles.titleLarge).copyWith(color: theme.textPrimary)),
               Text('Nível $level', style: theme.fontStyleBase(AppTextStyles.labelSmall).copyWith(color: theme.primary)),
@@ -323,4 +328,25 @@ class _StatCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TrianglePainter extends CustomPainter {
+  final Color color;
+  _TrianglePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final path = Path()
+      ..moveTo(size.width / 2, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrianglePainter oldDelegate) => oldDelegate.color != color;
 }

@@ -1,25 +1,88 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import '../../core/theme/app_colors.dart';
 import 'dart:math' as math;
 import '../../shared/widgets/particles_background.dart';
-import '../../core/database/isar_service.dart';
-import '../../core/services/notification_service.dart';
-import '../../core/services/alarm_service.dart';
+import '../../core/providers/core_providers.dart';
+import '../../shared/models/enums.dart';
 import '../home/main_wrapper.dart';
-class SplashScreen extends StatefulWidget {
+
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerProviderStateMixin {
   double _progress = 0.0;
   String _loadingText = "Inicializando núcleo...";
   late AnimationController _ambientController;
+
+  static const Map<AppThemeType, List<String>> _loadingMessages = {
+    AppThemeType.cyberpunkDark: [
+      "Inicializando núcleo neural...",
+      "Sincronizando implantes cognitivos...",
+      "Rede neural operacional.",
+    ],
+    AppThemeType.sakura: [
+      "Despertando o jardim...",
+      "As pétalas começam a florescer...",
+      "O jardim está pronto.",
+    ],
+    AppThemeType.steampunk: [
+      "Aquecendo as caldeiras...",
+      "Calibrando engrenagens e válvulas...",
+      "Pressão ideal. Pronto para operar.",
+    ],
+    AppThemeType.matrix: [
+      "Conectando à Matrix...",
+      "Compilando protocolos de simulação...",
+      "Matriz ativa.",
+    ],
+    AppThemeType.synthwave: [
+      "Sintonizando frequências de rádio...",
+      "Carregando o grid de neon...",
+      "Frequências operacionais online.",
+    ],
+    AppThemeType.minimalLight: [
+      "Organizando seu dia...",
+      "Carregando configurações limpas...",
+      "Tudo pronto para começar.",
+    ],
+    AppThemeType.glassmorphism: [
+      "Abrindo o portal de vidro...",
+      "Refratando partículas de luz...",
+      "Portal estável.",
+    ],
+    AppThemeType.dracula: [
+      "Despertando das sombras...",
+      "Invocando rotinas da noite...",
+      "As sombras obedecem.",
+    ],
+    AppThemeType.monochrome: [
+      "Inicializando sistema...",
+      "Carregando tabelas de dados...",
+      "Pronto.",
+    ],
+    AppThemeType.solarizedOchre: [
+      "Acordando sob a luz solar...",
+      "Preparando jornada diária...",
+      "Pronto para o dia.",
+    ],
+    AppThemeType.ocean: [
+      "Mergulhando no oceano...",
+      "Navegando correntes submarinas...",
+      "Profundezas acessadas.",
+    ],
+    AppThemeType.garden: [
+      "O jardim acorda...",
+      "As raízes se firmam...",
+      "Natureza pronta.",
+    ],
+  };
 
   @override
   void initState() {
@@ -43,23 +106,30 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _simulateLoading() async {
     try {
+      final theme = ref.read(currentThemeProvider);
+      final messages = _loadingMessages[theme.type] ?? _loadingMessages[AppThemeType.cyberpunkDark]!;
+
+      // Inicializa com a primeira mensagem
+      if (mounted) {
+        setState(() { _loadingText = messages[0]; });
+      }
+
       // Phase 1: Boot
       await Future.delayed(const Duration(milliseconds: 200));
       if (!mounted) return;
-      setState(() { _progress = 0.3; _loadingText = "Conectando aos servidores neurais..."; });
+      setState(() { _progress = 0.3; _loadingText = messages[0]; });
       
       // Phase 2: Init ISAR and services
-      await IsarService.initialize();
+      await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
-      setState(() { _progress = 0.7; _loadingText = "Sincronizando rotinas e hábitos..."; });
+      setState(() { _progress = 0.7; _loadingText = messages[1]; });
       
-      await NotificationService.instance.initialize();
-      await AlarmService.initialize();
+      await Future.delayed(const Duration(milliseconds: 400));
       
       // Phase 3: Launch
       await Future.delayed(const Duration(milliseconds: 200));
       if (!mounted) return;
-      setState(() { _progress = 1.0; _loadingText = "Sistema operacional pronto."; });
+      setState(() { _progress = 1.0; _loadingText = messages[2]; });
       
       await Future.delayed(const Duration(milliseconds: 400));
       
@@ -80,8 +150,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       context,
       PageRouteBuilder(
         pageBuilder: (c, a1, a2) => const MainWrapper(),
-        transitionsBuilder: (c, anim, a2, child) => 
-            animated ? FadeTransition(opacity: anim, child: child) : child,
+        transitionsBuilder: (c, anim, a2, child) {
+          if (!animated) return child;
+          final fadeTransition = FadeTransition(opacity: anim, child: child);
+          final scaleAnim = Tween<double>(begin: 0.95, end: 1.0).animate(
+            CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
+          );
+          return ScaleTransition(scale: scaleAnim, child: fadeTransition);
+        },
         transitionDuration: animated ? const Duration(milliseconds: 800) : Duration.zero,
       ),
     );
@@ -89,8 +165,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final theme = ref.watch(currentThemeProvider);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.background,
       body: Stack(
         children: [
           // Glowing ambient radial background
@@ -104,8 +182,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       center: Alignment.center,
                       radius: 1.1 + 0.15 * math.sin(_ambientController.value * 2 * math.pi),
                       colors: [
-                        AppColors.primary.withValues(alpha: 0.14),
-                        AppColors.background,
+                        theme.primary.withValues(alpha: 0.14),
+                        theme.background,
                       ],
                     ),
                   ),
@@ -132,21 +210,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     color: Colors.black,
                     borderRadius: BorderRadius.circular(110 * 0.184),
                     border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.8),
+                      color: theme.primary.withValues(alpha: 0.8),
                       width: 2.5,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.5),
-                        blurRadius: 12,
-                        spreadRadius: 0,
-                      ),
-                      BoxShadow(
-                        color: AppColors.accent.withValues(alpha: 0.3),
-                        blurRadius: 24,
-                        spreadRadius: 2,
-                      ),
-                    ],
+                    boxShadow: theme.useGlowBorder
+                        ? theme.glowShadow(theme.primary, intensity: 1.0)
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 12,
+                              spreadRadius: 2,
+                            ),
+                          ],
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(110 * 0.184 - 2.5),
@@ -161,12 +236,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 
                 // Typing text
                 DefaultTextStyle(
-                  style: const TextStyle(
-                    fontFamily: 'Share Tech Mono',
+                  style: theme.fontStyleMono(TextStyle(
                     fontSize: 24,
-                    color: AppColors.textPrimary,
+                    color: theme.textPrimary,
                     letterSpacing: 3,
-                  ),
+                    fontWeight: FontWeight.bold,
+                  )),
                   child: AnimatedTextKit(
                     animatedTexts: [
                       TypewriterAnimatedText('TASK.TASKER', speed: const Duration(milliseconds: 100)),
@@ -187,12 +262,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         padding: const EdgeInsets.only(left: 4, bottom: 8),
                         child: Text(
                           _loadingText,
-                          style: TextStyle(
-                            color: AppColors.textPrimary.withValues(alpha: 0.7),
+                          style: theme.fontStyleMono(TextStyle(
+                            color: theme.textPrimary.withValues(alpha: 0.7),
                             fontSize: 11,
-                            fontFamily: 'Share Tech Mono',
                             letterSpacing: 1,
-                          ),
+                          )),
                         ),
                       ),
                       Container(
@@ -203,12 +277,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                           color: Colors.black.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.4),
+                            color: theme.primary.withValues(alpha: 0.4),
                             width: 2.0,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.15),
+                              color: theme.primary.withValues(alpha: 0.15),
                               blurRadius: 8,
                               spreadRadius: 0,
                             ),
@@ -224,18 +298,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                                   height: double.infinity,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(4),
-                                    gradient: const LinearGradient(
+                                    gradient: LinearGradient(
                                       colors: [
-                                        AppColors.accent,
-                                        AppColors.primary,
-                                        AppColors.secondary,
+                                        theme.primary,
+                                        theme.accent,
                                       ],
                                       begin: Alignment.centerLeft,
                                       end: Alignment.centerRight,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: AppColors.primary.withValues(alpha: 0.6),
+                                        color: theme.primary.withValues(alpha: 0.6),
                                         blurRadius: 6,
                                         spreadRadius: 1,
                                       ),

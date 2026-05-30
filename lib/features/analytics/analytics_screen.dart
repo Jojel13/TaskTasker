@@ -6,7 +6,6 @@ import '../../core/theme/theme_config.dart';
 import '../../core/providers/core_providers.dart';
 import '../../shared/models/enums.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
 import 'analytics_provider.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
@@ -68,10 +67,10 @@ class AnalyticsScreen extends ConsumerWidget {
                   
                   const SizedBox(height: 32),
                   
-                  // Heatmap: Atividade
-                  Text('Mapa de Atividades', style: theme.fontStyleBase(TextStyle(color: theme.primary, fontSize: 16, fontWeight: FontWeight.bold))),
+                  // Gráfico de Tendência (Trend Line)
+                  Text('Tendência de Conclusão', style: theme.fontStyleBase(TextStyle(color: theme.primary, fontSize: 16, fontWeight: FontWeight.bold))),
                   const SizedBox(height: 16),
-                  _buildHeatmap(theme, data.dailyStats),
+                  _buildTrendLine(theme, data.dailyStats),
                 ],
               ),
             );
@@ -156,44 +155,153 @@ class AnalyticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeatmap(AppThemeData theme, List<DailyStats> dailyStats) {
+
+  Widget _buildTrendLine(AppThemeData theme, List<DailyStats> dailyStats) {
     if (dailyStats.isEmpty) {
-      return Center(child: Text('Ainda não há dados suficientes.', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Text(
+            'Ainda não há dados suficientes.',
+            style: theme.fontStyleBase(TextStyle(color: theme.textMuted)),
+          ),
+        ),
+      );
     }
 
-    Map<DateTime, int> datasets = {};
-    for (var stat in dailyStats) {
-      if (stat.completed > 0) {
-        final d = DateTime(stat.date.year, stat.date.month, stat.date.day);
-        datasets[d] = stat.completed;
-      }
-    }
+    final sortedStats = List<DailyStats>.from(dailyStats)
+      ..sort((a, b) => a.date.compareTo(b.date));
 
-    if (datasets.isEmpty) {
-      return Center(child: Text('Ainda não há dados suficientes.', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))));
+    final List<FlSpot> spots = [];
+    for (int i = 0; i < sortedStats.length; i++) {
+      final stat = sortedStats[i];
+      final total = stat.completed + stat.failed;
+      final rate = total > 0 ? (stat.completed / total * 100) : 0.0;
+      spots.add(FlSpot(i.toDouble(), rate));
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      height: 220,
+      padding: const EdgeInsets.only(top: 24, right: 20, left: 12, bottom: 16),
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(theme.borderRadius > 16 ? 16 : theme.borderRadius),
         border: Border.all(color: theme.border.withValues(alpha: 0.5)),
       ),
-      child: HeatMap(
-        datasets: datasets,
-        colorMode: ColorMode.opacity,
-        showText: false,
-        scrollable: true,
-        colorsets: {
-          1: theme.primary,
-        },
-        onClick: (value) {},
-        defaultColor: theme.background,
-        textColor: theme.textSecondary,
-        margin: const EdgeInsets.all(2),
-        borderRadius: 4,
-        size: 24,
+      child: LineChart(
+        LineChartData(
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: 25,
+            getDrawingHorizontalLine: (value) => FlLine(
+              color: theme.border.withValues(alpha: 0.15),
+              strokeWidth: 1,
+              dashArray: [4, 4],
+            ),
+          ),
+          titlesData: FlTitlesData(
+            show: true,
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: 25,
+                reservedSize: 32,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    '${value.toInt()}%',
+                    style: theme.fontStyleMono(TextStyle(
+                      color: theme.textMuted,
+                      fontSize: 9,
+                    )),
+                  );
+                },
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 22,
+                interval: (sortedStats.length / 5).clamp(1.0, double.infinity),
+                getTitlesWidget: (value, meta) {
+                  final idx = value.toInt();
+                  if (idx < 0 || idx >= sortedStats.length) {
+                    return const SizedBox.shrink();
+                  }
+                  final date = sortedStats[idx].date;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6.0),
+                    child: Text(
+                      '${date.day}/${date.month}',
+                      style: theme.fontStyleMono(TextStyle(
+                        color: theme.textSecondary,
+                        fontSize: 9,
+                      )),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          borderData: FlBorderData(
+            show: false,
+          ),
+          minX: 0,
+          maxX: (sortedStats.length - 1).toDouble(),
+          minY: 0,
+          maxY: 100,
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: true,
+              color: theme.primary,
+              barWidth: 3,
+              isStrokeCapRound: true,
+              dotData: FlDotData(
+                show: sortedStats.length < 10,
+                getDotPainter: (spot, percent, barData, index) =>
+                    FlDotCirclePainter(
+                  radius: 4,
+                  color: theme.primary,
+                  strokeWidth: 1.5,
+                  strokeColor: theme.surface,
+                ),
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                color: theme.primary.withValues(alpha: 0.1),
+              ),
+            ),
+          ],
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (_) => theme.background.withValues(alpha: 0.955),
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((touchedSpot) {
+                  final idx = touchedSpot.x.toInt();
+                  if (idx < 0 || idx >= sortedStats.length) return null;
+                  final stat = sortedStats[idx];
+                  final total = stat.completed + stat.failed;
+                  final dateStr = '${stat.date.day}/${stat.date.month}/${stat.date.year}';
+                  return LineTooltipItem(
+                    '$dateStr\nTaxa: ${touchedSpot.y.toInt()}%\nTotal: $total tasks',
+                    theme.fontStyleBase(TextStyle(
+                      color: theme.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    )),
+                  );
+                }).toList();
+              },
+            ),
+          ),
+        ),
       ),
     );
   }

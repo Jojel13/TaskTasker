@@ -50,6 +50,9 @@ class Task {
   // ─── Subtasks embedded ───────────────────────────────────────
   List<Subtask> subtasks = [];
 
+  // ─── Foco/Pomodoro (Fase 7) ──────────────────────────────────
+  int focusCount = 0;
+
   // ─── Getters computados (não persistidos) ────────────────────
   @ignore
   bool get hasAlarm => alarmTime != null;

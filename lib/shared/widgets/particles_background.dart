@@ -22,6 +22,7 @@ class _ParticlesBackgroundState extends ConsumerState<ParticlesBackground> with 
   final Random _rnd = Random();
   bool _initialized = false;
   AppThemeType? _currentThemeType;
+  final Map<String, ui.Paragraph> _glyphCache = {};
 
   @override
   void initState() {
@@ -92,10 +93,14 @@ class _ParticlesBackgroundState extends ConsumerState<ParticlesBackground> with 
           targetVy = -0.7 * theme.particleSpeed * p.radiusScale * 0.6;
           break;
         case ParticleShape.leaf:
-        case ParticleShape.sakura:
           p.angle += p.angleSpeed;
           targetVx = (sin(p.angle) * 0.5 - 0.3) * theme.particleSpeed; // vento para esquerda
           targetVy = 0.6 * theme.particleSpeed * p.radiusScale;
+          break;
+        case ParticleShape.sakura:
+          p.angle += p.angleSpeed * 0.35; // Rotação delicada
+          targetVx = (sin(p.angle) * 0.8 - 0.3) * theme.particleSpeed; // vento para esquerda
+          targetVy = 0.6 * theme.particleSpeed * p.radiusScale * 0.8;
           break;
         case ParticleShape.organic:
           p.angle += p.angleSpeed * 0.2;
@@ -142,12 +147,25 @@ class _ParticlesBackgroundState extends ConsumerState<ParticlesBackground> with 
         targetRadius = p.radiusScale * 2.2;
       } else if (theme.particleShape == ParticleShape.star) {
         targetRadius = p.radiusScale * 2.0;
+      } else if (theme.particleShape == ParticleShape.sakura) {
+        targetRadius = p.radiusScale * 3.0;
       }
       p.radius = ui.lerpDouble(p.radius, targetRadius, 0.05) ?? targetRadius;
       
       // 4. Suavizar opacidade
-      final targetOpacity = theme.particleOpacity * p.opacityScale;
+      double targetOpacity = theme.particleOpacity * p.opacityScale;
+      if (theme.particleShape == ParticleShape.sakura) {
+        targetOpacity = 0.35 + (p.opacityScale - 0.6) / 0.4 * 0.35;
+      }
       p.opacity = ui.lerpDouble(p.opacity, targetOpacity, 0.05) ?? targetOpacity;
+      
+      // Aplicar fade suave nas bordas para Glassmorphic e Ocean (bubble)
+      if (theme.particleShape == ParticleShape.bubble) {
+        final distFromEdge = [p.x, size.width - p.x, p.y, size.height - p.y].reduce(min);
+        if (distFromEdge < 35.0) {
+          p.opacity *= (distFromEdge / 35.0).clamp(0.0, 1.0);
+        }
+      }
     }
   }
 
@@ -191,6 +209,7 @@ class _ParticlesBackgroundState extends ConsumerState<ParticlesBackground> with 
         theme: theme,
         intensive: widget.intensive,
         repaint: _controller,
+        glyphCache: _glyphCache,
       ),
     );
   }
@@ -226,12 +245,14 @@ class _ParticlesPainter extends CustomPainter {
   final List<_Particle> particles;
   final AppThemeData theme;
   final bool intensive;
+  final Map<String, ui.Paragraph> glyphCache;
 
   _ParticlesPainter({
     required this.particles, 
     required this.theme,
     required this.intensive,
     required Listenable repaint,
+    required this.glyphCache,
   }) : super(repaint: repaint);
 
   @override
@@ -243,7 +264,7 @@ class _ParticlesPainter extends CustomPainter {
     // 1. Linhas de conexão (teias) se o tema suportar
     if (theme.connectLines) {
       final connectionPaint = Paint()..strokeWidth = 0.5;
-      final threshold = intensive ? 80.0 : 45.0;
+      final threshold = intensive ? 110.0 : 80.0;
       final thresholdSq = threshold * threshold; 
       
       for (int i = 0; i < particles.length; i++) {
@@ -257,8 +278,9 @@ class _ParticlesPainter extends CustomPainter {
           
           if (distSq < thresholdSq) {
             final dist = sqrt(distSq);
-            final opacity = (1 - (dist / threshold)) * 0.25 * ((p1.opacity + p2.opacity) / 2);
-            connectionPaint.color = p1.color.withValues(alpha: opacity);
+            final pulse = (0.08 + 0.12 * sin(p1.angle)).clamp(0.01, 0.25);
+            final opacity = (1 - (dist / threshold)) * pulse * ((p1.opacity + p2.opacity) / 2);
+            connectionPaint.color = p1.color.withValues(alpha: opacity.clamp(0.0, 1.0));
             canvas.drawLine(Offset(p1.x, p1.y), Offset(p2.x, p2.y), connectionPaint);
           }
         }
@@ -271,22 +293,41 @@ class _ParticlesPainter extends CustomPainter {
 
       switch (theme.particleShape) {
         case ParticleShape.star:
-          _drawStar(canvas, Offset(p.x, p.y), p.radius, paint);
+          canvas.save();
+          canvas.translate(p.x, p.y);
+          canvas.rotate(p.angle);
+          _drawStar5pt(canvas, 0, 0, p.radius * 2.0, p.radius * 2.0 * 0.4, paint);
+          canvas.restore();
           break;
           
         case ParticleShape.binary:
-          final textPainter = TextPainter(
-            text: TextSpan(
-              text: p.colorIndex % 2 == 0 ? '0' : '1',
-              style: GoogleFonts.shareTechMono(
-                color: p.color.withValues(alpha: p.opacity),
-                fontSize: p.radius * 5.5,
+          const glyphs = ['0', '1', 'ア', 'イ', 'ウ', '7', 'Z', '8'];
+          final char = glyphs[p.colorIndex % glyphs.length];
+          final fontSize = (p.radius * 5.5).roundToDouble();
+          final alpha = (p.opacity * 15).round() / 15;
+          final colorVal = p.color.withValues(alpha: alpha).toARGB32();
+          final cacheKey = "${char}_${colorVal}_$fontSize";
+
+          var paragraph = glyphCache[cacheKey];
+          if (paragraph == null) {
+            final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
+              textDirection: TextDirection.ltr,
+            ))
+              ..pushStyle(ui.TextStyle(
+                color: p.color.withValues(alpha: alpha),
+                fontSize: fontSize,
                 fontWeight: FontWeight.bold,
-              ),
-            ),
-            textDirection: TextDirection.ltr,
-          )..layout();
-          textPainter.paint(canvas, Offset(p.x - textPainter.width / 2, p.y - textPainter.height / 2));
+                fontFamily: GoogleFonts.shareTechMono().fontFamily,
+              ))
+              ..addText(char);
+            paragraph = builder.build()
+              ..layout(const ui.ParagraphConstraints(width: 100));
+            glyphCache[cacheKey] = paragraph;
+          }
+          canvas.drawParagraph(
+            paragraph,
+            Offset(p.x - paragraph.minIntrinsicWidth / 2, p.y - paragraph.height / 2),
+          );
           break;
           
         case ParticleShape.organic:
@@ -302,7 +343,8 @@ class _ParticlesPainter extends CustomPainter {
           
         case ParticleShape.cross:
           canvas.save();
-          canvas.translate(p.x, p.y);
+          final yOffset = sin(p.angle * 0.5) * 3.0; // levitação suave (Dracula)
+          canvas.translate(p.x, p.y + yOffset);
           canvas.rotate(p.angle);
           final strokePaint = Paint()
             ..color = p.color.withValues(alpha: p.opacity)
@@ -314,37 +356,76 @@ class _ParticlesPainter extends CustomPainter {
           break;
           
         case ParticleShape.ember:
-          paint.color = p.color.withValues(alpha: p.opacity * (0.6 + 0.4 * sin(p.angle * 10))); // cintilação
+          // Ember principal
+          final emberOpacity = p.opacity * (0.6 + 0.4 * sin(p.angle * 10));
+          paint.color = p.color.withValues(alpha: emberOpacity);
           canvas.drawCircle(Offset(p.x, p.y), p.radius, paint);
+          
+          // Halo proporcional
           paint.color = p.color.withValues(alpha: p.opacity * 0.15);
-          canvas.drawCircle(Offset(p.x, p.y), p.radius * 3.5, paint);
+          canvas.drawCircle(Offset(p.x, p.y), min(p.radius * 3.5, 14.0), paint);
+          
+          // Rastro (2 círculos menores abaixo, já que a brasa sobe)
+          final trailRadius1 = p.radius * 0.6;
+          final trailRadius2 = p.radius * 0.3;
+          final trailDistance = p.radius * 2.0;
+          
+          paint.color = p.color.withValues(alpha: p.opacity * 0.3);
+          canvas.drawCircle(Offset(p.x, p.y + trailDistance), trailRadius1, paint);
+          
+          paint.color = p.color.withValues(alpha: p.opacity * 0.15);
+          canvas.drawCircle(Offset(p.x, p.y + trailDistance * 1.8), trailRadius2, paint);
           break;
           
         case ParticleShape.sakura:
           canvas.save();
           canvas.translate(p.x, p.y);
           canvas.rotate(p.angle);
+          final r = p.radius;
           final path = Path();
-          path.moveTo(0, -p.radius * 1.4);
-          path.quadraticBezierTo(p.radius, -p.radius * 0.8, p.radius * 0.2, p.radius * 1.4);
-          path.quadraticBezierTo(-p.radius * 0.8, p.radius * 0.6, 0, -p.radius * 1.4);
+          // Início no topo com recorte leve (hendidura da pétala)
+          path.moveTo(0, -r * 0.15);
+          // Borda direita arredondada
+          path.cubicTo(r * 0.6, -r * 0.9, r * 1.1, 0, r * 0.5, r * 0.9);
+          // Base arredondada
+          path.quadraticBezierTo(0, r * 1.1, -r * 0.5, r * 0.9);
+          // Borda esquerda
+          path.cubicTo(-r * 1.1, 0, -r * 0.6, -r * 0.9, 0, -r * 0.15);
+          
           canvas.drawPath(path, paint);
+          
+          // Desenhar linha central fina (veia da pétala)
+          final linePaint = Paint()
+            ..color = p.color.withValues(alpha: p.opacity * 0.4)
+            ..strokeWidth = 0.8
+            ..style = PaintingStyle.stroke;
+          canvas.drawLine(Offset(0, r * 0.9), Offset(0, -r * 0.15), linePaint);
+          
           canvas.restore();
           break;
-
+ 
         case ParticleShape.leaf:
           canvas.save();
           canvas.translate(p.x, p.y);
           canvas.rotate(p.angle);
+          final r = p.radius;
           final path = Path();
-          // Desenha formato folha
-          path.moveTo(0, -p.radius * 1.6);
-          path.quadraticBezierTo(p.radius * 1.1, -p.radius * 0.5, 0, p.radius * 1.6);
-          path.quadraticBezierTo(-p.radius * 1.1, -p.radius * 0.5, 0, -p.radius * 1.6);
+          path.moveTo(0, -r * 1.8);  // ponta superior
+          path.quadraticBezierTo(r * 1.2, 0, 0, r * 1.8);  // lado direito arredondado (pecíolo na base)
+          path.quadraticBezierTo(-r * 0.8, r * 0.5, 0, -r * 1.8); // lado esquerdo mais reto
+          
           canvas.drawPath(path, paint);
+          
+          // Veia central
+          final veinPaint = Paint()
+            ..color = p.color.withValues(alpha: p.opacity * 0.4)
+            ..strokeWidth = 0.8
+            ..style = PaintingStyle.stroke;
+          canvas.drawLine(Offset(0, r * 1.8), Offset(0, -r * 1.8), veinPaint);
+          
           canvas.restore();
           break;
-
+ 
         case ParticleShape.bubble:
           final strokePaint = Paint()
             ..color = p.color.withValues(alpha: p.opacity)
@@ -364,16 +445,24 @@ class _ParticlesPainter extends CustomPainter {
     }
   }
 
-  void _drawStar(Canvas canvas, Offset center, double size, Paint paint) {
+  void _drawStar5pt(Canvas canvas, double cx, double cy, double outerR, double innerR, Paint paint) {
     final path = Path();
-    path.moveTo(center.dx, center.dy - size * 2.0);
-    path.quadraticBezierTo(center.dx, center.dy, center.dx + size * 2.0, center.dy);
-    path.quadraticBezierTo(center.dx, center.dy, center.dx, center.dy + size * 2.0);
-    path.quadraticBezierTo(center.dx, center.dy, center.dx - size * 2.0, center.dy);
-    path.quadraticBezierTo(center.dx, center.dy, center.dx, center.dy - size * 2.0);
+    const int points = 5;
+    const double step = pi / points;
+    double angle = -pi / 2; // Inicia no topo
+    
+    path.moveTo(cx + cos(angle) * outerR, cy + sin(angle) * outerR);
+    for (int i = 0; i < 2 * points; i++) {
+      angle += step;
+      final r = (i % 2 == 0) ? innerR : outerR;
+      path.lineTo(cx + cos(angle) * r, cy + sin(angle) * r);
+    }
+    path.close();
     canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _ParticlesPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _ParticlesPainter oldDelegate) {
+    return oldDelegate.theme.type != theme.type || oldDelegate.intensive != intensive;
+  }
 }

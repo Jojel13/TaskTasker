@@ -27,6 +27,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   double _notificationFrequency = 6;
   bool _isBackupLoading = false;
   AppThemeType _selectedTheme = AppThemeType.cyberpunkDark;
+  bool _notifEnabled = true;
+  bool _alarmSoundEnabled = true;
+  bool _useBrightnessOverride = false;
+  bool _brightnessOverride = false;
 
   @override
   void initState() {
@@ -50,6 +54,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _tomorrowCtrl.text = profile.divisionTomorrowName;
       _notificationFrequency = profile.notificationFrequencyHours.toDouble();
       _selectedTheme = profile.appTheme;
+      _notifEnabled = profile.notifEnabled;
+      _alarmSoundEnabled = profile.alarmSoundEnabled;
+      _useBrightnessOverride = profile.useBrightnessOverride;
+      _brightnessOverride = profile.brightnessOverride;
     }
   }
 
@@ -80,7 +88,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
         return;
       }
-
       profile.routineName = _routineNameCtrl.text;
       profile.divisionMorningName = _morningCtrl.text;
       profile.divisionAfternoonName = _afternoonCtrl.text;
@@ -88,7 +95,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       profile.divisionTomorrowName = _tomorrowCtrl.text;
       profile.notificationFrequencyHours = _notificationFrequency.toInt();
       profile.appTheme = _selectedTheme;
-
+      profile.notifEnabled = _notifEnabled;
+      profile.alarmSoundEnabled = _alarmSoundEnabled;
+      profile.useBrightnessOverride = _useBrightnessOverride;
+      profile.brightnessOverride = _brightnessOverride;
       await isar.writeTxn(() async {
         await isar.userProfiles.put(profile);
       });
@@ -105,6 +115,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
         Navigator.pop(context);
       }
+    }
+  }
+
+  void _testNotification() async {
+    final theme = ref.read(currentThemeProvider);
+    await NotificationService.instance.showNotification(
+      id: 999,
+      title: '⏰ Teste de Alarme',
+      body: 'Este é um teste de alarme configurado para o canal principal.',
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Notificação de teste enviada!', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+          backgroundColor: theme.accent,
+        ),
+      );
     }
   }
 
@@ -287,42 +314,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Widget _buildColorDot(Color color) {
-    return Container(
-      width: 12,
-      height: 12,
-      margin: const EdgeInsets.only(right: 5),
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white24, width: 0.5),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = ref.watch(currentThemeProvider);
 
-    return Scaffold(
-      backgroundColor: theme.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text('Configurações', style: theme.fontStyleBase(AppTextStyles.titleMedium).copyWith(color: theme.textPrimary)),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.primary, size: 20),
-          onPressed: () => Navigator.pop(context),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+      child: Scaffold(
+        key: ValueKey(theme.type),
+        backgroundColor: theme.background,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Text('Configurações', style: theme.fontStyleBase(AppTextStyles.titleMedium).copyWith(color: theme.textPrimary)),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.primary, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 _buildAccordion(
                   theme: theme,
                   title: 'Personalização de Nomes',
@@ -348,6 +367,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   theme: theme,
                   title: 'Temas e Estilos',
                   icon: Icons.palette_outlined,
+                  initiallyExpanded: true,
                   children: [
                     Text(
                       'Escolha uma das 12 estéticas exclusivas:',
@@ -376,7 +396,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             decoration: BoxDecoration(
-                              color: themeData.surface,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected
@@ -388,36 +407,93 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   ? themeData.glowShadow(themeData.primary, intensity: 0.3)
                                   : null,
                             ),
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  themeData.name,
-                                  style: themeData.fontStyleBase(TextStyle(
-                                    color: themeData.textPrimary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  )),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [themeData.background, themeData.surface, themeData.primary],
+                                    stops: const [0.0, 0.5, 1.0],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
                                 ),
-                                Row(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _buildColorDot(themeData.background),
-                                    _buildColorDot(themeData.primary),
-                                    _buildColorDot(themeData.taskBlue),
-                                    _buildColorDot(themeData.taskYellow),
-                                    _buildColorDot(themeData.taskRed),
+                                    Text(
+                                      themeData.name,
+                                      style: themeData.fontStyleBase(TextStyle(
+                                        color: themeData.textPrimary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        shadows: [
+                                          Shadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 4),
+                                        ],
+                                      )),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'ESTÉTICA',
+                                          style: themeData.fontStyleMono(TextStyle(
+                                            color: themeData.textPrimary.withValues(alpha: 0.5),
+                                            fontSize: 8,
+                                            letterSpacing: 0.5,
+                                          )),
+                                        ),
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: themeData.secondary,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         );
                       },
                     ),
+                    const SizedBox(height: 20),
+                    Divider(color: theme.divider, height: 1),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Forçar Luminosidade Manual', style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 14))),
+                      subtitle: Text('Ignorar o modo padrão (claro/escuro) do tema selecionado', style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 11))),
+                      value: _useBrightnessOverride,
+                      activeThumbColor: theme.primary,
+                      onChanged: (val) {
+                        setState(() => _useBrightnessOverride = val);
+                      },
+                    ),
+                    if (_useBrightnessOverride) ...[
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('Forçar Modo Escuro', style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 14))),
+                        subtitle: Text('Ativar para forçar modo escuro, desativar para modo claro', style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 11))),
+                        value: _brightnessOverride,
+                        activeThumbColor: theme.primary,
+                        secondary: Icon(
+                          _brightnessOverride ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                          color: theme.primary,
+                        ),
+                        onChanged: (val) {
+                          setState(() => _brightnessOverride = val);
+                        },
+                      ),
+                    ],
                   ],
                 ),
 
@@ -428,11 +504,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: 'Notificações (Background)',
                   icon: Icons.notifications_active_outlined,
                   children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Notificações Diárias', style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 14))),
+                      subtitle: Text('Lembretes periódicos sobre suas tarefas do dia', style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 11))),
+                      value: _notifEnabled,
+                      activeThumbColor: theme.primary,
+                      onChanged: (val) {
+                        setState(() => _notifEnabled = val);
+                      },
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Som do Alarme de Task', style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 14))),
+                      subtitle: Text('Tocar som personalizado para alarmes de tarefas', style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 11))),
+                      value: _alarmSoundEnabled,
+                      activeThumbColor: theme.primary,
+                      onChanged: (val) {
+                        setState(() => _alarmSoundEnabled = val);
+                      },
+                    ),
+                    const Divider(height: 24),
                     Text(
                       'Frequência de lembretes automáticos:',
                       style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 13)),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Text('A cada ${_notificationFrequency.toInt()}h', 
@@ -445,12 +543,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             divisions: 23,
                             activeColor: theme.primary,
                             inactiveColor: theme.surface,
-                            onChanged: (val) {
+                            onChanged: _notifEnabled ? (val) {
                               setState(() => _notificationFrequency = val);
-                            },
+                            } : null,
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: theme.accent,
+                          side: BorderSide(color: theme.accent, width: 1.0),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: const Icon(Icons.notifications_active_rounded, size: 18),
+                        label: Text('Testar Notificação', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                        onPressed: _testNotification,
+                      ),
                     ),
                   ],
                 ),
@@ -605,8 +718,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _confirmDeleteHistory() async {
     final theme = ref.read(currentThemeProvider);
@@ -664,7 +778,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildAccordion({required AppThemeData theme, required String title, required IconData icon, required List<Widget> children}) {
+  Widget _buildAccordion({
+    required AppThemeData theme,
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+    bool initiallyExpanded = false,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: theme.surface.withValues(alpha: 0.3),
@@ -674,7 +794,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          initiallyExpanded: false,
+          initiallyExpanded: initiallyExpanded,
           leading: Icon(icon, color: theme.primary, size: 24),
           title: Text(title, style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontWeight: FontWeight.bold))),
           iconColor: theme.primary,

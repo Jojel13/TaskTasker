@@ -31,4 +31,10 @@ class UserProfile {
 
   @enumerated
   AppThemeType appTheme = AppThemeType.cyberpunkDark;
+
+  // ─── Novas Configurações (Notificações & Tema) ───────────────
+  bool notifEnabled = true;
+  bool alarmSoundEnabled = true;
+  bool brightnessOverride = false;
+  bool useBrightnessOverride = false;
 }

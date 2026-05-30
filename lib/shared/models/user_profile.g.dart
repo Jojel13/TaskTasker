@@ -17,86 +17,106 @@ const UserProfileSchema = CollectionSchema(
   name: r'UserProfile',
   id: 4738427352541298891,
   properties: {
-    r'appTheme': PropertySchema(
+    r'alarmSoundEnabled': PropertySchema(
       id: 0,
+      name: r'alarmSoundEnabled',
+      type: IsarType.bool,
+    ),
+    r'appTheme': PropertySchema(
+      id: 1,
       name: r'appTheme',
       type: IsarType.byte,
       enumMap: _UserProfileappThemeEnumValueMap,
     ),
+    r'brightnessOverride': PropertySchema(
+      id: 2,
+      name: r'brightnessOverride',
+      type: IsarType.bool,
+    ),
     r'currentLevel': PropertySchema(
-      id: 1,
+      id: 3,
       name: r'currentLevel',
       type: IsarType.long,
     ),
     r'divisionAfternoonName': PropertySchema(
-      id: 2,
+      id: 4,
       name: r'divisionAfternoonName',
       type: IsarType.string,
     ),
     r'divisionMorningName': PropertySchema(
-      id: 3,
+      id: 5,
       name: r'divisionMorningName',
       type: IsarType.string,
     ),
     r'divisionNightName': PropertySchema(
-      id: 4,
+      id: 6,
       name: r'divisionNightName',
       type: IsarType.string,
     ),
     r'divisionTomorrowName': PropertySchema(
-      id: 5,
+      id: 7,
       name: r'divisionTomorrowName',
       type: IsarType.string,
     ),
     r'lastOpenedDate': PropertySchema(
-      id: 6,
+      id: 8,
       name: r'lastOpenedDate',
       type: IsarType.dateTime,
     ),
     r'lastRoutineDate': PropertySchema(
-      id: 7,
+      id: 9,
       name: r'lastRoutineDate',
       type: IsarType.dateTime,
     ),
     r'notifAfternoonOffsetMin': PropertySchema(
-      id: 8,
+      id: 10,
       name: r'notifAfternoonOffsetMin',
       type: IsarType.long,
     ),
+    r'notifEnabled': PropertySchema(
+      id: 11,
+      name: r'notifEnabled',
+      type: IsarType.bool,
+    ),
     r'notifMorningOffsetMin': PropertySchema(
-      id: 9,
+      id: 12,
       name: r'notifMorningOffsetMin',
       type: IsarType.long,
     ),
     r'notifNightOffsetMin': PropertySchema(
-      id: 10,
+      id: 13,
       name: r'notifNightOffsetMin',
       type: IsarType.long,
     ),
     r'notificationFrequencyHours': PropertySchema(
-      id: 11,
+      id: 14,
       name: r'notificationFrequencyHours',
       type: IsarType.long,
     ),
     r'routineName': PropertySchema(
-      id: 12,
+      id: 15,
       name: r'routineName',
       type: IsarType.string,
     ),
     r'streakDays': PropertySchema(
-      id: 13,
+      id: 16,
       name: r'streakDays',
       type: IsarType.long,
     ),
     r'streakRecord': PropertySchema(
-      id: 14,
+      id: 17,
       name: r'streakRecord',
       type: IsarType.long,
     ),
     r'totalXP': PropertySchema(
-      id: 15,
+      id: 18,
       name: r'totalXP',
       type: IsarType.long,
+    ),
+    r'useBrightnessOverride': PropertySchema(
+      id: 19,
+      name: r'useBrightnessOverride',
+      type: IsarType.bool,
     )
   },
   estimateSize: _userProfileEstimateSize,
@@ -133,22 +153,26 @@ void _userProfileSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeByte(offsets[0], object.appTheme.index);
-  writer.writeLong(offsets[1], object.currentLevel);
-  writer.writeString(offsets[2], object.divisionAfternoonName);
-  writer.writeString(offsets[3], object.divisionMorningName);
-  writer.writeString(offsets[4], object.divisionNightName);
-  writer.writeString(offsets[5], object.divisionTomorrowName);
-  writer.writeDateTime(offsets[6], object.lastOpenedDate);
-  writer.writeDateTime(offsets[7], object.lastRoutineDate);
-  writer.writeLong(offsets[8], object.notifAfternoonOffsetMin);
-  writer.writeLong(offsets[9], object.notifMorningOffsetMin);
-  writer.writeLong(offsets[10], object.notifNightOffsetMin);
-  writer.writeLong(offsets[11], object.notificationFrequencyHours);
-  writer.writeString(offsets[12], object.routineName);
-  writer.writeLong(offsets[13], object.streakDays);
-  writer.writeLong(offsets[14], object.streakRecord);
-  writer.writeLong(offsets[15], object.totalXP);
+  writer.writeBool(offsets[0], object.alarmSoundEnabled);
+  writer.writeByte(offsets[1], object.appTheme.index);
+  writer.writeBool(offsets[2], object.brightnessOverride);
+  writer.writeLong(offsets[3], object.currentLevel);
+  writer.writeString(offsets[4], object.divisionAfternoonName);
+  writer.writeString(offsets[5], object.divisionMorningName);
+  writer.writeString(offsets[6], object.divisionNightName);
+  writer.writeString(offsets[7], object.divisionTomorrowName);
+  writer.writeDateTime(offsets[8], object.lastOpenedDate);
+  writer.writeDateTime(offsets[9], object.lastRoutineDate);
+  writer.writeLong(offsets[10], object.notifAfternoonOffsetMin);
+  writer.writeBool(offsets[11], object.notifEnabled);
+  writer.writeLong(offsets[12], object.notifMorningOffsetMin);
+  writer.writeLong(offsets[13], object.notifNightOffsetMin);
+  writer.writeLong(offsets[14], object.notificationFrequencyHours);
+  writer.writeString(offsets[15], object.routineName);
+  writer.writeLong(offsets[16], object.streakDays);
+  writer.writeLong(offsets[17], object.streakRecord);
+  writer.writeLong(offsets[18], object.totalXP);
+  writer.writeBool(offsets[19], object.useBrightnessOverride);
 }
 
 UserProfile _userProfileDeserialize(
@@ -158,25 +182,29 @@ UserProfile _userProfileDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = UserProfile();
+  object.alarmSoundEnabled = reader.readBool(offsets[0]);
   object.appTheme =
-      _UserProfileappThemeValueEnumMap[reader.readByteOrNull(offsets[0])] ??
+      _UserProfileappThemeValueEnumMap[reader.readByteOrNull(offsets[1])] ??
           AppThemeType.cyberpunkDark;
-  object.currentLevel = reader.readLong(offsets[1]);
-  object.divisionAfternoonName = reader.readString(offsets[2]);
-  object.divisionMorningName = reader.readString(offsets[3]);
-  object.divisionNightName = reader.readString(offsets[4]);
-  object.divisionTomorrowName = reader.readString(offsets[5]);
+  object.brightnessOverride = reader.readBool(offsets[2]);
+  object.currentLevel = reader.readLong(offsets[3]);
+  object.divisionAfternoonName = reader.readString(offsets[4]);
+  object.divisionMorningName = reader.readString(offsets[5]);
+  object.divisionNightName = reader.readString(offsets[6]);
+  object.divisionTomorrowName = reader.readString(offsets[7]);
   object.id = id;
-  object.lastOpenedDate = reader.readDateTimeOrNull(offsets[6]);
-  object.lastRoutineDate = reader.readDateTimeOrNull(offsets[7]);
-  object.notifAfternoonOffsetMin = reader.readLong(offsets[8]);
-  object.notifMorningOffsetMin = reader.readLong(offsets[9]);
-  object.notifNightOffsetMin = reader.readLong(offsets[10]);
-  object.notificationFrequencyHours = reader.readLong(offsets[11]);
-  object.routineName = reader.readString(offsets[12]);
-  object.streakDays = reader.readLong(offsets[13]);
-  object.streakRecord = reader.readLong(offsets[14]);
-  object.totalXP = reader.readLong(offsets[15]);
+  object.lastOpenedDate = reader.readDateTimeOrNull(offsets[8]);
+  object.lastRoutineDate = reader.readDateTimeOrNull(offsets[9]);
+  object.notifAfternoonOffsetMin = reader.readLong(offsets[10]);
+  object.notifEnabled = reader.readBool(offsets[11]);
+  object.notifMorningOffsetMin = reader.readLong(offsets[12]);
+  object.notifNightOffsetMin = reader.readLong(offsets[13]);
+  object.notificationFrequencyHours = reader.readLong(offsets[14]);
+  object.routineName = reader.readString(offsets[15]);
+  object.streakDays = reader.readLong(offsets[16]);
+  object.streakRecord = reader.readLong(offsets[17]);
+  object.totalXP = reader.readLong(offsets[18]);
+  object.useBrightnessOverride = reader.readBool(offsets[19]);
   return object;
 }
 
@@ -188,38 +216,46 @@ P _userProfileDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
+      return (reader.readBool(offset)) as P;
+    case 1:
       return (_UserProfileappThemeValueEnumMap[reader.readByteOrNull(offset)] ??
           AppThemeType.cyberpunkDark) as P;
-    case 1:
-      return (reader.readLong(offset)) as P;
     case 2:
-      return (reader.readString(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 3:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 4:
       return (reader.readString(offset)) as P;
     case 5:
       return (reader.readString(offset)) as P;
     case 6:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 7:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 8:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 9:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 10:
       return (reader.readLong(offset)) as P;
     case 11:
-      return (reader.readLong(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 12:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 13:
       return (reader.readLong(offset)) as P;
     case 14:
       return (reader.readLong(offset)) as P;
     case 15:
+      return (reader.readString(offset)) as P;
+    case 16:
       return (reader.readLong(offset)) as P;
+    case 17:
+      return (reader.readLong(offset)) as P;
+    case 18:
+      return (reader.readLong(offset)) as P;
+    case 19:
+      return (reader.readBool(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -347,6 +383,16 @@ extension UserProfileQueryWhere
 
 extension UserProfileQueryFilter
     on QueryBuilder<UserProfile, UserProfile, QFilterCondition> {
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      alarmSoundEnabledEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'alarmSoundEnabled',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition> appThemeEqualTo(
       AppThemeType value) {
     return QueryBuilder.apply(this, (query) {
@@ -398,6 +444,16 @@ extension UserProfileQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      brightnessOverrideEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'brightnessOverride',
+        value: value,
       ));
     });
   }
@@ -1261,6 +1317,16 @@ extension UserProfileQueryFilter
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      notifEnabledEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'notifEnabled',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
       notifMorningOffsetMinEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -1729,6 +1795,16 @@ extension UserProfileQueryFilter
       ));
     });
   }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      useBrightnessOverrideEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'useBrightnessOverride',
+        value: value,
+      ));
+    });
+  }
 }
 
 extension UserProfileQueryObject
@@ -1739,6 +1815,20 @@ extension UserProfileQueryLinks
 
 extension UserProfileQuerySortBy
     on QueryBuilder<UserProfile, UserProfile, QSortBy> {
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByAlarmSoundEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'alarmSoundEnabled', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByAlarmSoundEnabledDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'alarmSoundEnabled', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByAppTheme() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'appTheme', Sort.asc);
@@ -1748,6 +1838,20 @@ extension UserProfileQuerySortBy
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByAppThemeDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'appTheme', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByBrightnessOverride() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'brightnessOverride', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByBrightnessOverrideDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'brightnessOverride', Sort.desc);
     });
   }
 
@@ -1860,6 +1964,19 @@ extension UserProfileQuerySortBy
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByNotifEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notifEnabled', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByNotifEnabledDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notifEnabled', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
       sortByNotifMorningOffsetMin() {
     return QueryBuilder.apply(this, (query) {
@@ -1950,10 +2067,38 @@ extension UserProfileQuerySortBy
       return query.addSortBy(r'totalXP', Sort.desc);
     });
   }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByUseBrightnessOverride() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'useBrightnessOverride', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByUseBrightnessOverrideDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'useBrightnessOverride', Sort.desc);
+    });
+  }
 }
 
 extension UserProfileQuerySortThenBy
     on QueryBuilder<UserProfile, UserProfile, QSortThenBy> {
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByAlarmSoundEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'alarmSoundEnabled', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByAlarmSoundEnabledDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'alarmSoundEnabled', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByAppTheme() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'appTheme', Sort.asc);
@@ -1963,6 +2108,20 @@ extension UserProfileQuerySortThenBy
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByAppThemeDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'appTheme', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByBrightnessOverride() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'brightnessOverride', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByBrightnessOverrideDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'brightnessOverride', Sort.desc);
     });
   }
 
@@ -2087,6 +2246,19 @@ extension UserProfileQuerySortThenBy
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByNotifEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notifEnabled', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByNotifEnabledDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'notifEnabled', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
       thenByNotifMorningOffsetMin() {
     return QueryBuilder.apply(this, (query) {
@@ -2177,13 +2349,41 @@ extension UserProfileQuerySortThenBy
       return query.addSortBy(r'totalXP', Sort.desc);
     });
   }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByUseBrightnessOverride() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'useBrightnessOverride', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByUseBrightnessOverrideDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'useBrightnessOverride', Sort.desc);
+    });
+  }
 }
 
 extension UserProfileQueryWhereDistinct
     on QueryBuilder<UserProfile, UserProfile, QDistinct> {
+  QueryBuilder<UserProfile, UserProfile, QDistinct>
+      distinctByAlarmSoundEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'alarmSoundEnabled');
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByAppTheme() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'appTheme');
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QDistinct>
+      distinctByBrightnessOverride() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'brightnessOverride');
     });
   }
 
@@ -2245,6 +2445,12 @@ extension UserProfileQueryWhereDistinct
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByNotifEnabled() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'notifEnabled');
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QDistinct>
       distinctByNotifMorningOffsetMin() {
     return QueryBuilder.apply(this, (query) {
@@ -2290,6 +2496,13 @@ extension UserProfileQueryWhereDistinct
       return query.addDistinctBy(r'totalXP');
     });
   }
+
+  QueryBuilder<UserProfile, UserProfile, QDistinct>
+      distinctByUseBrightnessOverride() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'useBrightnessOverride');
+    });
+  }
 }
 
 extension UserProfileQueryProperty
@@ -2300,9 +2513,23 @@ extension UserProfileQueryProperty
     });
   }
 
+  QueryBuilder<UserProfile, bool, QQueryOperations>
+      alarmSoundEnabledProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'alarmSoundEnabled');
+    });
+  }
+
   QueryBuilder<UserProfile, AppThemeType, QQueryOperations> appThemeProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'appTheme');
+    });
+  }
+
+  QueryBuilder<UserProfile, bool, QQueryOperations>
+      brightnessOverrideProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'brightnessOverride');
     });
   }
 
@@ -2361,6 +2588,12 @@ extension UserProfileQueryProperty
     });
   }
 
+  QueryBuilder<UserProfile, bool, QQueryOperations> notifEnabledProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'notifEnabled');
+    });
+  }
+
   QueryBuilder<UserProfile, int, QQueryOperations>
       notifMorningOffsetMinProperty() {
     return QueryBuilder.apply(this, (query) {
@@ -2403,6 +2636,13 @@ extension UserProfileQueryProperty
   QueryBuilder<UserProfile, int, QQueryOperations> totalXPProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'totalXP');
+    });
+  }
+
+  QueryBuilder<UserProfile, bool, QQueryOperations>
+      useBrightnessOverrideProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'useBrightnessOverride');
     });
   }
 }

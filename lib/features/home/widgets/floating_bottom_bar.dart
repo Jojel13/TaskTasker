@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
+
 class FloatingBottomBar extends ConsumerWidget {
   final int currentIndex;
   final ValueChanged<int> onNavTap;
@@ -21,7 +22,7 @@ class FloatingBottomBar extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 0, 32, 28),
       child: Container(
-        height: 64,
+        height: 68,
         decoration: BoxDecoration(
           color: theme.surface,
           borderRadius: BorderRadius.circular(32),
@@ -44,6 +45,7 @@ class FloatingBottomBar extends ConsumerWidget {
               button: true,
               child: _NavItem(
                 icon: Icons.home_rounded,
+                label: 'Início',
                 isActive: currentIndex == 0,
                 activeColor: theme.primary,
                 onTap: () {
@@ -87,6 +89,7 @@ class FloatingBottomBar extends ConsumerWidget {
               button: true,
               child: _NavItem(
                 icon: Icons.radar_rounded,
+                label: 'Radar',
                 isActive: currentIndex == 1,
                 activeColor: theme.taskYellow,
                 onTap: () {
@@ -105,6 +108,7 @@ class FloatingBottomBar extends ConsumerWidget {
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
+  final String label;
   final bool isActive;
   final Color activeColor;
   final VoidCallback onTap;
@@ -112,6 +116,7 @@ class _NavItem extends StatelessWidget {
 
   const _NavItem({
     required this.icon,
+    required this.label,
     required this.isActive,
     required this.activeColor,
     required this.onTap,
@@ -123,26 +128,41 @@ class _NavItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 56,
-        height: 56,
-        alignment: Alignment.center,
-        decoration: isActive
-            ? BoxDecoration(
-                color: activeColor.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: activeColor.withValues(alpha: 0.35),
-                  width: 1,
-                ),
-              )
-            : null,
-        child: Icon(
-          icon,
-          color: isActive ? activeColor : textSecondaryColor,
-          size: 26,
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: isActive
+                ? BoxDecoration(
+                    color: activeColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: activeColor.withValues(alpha: 0.35),
+                      width: 1,
+                    ),
+                  )
+                : null,
+            child: Icon(
+              icon,
+              color: isActive ? activeColor : textSecondaryColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              color: isActive ? activeColor : textSecondaryColor.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
       ),
     );
   }

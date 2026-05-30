@@ -43,61 +43,66 @@ const TaskSchema = CollectionSchema(
       name: r'createdAt',
       type: IsarType.dateTime,
     ),
-    r'frequency': PropertySchema(
+    r'focusCount': PropertySchema(
       id: 5,
+      name: r'focusCount',
+      type: IsarType.long,
+    ),
+    r'frequency': PropertySchema(
+      id: 6,
       name: r'frequency',
       type: IsarType.string,
       enumMap: _TaskfrequencyEnumValueMap,
     ),
     r'frequencyDays': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'frequencyDays',
       type: IsarType.longList,
     ),
     r'hasImage': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'hasImage',
       type: IsarType.bool,
     ),
     r'hasSubtasks': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'hasSubtasks',
       type: IsarType.bool,
     ),
     r'imageFileName': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'imageFileName',
       type: IsarType.string,
     ),
     r'lastAppearedDate': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'lastAppearedDate',
       type: IsarType.dateTime,
     ),
     r'scheduledDate': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'scheduledDate',
       type: IsarType.dateTime,
     ),
     r'sortOrder': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'sortOrder',
       type: IsarType.long,
     ),
     r'status': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'status',
       type: IsarType.string,
       enumMap: _TaskstatusEnumValueMap,
     ),
     r'subtasks': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'subtasks',
       type: IsarType.objectList,
       target: r'Subtask',
     ),
     r'text': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'text',
       type: IsarType.string,
     )
@@ -155,22 +160,23 @@ void _taskSerialize(
   writer.writeString(offsets[2], object.color.name);
   writer.writeDateTime(offsets[3], object.completedOnDate);
   writer.writeDateTime(offsets[4], object.createdAt);
-  writer.writeString(offsets[5], object.frequency.name);
-  writer.writeLongList(offsets[6], object.frequencyDays);
-  writer.writeBool(offsets[7], object.hasImage);
-  writer.writeBool(offsets[8], object.hasSubtasks);
-  writer.writeString(offsets[9], object.imageFileName);
-  writer.writeDateTime(offsets[10], object.lastAppearedDate);
-  writer.writeDateTime(offsets[11], object.scheduledDate);
-  writer.writeLong(offsets[12], object.sortOrder);
-  writer.writeString(offsets[13], object.status.name);
+  writer.writeLong(offsets[5], object.focusCount);
+  writer.writeString(offsets[6], object.frequency.name);
+  writer.writeLongList(offsets[7], object.frequencyDays);
+  writer.writeBool(offsets[8], object.hasImage);
+  writer.writeBool(offsets[9], object.hasSubtasks);
+  writer.writeString(offsets[10], object.imageFileName);
+  writer.writeDateTime(offsets[11], object.lastAppearedDate);
+  writer.writeDateTime(offsets[12], object.scheduledDate);
+  writer.writeLong(offsets[13], object.sortOrder);
+  writer.writeString(offsets[14], object.status.name);
   writer.writeObjectList<Subtask>(
-    offsets[14],
+    offsets[15],
     allOffsets,
     SubtaskSchema.serialize,
     object.subtasks,
   );
-  writer.writeString(offsets[15], object.text);
+  writer.writeString(offsets[16], object.text);
 }
 
 Task _taskDeserialize(
@@ -186,28 +192,29 @@ Task _taskDeserialize(
       TaskColor.standard;
   object.completedOnDate = reader.readDateTimeOrNull(offsets[3]);
   object.createdAt = reader.readDateTime(offsets[4]);
+  object.focusCount = reader.readLong(offsets[5]);
   object.frequency =
-      _TaskfrequencyValueEnumMap[reader.readStringOrNull(offsets[5])] ??
+      _TaskfrequencyValueEnumMap[reader.readStringOrNull(offsets[6])] ??
           FrequencyType.daily;
-  object.frequencyDays = reader.readLongList(offsets[6]) ?? [];
-  object.hasImage = reader.readBool(offsets[7]);
-  object.hasSubtasks = reader.readBool(offsets[8]);
+  object.frequencyDays = reader.readLongList(offsets[7]) ?? [];
+  object.hasImage = reader.readBool(offsets[8]);
+  object.hasSubtasks = reader.readBool(offsets[9]);
   object.id = id;
-  object.imageFileName = reader.readStringOrNull(offsets[9]);
-  object.lastAppearedDate = reader.readDateTimeOrNull(offsets[10]);
-  object.scheduledDate = reader.readDateTimeOrNull(offsets[11]);
-  object.sortOrder = reader.readLong(offsets[12]);
+  object.imageFileName = reader.readStringOrNull(offsets[10]);
+  object.lastAppearedDate = reader.readDateTimeOrNull(offsets[11]);
+  object.scheduledDate = reader.readDateTimeOrNull(offsets[12]);
+  object.sortOrder = reader.readLong(offsets[13]);
   object.status =
-      _TaskstatusValueEnumMap[reader.readStringOrNull(offsets[13])] ??
+      _TaskstatusValueEnumMap[reader.readStringOrNull(offsets[14])] ??
           TaskStatus.active;
   object.subtasks = reader.readObjectList<Subtask>(
-        offsets[14],
+        offsets[15],
         SubtaskSchema.deserialize,
         allOffsets,
         Subtask(),
       ) ??
       [];
-  object.text = reader.readString(offsets[15]);
+  object.text = reader.readString(offsets[16]);
   return object;
 }
 
@@ -230,26 +237,28 @@ P _taskDeserializeProp<P>(
     case 4:
       return (reader.readDateTime(offset)) as P;
     case 5:
+      return (reader.readLong(offset)) as P;
+    case 6:
       return (_TaskfrequencyValueEnumMap[reader.readStringOrNull(offset)] ??
           FrequencyType.daily) as P;
-    case 6:
-      return (reader.readLongList(offset) ?? []) as P;
     case 7:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLongList(offset) ?? []) as P;
     case 8:
       return (reader.readBool(offset)) as P;
     case 9:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 10:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 11:
       return (reader.readDateTimeOrNull(offset)) as P;
     case 12:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 13:
+      return (reader.readLong(offset)) as P;
+    case 14:
       return (_TaskstatusValueEnumMap[reader.readStringOrNull(offset)] ??
           TaskStatus.active) as P;
-    case 14:
+    case 15:
       return (reader.readObjectList<Subtask>(
             offset,
             SubtaskSchema.deserialize,
@@ -257,7 +266,7 @@ P _taskDeserializeProp<P>(
             Subtask(),
           ) ??
           []) as P;
-    case 15:
+    case 16:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -708,6 +717,58 @@ extension TaskQueryFilter on QueryBuilder<Task, Task, QFilterCondition> {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'createdAt',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> focusCountEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'focusCount',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> focusCountGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'focusCount',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> focusCountLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'focusCount',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> focusCountBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'focusCount',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -1805,6 +1866,18 @@ extension TaskQuerySortBy on QueryBuilder<Task, Task, QSortBy> {
     });
   }
 
+  QueryBuilder<Task, Task, QAfterSortBy> sortByFocusCount() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'focusCount', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> sortByFocusCountDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'focusCount', Sort.desc);
+    });
+  }
+
   QueryBuilder<Task, Task, QAfterSortBy> sortByFrequency() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'frequency', Sort.asc);
@@ -1975,6 +2048,18 @@ extension TaskQuerySortThenBy on QueryBuilder<Task, Task, QSortThenBy> {
     });
   }
 
+  QueryBuilder<Task, Task, QAfterSortBy> thenByFocusCount() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'focusCount', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> thenByFocusCountDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'focusCount', Sort.desc);
+    });
+  }
+
   QueryBuilder<Task, Task, QAfterSortBy> thenByFrequency() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'frequency', Sort.asc);
@@ -2128,6 +2213,12 @@ extension TaskQueryWhereDistinct on QueryBuilder<Task, Task, QDistinct> {
     });
   }
 
+  QueryBuilder<Task, Task, QDistinct> distinctByFocusCount() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'focusCount');
+    });
+  }
+
   QueryBuilder<Task, Task, QDistinct> distinctByFrequency(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -2228,6 +2319,12 @@ extension TaskQueryProperty on QueryBuilder<Task, Task, QQueryProperty> {
   QueryBuilder<Task, DateTime, QQueryOperations> createdAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'createdAt');
+    });
+  }
+
+  QueryBuilder<Task, int, QQueryOperations> focusCountProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'focusCount');
     });
   }
 

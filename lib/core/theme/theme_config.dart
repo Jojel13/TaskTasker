@@ -305,10 +305,10 @@ class AppThemeData {
           ],
           fontStyleBase: (base) => GoogleFonts.inter(textStyle: base),
           fontStyleMono: (base) => GoogleFonts.inter(textStyle: base),
-          particleShape: ParticleShape.circle,
-          particleCount: 12,
+          particleShape: ParticleShape.organic,
+          particleCount: 10,
           particleSpeed: 0.3,
-          particleOpacity: 0.15,
+          particleOpacity: 0.10,
           particleColors: const [Color(0xFF676E75), Color(0xFF0066CC), Color(0xFFA5ADB7)],
           connectLines: false,
         );
@@ -456,7 +456,7 @@ class AppThemeData {
           ],
           fontStyleBase: (base) => GoogleFonts.firaCode(textStyle: base),
           fontStyleMono: (base) => GoogleFonts.firaCode(textStyle: base),
-          particleShape: ParticleShape.circle,
+          particleShape: ParticleShape.cross,
           particleCount: 16,
           particleSpeed: 0.5,
           particleOpacity: 0.35,
@@ -553,7 +553,7 @@ class AppThemeData {
           fontStyleMono: (base) => GoogleFonts.shareTechMono(textStyle: base),
           particleShape: ParticleShape.ember,
           particleCount: 20,
-          particleSpeed: 1.5,
+          particleSpeed: 1.2,
           particleOpacity: 0.45,
           particleColors: const [Color(0xFFFE802B), Color(0xFFD4AF37), Color(0xFFFF3300)],
           connectLines: false,
@@ -705,9 +705,187 @@ class AppThemeData {
           particleCount: 14,
           particleSpeed: 0.4,
           particleOpacity: 0.30,
-          particleColors: const [Color(0xFF4E9F3D), Color(0xFF8ECA9F), Color(0xFFE9C46A)],
+          particleColors: const [Color(0xFF4E9F3D), Color(0xFF8ECA9F), Color(0xFFE9C46A), Color(0xFFB5E7A0)],
           connectLines: false,
         );
     }
+  }
+
+  bool get isDark => background.computeLuminance() < 0.5;
+
+  AppThemeData toLight() {
+    if (!isDark) return this;
+
+    final hslBg = HSLColor.fromColor(background);
+    final lightBg = hslBg.withLightness(0.95).toColor().withValues(alpha: background.a);
+    final lightSurface = HSLColor.fromColor(surface).withLightness(0.98).toColor().withValues(alpha: surface.a);
+    final lightSurfaceVariant = HSLColor.fromColor(surfaceVariant).withLightness(0.92).toColor().withValues(alpha: surfaceVariant.a);
+    final lightCard = HSLColor.fromColor(card).withLightness(0.98).toColor().withValues(alpha: card.a);
+    final lightBorder = HSLColor.fromColor(border.withValues(alpha: 1.0)).withLightness(0.85).toColor().withValues(alpha: border.a);
+    final lightDivider = HSLColor.fromColor(divider.withValues(alpha: 1.0)).withLightness(0.90).toColor().withValues(alpha: divider.a);
+
+    final lightTextPrimary = HSLColor.fromColor(textPrimary).withLightness(0.12).toColor();
+    final lightTextSecondary = HSLColor.fromColor(textSecondary).withLightness(0.35).toColor();
+    final lightTextMuted = HSLColor.fromColor(textMuted).withLightness(0.55).toColor();
+
+    final lightTaskBlue = HSLColor.fromColor(taskBlue).withLightness(0.40).toColor();
+    final lightTaskYellow = HSLColor.fromColor(taskYellow).withLightness(0.40).toColor();
+    final lightTaskRed = HSLColor.fromColor(taskRed).withLightness(0.40).toColor();
+
+    return copyWith(
+      background: lightBg,
+      surface: lightSurface,
+      surfaceVariant: lightSurfaceVariant,
+      card: lightCard,
+      border: lightBorder,
+      divider: lightDivider,
+      textPrimary: lightTextPrimary,
+      textSecondary: lightTextSecondary,
+      textMuted: lightTextMuted,
+      taskStandard: lightTextPrimary,
+      taskBlue: lightTaskBlue,
+      taskYellow: lightTaskYellow,
+      taskRed: lightTaskRed,
+      cardStandard: lightCard,
+      cardBlue: lightTaskBlue.withValues(alpha: 0.08),
+      cardYellow: lightTaskYellow.withValues(alpha: 0.08),
+      cardRed: lightTaskRed.withValues(alpha: 0.08),
+      glowBlue: lightTaskBlue.withValues(alpha: 0.15),
+      glowYellow: lightTaskYellow.withValues(alpha: 0.15),
+      glowRed: lightTaskRed.withValues(alpha: 0.15),
+      particleOpacity: (particleOpacity * 0.4).clamp(0.05, 0.15),
+      useGlowBorder: false,
+    );
+  }
+
+  AppThemeData toDark() {
+    if (isDark) return this;
+
+    final hslBg = HSLColor.fromColor(background);
+    final darkBg = hslBg.withLightness(0.06).toColor().withValues(alpha: background.a);
+    final darkSurface = HSLColor.fromColor(surface).withLightness(0.12).toColor().withValues(alpha: surface.a);
+    final darkSurfaceVariant = HSLColor.fromColor(surfaceVariant).withLightness(0.18).toColor().withValues(alpha: surfaceVariant.a);
+    final darkCard = HSLColor.fromColor(card).withLightness(0.10).toColor().withValues(alpha: card.a);
+    final darkBorder = HSLColor.fromColor(border.withValues(alpha: 1.0)).withLightness(0.25).toColor().withValues(alpha: border.a);
+    final darkDivider = HSLColor.fromColor(divider.withValues(alpha: 1.0)).withLightness(0.20).toColor().withValues(alpha: divider.a);
+
+    final darkTextPrimary = HSLColor.fromColor(textPrimary).withLightness(0.92).toColor();
+    final darkTextSecondary = HSLColor.fromColor(textSecondary).withLightness(0.65).toColor();
+    final darkTextMuted = HSLColor.fromColor(textMuted).withLightness(0.40).toColor();
+
+    final darkTaskBlue = HSLColor.fromColor(taskBlue).withLightness(0.60).toColor();
+    final darkTaskYellow = HSLColor.fromColor(taskYellow).withLightness(0.60).toColor();
+    final darkTaskRed = HSLColor.fromColor(taskRed).withLightness(0.60).toColor();
+
+    return copyWith(
+      background: darkBg,
+      surface: darkSurface,
+      surfaceVariant: darkSurfaceVariant,
+      card: darkCard,
+      border: darkBorder,
+      divider: darkDivider,
+      textPrimary: darkTextPrimary,
+      textSecondary: darkTextSecondary,
+      textMuted: darkTextMuted,
+      taskStandard: darkTextPrimary,
+      taskBlue: darkTaskBlue,
+      taskYellow: darkTaskYellow,
+      taskRed: darkTaskRed,
+      cardStandard: darkCard,
+      cardBlue: darkTaskBlue.withValues(alpha: 0.08),
+      cardYellow: darkTaskYellow.withValues(alpha: 0.08),
+      cardRed: darkTaskRed.withValues(alpha: 0.08),
+      glowBlue: darkTaskBlue.withValues(alpha: 0.35),
+      glowYellow: darkTaskYellow.withValues(alpha: 0.35),
+      glowRed: darkTaskRed.withValues(alpha: 0.35),
+      particleOpacity: (particleOpacity * 2.5).clamp(0.15, 0.45),
+      useGlowBorder: true,
+    );
+  }
+
+  AppThemeData copyWith({
+    AppThemeType? type,
+    String? name,
+    Color? background,
+    Color? surface,
+    Color? surfaceVariant,
+    Color? card,
+    Color? border,
+    Color? divider,
+    Color? textPrimary,
+    Color? textSecondary,
+    Color? textMuted,
+    Color? primary,
+    Color? primaryDim,
+    Color? secondary,
+    Color? secondaryDim,
+    Color? accent,
+    Color? accentDim,
+    Color? taskStandard,
+    Color? taskBlue,
+    Color? taskYellow,
+    Color? taskRed,
+    Color? cardStandard,
+    Color? cardBlue,
+    Color? cardYellow,
+    Color? cardRed,
+    Color? glowBlue,
+    Color? glowYellow,
+    Color? glowRed,
+    double? borderRadius,
+    double? borderWidth,
+    bool? useGlowBorder,
+    List<BoxShadow> Function(Color color, {double intensity})? glowShadow,
+    TextStyle Function(TextStyle base)? fontStyleBase,
+    TextStyle Function(TextStyle base)? fontStyleMono,
+    ParticleShape? particleShape,
+    int? particleCount,
+    double? particleSpeed,
+    double? particleOpacity,
+    List<Color>? particleColors,
+    bool? connectLines,
+  }) {
+    return AppThemeData(
+      type: type ?? this.type,
+      name: name ?? this.name,
+      background: background ?? this.background,
+      surface: surface ?? this.surface,
+      surfaceVariant: surfaceVariant ?? this.surfaceVariant,
+      card: card ?? this.card,
+      border: border ?? this.border,
+      divider: divider ?? this.divider,
+      textPrimary: textPrimary ?? this.textPrimary,
+      textSecondary: textSecondary ?? this.textSecondary,
+      textMuted: textMuted ?? this.textMuted,
+      primary: primary ?? this.primary,
+      primaryDim: primaryDim ?? this.primaryDim,
+      secondary: secondary ?? this.secondary,
+      secondaryDim: secondaryDim ?? this.secondaryDim,
+      accent: accent ?? this.accent,
+      accentDim: accentDim ?? this.accentDim,
+      taskStandard: taskStandard ?? this.taskStandard,
+      taskBlue: taskBlue ?? this.taskBlue,
+      taskYellow: taskYellow ?? this.taskYellow,
+      taskRed: taskRed ?? this.taskRed,
+      cardStandard: cardStandard ?? this.cardStandard,
+      cardBlue: cardBlue ?? this.cardBlue,
+      cardYellow: cardYellow ?? this.cardYellow,
+      cardRed: cardRed ?? this.cardRed,
+      glowBlue: glowBlue ?? this.glowBlue,
+      glowYellow: glowYellow ?? this.glowYellow,
+      glowRed: glowRed ?? this.glowRed,
+      borderRadius: borderRadius ?? this.borderRadius,
+      borderWidth: borderWidth ?? this.borderWidth,
+      useGlowBorder: useGlowBorder ?? this.useGlowBorder,
+      glowShadow: glowShadow ?? this.glowShadow,
+      fontStyleBase: fontStyleBase ?? this.fontStyleBase,
+      fontStyleMono: fontStyleMono ?? this.fontStyleMono,
+      particleShape: particleShape ?? this.particleShape,
+      particleCount: particleCount ?? this.particleCount,
+      particleSpeed: particleSpeed ?? this.particleSpeed,
+      particleOpacity: particleOpacity ?? this.particleOpacity,
+      particleColors: particleColors ?? this.particleColors,
+      connectLines: connectLines ?? this.connectLines,
+    );
   }
 }

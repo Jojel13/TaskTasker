@@ -5,6 +5,7 @@ import '../../../core/theme/theme_config.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
+import '../task_stats_screen.dart';
 
 class TaskSettingsSheet extends ConsumerStatefulWidget {
   final Task task;
@@ -218,31 +219,58 @@ class _TaskSettingsSheetState extends ConsumerState<TaskSettingsSheet> {
               ],
             ] else ...[
               Text(
-                'Esta task não possui configurações adicionais.',
+                'Esta task não possui configurações de frequência (disponível apenas para Tasks Azuis).',
                 style: theme.fontStyleBase(AppTextStyles.bodySmall).copyWith(color: theme.textMuted),
               ),
             ],
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
 
-            // ── Botão Salvar ─────────────────────────────────────
+            // ── Botão Ver Estatísticas ──────────────────────────
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.taskBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.primary,
+                  side: BorderSide(color: theme.primary, width: 1.0),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius)),
-                  elevation: 0,
                 ),
-                onPressed: () => _save(theme),
-                child: Text(
-                  'Salvar',
-                  style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.white)),
-                ),
+                icon: const Icon(Icons.bar_chart_rounded, size: 18),
+                label: Text('Ver Estatísticas', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                onPressed: () {
+                  Navigator.pop(context); // Fecha o modal
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TaskStatsScreen(task: widget.task),
+                    ),
+                  );
+                },
               ),
             ),
+
+            if (widget.task.color == TaskColor.blue) ...[
+              const SizedBox(height: 12),
+              // ── Botão Salvar ─────────────────────────────────────
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.taskBlue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius)),
+                    elevation: 0,
+                  ),
+                  onPressed: () => _save(theme),
+                  child: Text(
+                    'Salvar',
+                    style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.white)),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

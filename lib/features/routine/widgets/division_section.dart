@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/theme/theme_config.dart';
 import '../../../shared/models/routine.dart';
@@ -120,7 +121,12 @@ class DivisionSection extends ConsumerWidget {
       );
 
       if (!isToday) {
-        children.add(SizedBox(key: dragKey, child: card));
+        children.add(
+          SizedBox(key: dragKey, child: card)
+              .animate(delay: Duration(milliseconds: i * 40))
+              .fade(duration: 150.ms)
+              .slideX(begin: 0.03, end: 0),
+        );
         continue;
       }
 
@@ -136,6 +142,9 @@ class DivisionSection extends ConsumerWidget {
           ),
         ),
         childWhenDragging: Opacity(opacity: 0.2, child: card),
+        onDragStarted: () => ref.read(isDraggingTaskProvider.notifier).state = true,
+        onDragEnd: (_) => ref.read(isDraggingTaskProvider.notifier).state = false,
+        onDraggableCanceled: (velocity, offset) => ref.read(isDraggingTaskProvider.notifier).state = false,
         child: card,
       );
 
@@ -170,7 +179,9 @@ class DivisionSection extends ConsumerWidget {
             ],
           );
         },
-      ));
+      ).animate(delay: Duration(milliseconds: i * 40))
+       .fade(duration: 150.ms)
+       .slideX(begin: 0.03, end: 0));
     }
 
     // ── Input field ────────────────────────────────────────────

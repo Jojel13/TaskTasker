@@ -17,6 +17,7 @@ class MainWrapper extends ConsumerStatefulWidget {
 class _MainWrapperState extends ConsumerState<MainWrapper> {
   int _currentIndex = 0;
   late PageController _pageController;
+  bool _isCreatingRoutine = false;
 
   @override
   void initState() {
@@ -41,23 +42,31 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
   }
 
   Future<void> _onPlusTap() async {
-    final svc = ref.read(routineServiceProvider);
-    final routine = await svc.createRoutine();
-    if (mounted) {
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (c, a1, a2) => RoutineScreen(routine: routine),
-          transitionsBuilder: (c, anim, a2, child) => SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-            child: child,
+    if (_isCreatingRoutine) return;
+    setState(() => _isCreatingRoutine = true);
+    try {
+      final svc = ref.read(routineServiceProvider);
+      final routine = await svc.createRoutine();
+      if (mounted) {
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (c, a1, a2) => RoutineScreen(routine: routine),
+            transitionsBuilder: (c, anim, a2, child) => SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 1),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+              child: child,
+            ),
+            transitionDuration: const Duration(milliseconds: 350),
           ),
-          transitionDuration: const Duration(milliseconds: 350),
-        ),
-      );
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCreatingRoutine = false);
+      }
     }
   }
 
@@ -88,10 +97,13 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
         ],
       ),
       extendBody: true,
-      bottomNavigationBar: FloatingBottomBar(
-        currentIndex: _currentIndex,
-        onNavTap: _onNavTap,
-        onPlusTap: _onPlusTap,
+      bottomNavigationBar: Opacity(
+        opacity: _isCreatingRoutine ? 0.5 : 1.0,
+        child: FloatingBottomBar(
+          currentIndex: _currentIndex,
+          onNavTap: _onNavTap,
+          onPlusTap: _isCreatingRoutine ? () {} : _onPlusTap,
+        ),
       ),
     );
   }

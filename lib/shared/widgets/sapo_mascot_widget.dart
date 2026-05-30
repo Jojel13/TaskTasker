@@ -156,9 +156,9 @@ class _SapoMascotWidgetState extends ConsumerState<SapoMascotWidget> {
           ..._hearts.map((h) => Positioned(
             top: h.dy,
             left: (widget.size / 2) + h.dx - 10,
-            child: const Icon(
+            child: Icon(
               Icons.favorite,
-              color: Color(0xFFFF2E93),
+              color: theme.secondary,
               size: 20,
             )
             .animate()

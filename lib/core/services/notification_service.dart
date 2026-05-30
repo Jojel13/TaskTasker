@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:workmanager/workmanager.dart' hide TaskStatus;
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +12,61 @@ import '../../shared/models/task.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/user_profile.dart';
 import '../../shared/models/xp_event.dart';
+
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse response) async {
+  if (response.actionId == 'action_complete_task' && response.payload != null) {
+    final taskIdStr = response.payload!.replaceFirst('complete_task_', '');
+    final taskId = int.tryParse(taskIdStr);
+    if (taskId != null) {
+      try {
+        final dir = await getApplicationDocumentsDirectory();
+        final isar = await Isar.open(
+          [RoutineSchema, RoutineDaySchema, TaskSchema, UserProfileSchema, XPEventSchema],
+          directory: dir.path,
+          name: 'tasktasker_db',
+        );
+        
+        final task = await isar.tasks.get(taskId);
+        if (task != null && task.status != TaskStatus.completed) {
+          await isar.writeTxn(() async {
+            task.status = TaskStatus.completed;
+            task.completedOnDate = DateTime.now();
+            await isar.tasks.put(task);
+            
+            final profile = await isar.userProfiles.get(1);
+            if (profile != null) {
+              int xpGained = 10;
+              if (task.color == TaskColor.red) {
+                xpGained = 20;
+              } else if (task.color == TaskColor.yellow) {
+                xpGained = 15;
+              }
+              
+              profile.totalXP += xpGained;
+              int nextLevelXp = profile.currentLevel * 100;
+              while (profile.totalXP >= nextLevelXp) {
+                profile.totalXP -= nextLevelXp;
+                profile.currentLevel++;
+                nextLevelXp = profile.currentLevel * 100;
+              }
+              await isar.userProfiles.put(profile);
+              
+              final xpEvent = XPEvent()
+                ..amount = xpGained
+                ..description = 'Concluiu task via notificação: ${task.text}'
+                ..earnedAt = DateTime.now();
+              await isar.xPEvents.put(xpEvent);
+            }
+          });
+        }
+        await isar.close();
+      } catch (e) {
+        debugPrint('Error in notificationTapBackground: $e');
+      }
+    }
+  }
+}
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -27,44 +83,101 @@ void callbackDispatcher() {
         name: 'tasktasker_db',
       );
       
+      final profile = await isar.userProfiles.get(1);
+      if (profile != null && !profile.notifEnabled) {
+        await isar.close();
+        return Future.value(true);
+      }
+
+      if (task == "weekly_summary_task") {
+        await notifService.showWeeklySummaryNotification();
+        final delay = calculateDelayUntilNextMonday9AM(DateTime.now());
+        await Workmanager().registerOneOffTask(
+          "tasktasker_weekly_summary_task",
+          "weekly_summary_task",
+          initialDelay: delay,
+          existingWorkPolicy: ExistingWorkPolicy.replace,
+        );
+        await isar.close();
+        return Future.value(true);
+      }
+      
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       
       // Find today's routine
       final routine = await isar.routines.filter().dateEqualTo(today).findFirst();
       if (routine != null) {
-        // Load days
         await routine.days.load();
         
-        bool hasEminentRedTask = false;
-        bool hasPendingYellow = false;
+        int totalRemaining = 0;
+        int urgentCount = 0;
+        List<String> activeTaskTexts = [];
+        TaskColor dominantColor = TaskColor.standard;
         
         for (final day in routine.days) {
           await day.tasks.load();
           for (final t in day.tasks) {
             if (t.status != TaskStatus.completed) {
-              if (t.color == TaskColor.red) hasEminentRedTask = true;
-              if (t.color == TaskColor.yellow) hasPendingYellow = true;
+              totalRemaining++;
+              if (t.color == TaskColor.red) {
+                urgentCount++;
+                dominantColor = TaskColor.red;
+              } else if (t.color == TaskColor.yellow) {
+                if (dominantColor != TaskColor.red) {
+                  dominantColor = TaskColor.yellow;
+                }
+              } else if (t.color == TaskColor.blue) {
+                if (dominantColor != TaskColor.red && dominantColor != TaskColor.yellow) {
+                  dominantColor = TaskColor.blue;
+                }
+              }
+              
+              if (activeTaskTexts.length < 3) {
+                activeTaskTexts.add('• ${t.text}');
+              }
             }
           }
         }
         
-        String title = 'Resumo da Rotina';
-        String body = 'Você tem tarefas para hoje.';
-        
-        if (hasEminentRedTask) {
-           title = '⚠️ Compromisso Eminente!';
-           body = 'Você tem tasks inadiáveis marcadas para hoje.';
-        } else if (hasPendingYellow) {
-           title = 'Atenção às Pendências';
-           body = 'Você possui tasks acumuladas. Vamos resolvê-las?';
+        if (totalRemaining > 0) {
+          Color ledColor;
+          switch (dominantColor) {
+            case TaskColor.red:
+              ledColor = const Color(0xFFFF3B30);
+              break;
+            case TaskColor.yellow:
+              ledColor = const Color(0xFFFFCC00);
+              break;
+            case TaskColor.blue:
+            case TaskColor.standard:
+              ledColor = const Color(0xFF007AFF);
+              break;
+          }
+          
+          String periodStr = 'dia';
+          if (now.hour >= 6 && now.hour < 12) {
+            periodStr = 'manhã';
+          } else if (now.hour >= 12 && now.hour < 18) {
+            periodStr = 'tarde';
+          } else {
+            periodStr = 'noite';
+          }
+          
+          String title = 'Como está sua rotina nesta $periodStr?';
+          String summary = '$totalRemaining tasks restantes • $urgentCount urgentes';
+          if (urgentCount == 0) {
+            summary = '$totalRemaining tasks restantes';
+          }
+          
+          await notifService.showRichDailyNotification(
+            id: now.hour * 60 + now.minute,
+            title: title,
+            summary: summary,
+            lines: activeTaskTexts,
+            ledColor: ledColor,
+          );
         }
-        
-        await notifService.showNotification(
-           id: now.hour * 60 + now.minute,
-           title: title,
-           body: body,
-        );
       }
       
       await isar.close();
@@ -93,7 +206,60 @@ class NotificationService {
       android: initializationSettingsAndroid,
     );
     
-    await _flutterLocalNotificationsPlugin.initialize(settings: initializationSettings);
+    await _flutterLocalNotificationsPlugin.initialize(
+      settings: initializationSettings,
+      onDidReceiveNotificationResponse: (response) {
+        notificationTapBackground(response);
+      },
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+    );
+
+    // Configurar Canais Separados (Android)
+    final androidPlugin = _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+            
+    if (androidPlugin != null) {
+      const List<AndroidNotificationChannel> channels = [
+        AndroidNotificationChannel(
+          'tasktasker_routine',
+          'Lembretes de Rotina',
+          description: 'Notificações diárias sobre sua rotina',
+          importance: Importance.high,
+          playSound: true,
+        ),
+        AndroidNotificationChannel(
+          'task_alarms',
+          '⏰ Alarme de Task',
+          description: 'Alarmes individuais configurados para cada tarefa',
+          importance: Importance.max,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('alarm'),
+          enableVibration: true,
+        ),
+        AndroidNotificationChannel(
+          'task_red_alert',
+          '🔴 Compromisso Urgente',
+          description: 'Notificações para tarefas vermelhas inadiáveis',
+          importance: Importance.max,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('urgent'),
+          enableVibration: true,
+        ),
+        AndroidNotificationChannel(
+          'weekly_summary',
+          '📊 Resumo Semanal',
+          description: 'Recapitulação semanal do seu desempenho',
+          importance: Importance.defaultImportance,
+          playSound: false,
+        ),
+      ];
+
+      for (final channel in channels) {
+        await androidPlugin.createNotificationChannel(channel);
+      }
+    }
+
     _initialized = true;
   }
 
@@ -103,17 +269,17 @@ class NotificationService {
     await initializeForBackground();
     
     Workmanager().initialize(
-        callbackDispatcher,
+      callbackDispatcher,
     );
     
     _initialized = true;
     
-    // Usar o banco já aberto pelo IsarService sem fechar
     final isar = IsarService.instance;
     final profile = await isar.userProfiles.get(1);
     final hours = profile?.notificationFrequencyHours ?? 6;
     
     updatePeriodicChecks(hours);
+    _scheduleWeeklySummaryTask();
   }
   
   void updatePeriodicChecks(int hours) {
@@ -124,6 +290,41 @@ class NotificationService {
       constraints: Constraints(
         requiresBatteryNotLow: true,
       ),
+    );
+  }
+
+  void _scheduleWeeklySummaryTask() {
+    final now = DateTime.now();
+    final delay = calculateDelayUntilNextMonday9AM(now);
+    Workmanager().registerOneOffTask(
+      "tasktasker_weekly_summary_task",
+      "weekly_summary_task",
+      initialDelay: delay,
+      existingWorkPolicy: ExistingWorkPolicy.keep,
+    );
+  }
+
+  Future<void> showWeeklySummaryNotification() async {
+    if (!_initialized) return;
+
+    const androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'weekly_summary',
+      '📊 Resumo Semanal',
+      channelDescription: 'Recapitulação semanal do seu desempenho',
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    await _flutterLocalNotificationsPlugin.show(
+      id: 888,
+      title: '📊 Resumo Semanal Disponível!',
+      body: 'Seu resumo da semana passada está pronto. Veja o que você conquistou! 🐸',
+      notificationDetails: platformChannelSpecifics,
     );
   }
 
@@ -146,4 +347,59 @@ class NotificationService {
       notificationDetails: platformChannelSpecifics,
     );
   }
+
+  Future<void> showRichDailyNotification({
+    required int id,
+    required String title,
+    required String summary,
+    required List<String> lines,
+    required Color ledColor,
+  }) async {
+    if (!_initialized) return;
+
+    final inboxStyle = InboxStyleInformation(
+      lines,
+      contentTitle: title,
+      summaryText: summary,
+    );
+
+    final androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'tasktasker_routine',
+      'Lembretes de Rotina',
+      channelDescription: 'Notificações diárias sobre sua rotina',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      color: ledColor,
+      enableLights: true,
+      ledColor: ledColor,
+      ledOnMs: 1000,
+      ledOffMs: 500,
+      styleInformation: inboxStyle,
+    );
+
+    final platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    await _flutterLocalNotificationsPlugin.show(
+      id: id,
+      title: title,
+      body: summary,
+      notificationDetails: platformChannelSpecifics,
+    );
+  }
+}
+
+Duration calculateDelayUntilNextMonday9AM(DateTime now) {
+  int daysUntilNextMonday = (DateTime.monday - now.weekday) % 7;
+  if (daysUntilNextMonday == 0 && now.hour >= 9) {
+    daysUntilNextMonday = 7;
+  }
+  
+  final nextMonday = DateTime(now.year, now.month, now.day)
+      .add(Duration(days: daysUntilNextMonday));
+      
+  final targetTime = DateTime(nextMonday.year, nextMonday.month, nextMonday.day, 9, 0);
+  return targetTime.difference(now);
 }

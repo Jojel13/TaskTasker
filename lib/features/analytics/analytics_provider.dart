@@ -45,12 +45,12 @@ final analyticsProvider = FutureProvider.autoDispose<AnalyticsData>((ref) async 
   final profile = await isar.userProfiles.get(1);
   final streak = profile?.streakDays ?? 0;
 
-  // Buscar todas as rotinas para os últimos 7 dias
+  // Buscar todas as rotinas para os últimos 30 dias
   final now = DateTime.now();
-  final sevenDaysAgo = now.subtract(const Duration(days: 7));
+  final thirtyDaysAgo = now.subtract(const Duration(days: 30));
   
   final recentRoutines = await isar.routines.filter()
-      .dateGreaterThan(sevenDaysAgo)
+      .dateGreaterThan(thirtyDaysAgo)
       .sortByDateDesc()
       .findAll();
 

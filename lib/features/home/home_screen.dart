@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../core/providers/core_providers.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/routine.dart';
@@ -11,6 +12,7 @@ import '../routine/routine_screen.dart';
 import 'settings_screen.dart';
 import '../dashboard/xp_dashboard_screen.dart';
 import '../analytics/analytics_screen.dart';
+import '../weekly_summary/weekly_summary_screen.dart';
 import '../../shared/widgets/xp_bar.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -92,7 +94,17 @@ class HomeScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(builder: (_) => const AnalyticsScreen()),
               ),
+            ),
 
+            // Resumo Semanal
+            _HeaderIconButton(
+              icon: Icons.date_range_rounded,
+              color: theme.primary,
+              tooltip: 'Resumo Semanal',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WeeklySummaryScreen()),
+              ),
             ),
 
             // Settings
@@ -165,7 +177,17 @@ class HomeScreen extends ConsumerWidget {
   void _openRoutine(BuildContext context, WidgetRef ref, Routine routine) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => RoutineScreen(routine: routine)),
+      PageRouteBuilder(
+        pageBuilder: (c, a1, a2) => RoutineScreen(routine: routine),
+        transitionsBuilder: (c, anim, a2, child) => SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+          child: child,
+        ),
+        transitionDuration: const Duration(milliseconds: 350),
+      ),
     );
   }
 
@@ -251,22 +273,46 @@ class _RoutineCardLoader extends ConsumerWidget {
 class _EmptyState extends ConsumerWidget {
   const _EmptyState();
 
+  Future<void> _onCreateRoutine(BuildContext context, WidgetRef ref) async {
+    final svc = ref.read(routineServiceProvider);
+    final routine = await svc.createRoutine();
+    if (context.mounted) {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (c, a1, a2) => RoutineScreen(routine: routine),
+          transitionsBuilder: (c, anim, a2, child) => SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+            child: child,
+          ),
+          transitionDuration: const Duration(milliseconds: 350),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(currentThemeProvider);
     return Center(
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: theme.primary.withValues(alpha: 0.08),
-            border: Border.all(
-              color: theme.primary.withValues(alpha: 0.3),
+        GestureDetector(
+          onTap: () => _onCreateRoutine(context, ref),
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: theme.primary.withValues(alpha: 0.08),
+              border: Border.all(
+                color: theme.primary.withValues(alpha: 0.3),
+              ),
             ),
+            child: Icon(Icons.add_rounded, color: theme.primary, size: 36),
           ),
-          child: Icon(Icons.add_rounded, color: theme.primary, size: 36),
         ),
         const SizedBox(height: 20),
         Text(
@@ -320,30 +366,45 @@ class _TodayProgressBanner extends ConsumerWidget {
              ),
              boxShadow: isPerfect ? theme.glowShadow(theme.accent, intensity: 0.3) : null,
            ),
-           child: Row(
-             children: [
-               Icon(
-                 isPerfect ? Icons.star_rounded : Icons.track_changes_rounded,
-                 color: isPerfect ? theme.taskYellow : theme.primary,
-                 size: isPerfect ? 24 : 20,
-               )
-                   .animate(target: isPerfect ? 1 : 0)
-                   .scaleXY(end: 1.2, duration: 600.ms, curve: Curves.easeOutBack)
-                   .shimmer(delay: 1000.ms, duration: 1500.ms),
-               const SizedBox(width: 12),
-               Expanded(
-                 child: Text(
-                   isPerfect ? '100% CONCLUÍDO! OTIMIZAÇÃO MÁXIMA!' : '$left tarefas restantes hoje',
-                   style: theme.fontStyleBase(TextStyle(
-                     color: isPerfect ? theme.accent : theme.textPrimary, 
-                     fontWeight: FontWeight.bold, 
-                     fontSize: isPerfect ? 14 : 13,
-                     letterSpacing: isPerfect ? 0.5 : 0,
-                   ))
-                 )
-                     .animate(target: isPerfect ? 1 : 0)
-                     .fade(duration: 400.ms),
-               ),
+            child: Row(
+              children: [
+                Icon(
+                  isPerfect ? Icons.star_rounded : Icons.track_changes_rounded,
+                  color: isPerfect ? theme.taskYellow : theme.primary,
+                  size: isPerfect ? 24 : 20,
+                )
+                    .animate(target: isPerfect ? 1 : 0)
+                    .scaleXY(end: 1.2, duration: 600.ms, curve: Curves.easeOutBack)
+                    .shimmer(delay: 1000.ms, duration: 1500.ms),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        DateFormat('EEEE, dd \'de\' MMMM', 'pt_BR').format(DateTime.now()).toUpperCase(),
+                        style: theme.fontStyleMono(TextStyle(
+                          color: theme.textMuted,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        )),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isPerfect ? '100% CONCLUÍDO! OTIMIZAÇÃO MÁXIMA!' : '$left tarefas restantes hoje',
+                        style: theme.fontStyleBase(TextStyle(
+                          color: isPerfect ? theme.accent : theme.textPrimary, 
+                          fontWeight: FontWeight.bold, 
+                          fontSize: isPerfect ? 14 : 13,
+                          letterSpacing: isPerfect ? 0.5 : 0,
+                        ))
+                      )
+                          .animate(target: isPerfect ? 1 : 0)
+                          .fade(duration: 400.ms),
+                    ],
+                  ),
+                ),
                if (!isPerfect)
                  Text(
                    '$percent%',

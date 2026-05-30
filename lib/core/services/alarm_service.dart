@@ -209,7 +209,6 @@ class AlarmService {
       ledOffMs: 500,
       vibrationPattern: vibrationPattern,
       playSound: true,
-      sound: const RawResourceAndroidNotificationSound('alarm'),
       styleInformation: bigTextStyleInfo,
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
@@ -266,7 +265,6 @@ class AlarmService {
       ledOffMs: 500,
       vibrationPattern: vibrationPattern,
       playSound: true,
-      sound: const RawResourceAndroidNotificationSound('urgent'),
       styleInformation: bigTextStyleInfo,
       ongoing: isToday,
       actions: <AndroidNotificationAction>[

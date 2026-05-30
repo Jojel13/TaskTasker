@@ -234,7 +234,6 @@ class NotificationService {
           description: 'Alarmes individuais configurados para cada tarefa',
           importance: Importance.max,
           playSound: true,
-          sound: RawResourceAndroidNotificationSound('alarm'),
           enableVibration: true,
         ),
         AndroidNotificationChannel(
@@ -243,7 +242,6 @@ class NotificationService {
           description: 'Notificações para tarefas vermelhas inadiáveis',
           importance: Importance.max,
           playSound: true,
-          sound: RawResourceAndroidNotificationSound('urgent'),
           enableVibration: true,
         ),
         AndroidNotificationChannel(

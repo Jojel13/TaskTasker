@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:isar/isar.dart';
 import '../../shared/models/routine.dart';
 import '../../shared/models/routine_day.dart';
@@ -9,6 +10,7 @@ import '../../shared/models/enums.dart';
 import 'xp_service.dart';
 import 'image_service.dart';
 import 'alarm_service.dart';
+import 'notification_service.dart';
 
 class RoutineService {
   final Isar _isar;
@@ -179,10 +181,14 @@ class RoutineService {
       return r;
     });
 
-    // Agendar alarmes
+    // Agendar alarmes (respeitando preferência de som do usuário)
+    final soundEnabled = profile.alarmSoundEnabled;
     for (final task in tasksWithAlarms) {
-      await AlarmService.scheduleAlarm(task);
+      await AlarmService.scheduleAlarm(task, soundEnabled: soundEnabled);
     }
+
+    // P5: Notificar tasks amarelas propagadas do dia anterior
+    await _notifyPendingYellowTasks(routine, notifEnabled: profile.notifEnabled);
 
     // ── Streak: verificar se o dia anterior teve tasks concluídas ─
     // Lemos o profile novamente (fora da txn anterior) para evitar
@@ -190,6 +196,38 @@ class RoutineService {
     await _checkAndFinalizeStreak(profile, today);
 
     return routine;
+  }
+
+  /// P5: Conta tasks amarelas propagadas e dispara notificação discreta se houver pendências.
+  /// [notifEnabled] vem do UserProfile para respeitar preferência global de notificações.
+  Future<void> _notifyPendingYellowTasks(Routine routine, {required bool notifEnabled}) async {
+    try {
+      // Recarregar a rotina recém-criada do banco para contar tasks amarelas
+      final routineFromDb = await _isar.routines.get(routine.id);
+      if (routineFromDb == null) return;
+      await routineFromDb.days.load();
+      int yellowCount = 0;
+      for (final day in routineFromDb.days) {
+        await day.tasks.load();
+        for (final t in day.tasks) {
+          if (t.color == TaskColor.yellow && t.status != TaskStatus.completed) {
+            yellowCount++;
+          }
+        }
+      }
+      if (yellowCount > 0 && notifEnabled) {
+        await NotificationService.instance.showTestNotification(
+          id: 998,
+          title: '📋 $yellowCount ${yellowCount == 1 ? 'tarefa pendente' : 'tarefas pendentes'} de ontem',
+          body: yellowCount == 1
+              ? 'Você tem 1 tarefa frequente pendente do dia anterior.'
+              : 'Você tem $yellowCount tarefas frequentes pendentes do dia anterior.',
+        );
+      }
+    } catch (e) {
+      // Não deixar erro aqui quebrar o fluxo principal
+      debugPrint('P5 _notifyPendingYellowTasks error: $e');
+    }
   }
 
   /// Verifica e atualiza o streak com base em tasks concluídas.
@@ -407,12 +445,26 @@ class RoutineService {
     task.color = TaskColor.red;
     task.scheduledDate = scheduledDate;
     if (task.hasAlarm) {
-      await AlarmService.cancelAlarm(task.id);
-      task.alarmTime = null;
-      task.alarmRepeat = false;
+      // Ajustar data do alarme para a nova data agendada, mantendo o horário original
+      final t = task.alarmTime!;
+      task.alarmTime = DateTime(
+        scheduledDate.year,
+        scheduledDate.month,
+        scheduledDate.day,
+        t.hour,
+        t.minute,
+      );
+      // Re-agendar alarme individual para a nova data
+      final profile = await _isar.userProfiles.get(1);
+      await AlarmService.scheduleAlarm(task, soundEnabled: profile?.alarmSoundEnabled ?? true);
     }
     await _isar.writeTxn(() => _isar.tasks.put(task));
-    await AlarmService.scheduleRedTaskNotification(task);
+    // Ler preferência de som do usuário antes de agendar
+    final profile = await _isar.userProfiles.get(1);
+    await AlarmService.scheduleRedTaskNotification(
+      task,
+      soundEnabled: profile?.alarmSoundEnabled ?? true,
+    );
   }
 
   /// Remove o status vermelho, voltando para branco.
@@ -428,11 +480,21 @@ class RoutineService {
   /// Define (ou atualiza) o alarme de uma task.
   /// [time] deve ser um DateTime com a data e hora exatas do alarme.
   /// [repeat] = true para repetir 3x a cada 5 min.
-  Future<void> setAlarm(Task task, DateTime time, {bool repeat = false}) async {
+  /// [fullScreen] = true para habilitar modo alarme completo (tela cheia).
+  Future<void> setAlarm(Task task, DateTime time, {bool repeat = false, bool fullScreen = false}) async {
     task.alarmTime = time;
     task.alarmRepeat = repeat;
+    task.alarmFullScreen = fullScreen;
     await _isar.writeTxn(() => _isar.tasks.put(task));
-    await AlarmService.scheduleAlarm(task);
+
+    // Se for uma task vermelha, precisamos recancelar a notificação padrão das 8h (slot 9)
+    if (task.color == TaskColor.red) {
+      await AlarmService.cancelRedTaskNotification(task.id);
+    }
+
+    // Ler preferência de som do usuário antes de agendar
+    final profile = await _isar.userProfiles.get(1);
+    await AlarmService.scheduleAlarm(task, soundEnabled: profile?.alarmSoundEnabled ?? true);
   }
 
   /// Remove o alarme de uma task.
@@ -440,7 +502,14 @@ class RoutineService {
     await AlarmService.cancelAlarm(task.id);
     task.alarmTime = null;
     task.alarmRepeat = false;
+    task.alarmFullScreen = false;
     await _isar.writeTxn(() => _isar.tasks.put(task));
+
+    // Se for vermelha, ao limpar o alarme individual devemos re-agendar a notificação padrão das 8h (slot 9)
+    if (task.color == TaskColor.red) {
+      final profile = await _isar.userProfiles.get(1);
+      await AlarmService.scheduleRedTaskNotification(task, soundEnabled: profile?.alarmSoundEnabled ?? true);
+    }
   }
 
   Future<void> updateTaskSortOrder(List<Task> tasks) async {
@@ -587,14 +656,24 @@ class RoutineService {
 
   Task _copyTask(Task src, TaskColor color, DateTime targetDate) {
     DateTime? newAlarmTime;
+    bool newAlarmRepeat = src.alarmRepeat;
+
     if (src.alarmTime != null) {
-      newAlarmTime = DateTime(
+      final candidate = DateTime(
         targetDate.year,
         targetDate.month,
         targetDate.day,
         src.alarmTime!.hour,
         src.alarmTime!.minute,
       );
+      // P1: Se o horário calculado para hoje já passou, descartamos o alarme
+      // para evitar badge ⏰ "fantasma" sem notificação real agendada.
+      if (candidate.isAfter(DateTime.now())) {
+        newAlarmTime = candidate;
+      } else {
+        newAlarmTime = null;
+        newAlarmRepeat = false;
+      }
     }
 
     final copiedSubtasks = _copySubtasks(src, color);
@@ -623,7 +702,8 @@ class RoutineService {
       ..hasImage = src.hasImage
       ..hasSubtasks = src.hasSubtasks
       ..alarmTime = newAlarmTime
-      ..alarmRepeat = src.alarmRepeat
+      ..alarmRepeat = newAlarmRepeat
+      ..alarmFullScreen = src.alarmFullScreen
       ..subtasks = copiedSubtasks;
     return copy;
   }

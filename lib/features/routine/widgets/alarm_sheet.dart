@@ -31,6 +31,7 @@ class AlarmSheet extends ConsumerStatefulWidget {
 class _AlarmSheetState extends ConsumerState<AlarmSheet> {
   late TimeOfDay _selectedTime;
   late bool _repeat;
+  late bool _fullScreen;
   bool _saving = false;
 
   @override
@@ -46,6 +47,7 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
       _selectedTime = TimeOfDay(hour: nextHour, minute: nextMin);
     }
     _repeat = widget.task.alarmRepeat;
+    _fullScreen = widget.task.alarmFullScreen;
   }
 
   Future<void> _pickTime(AppThemeData theme) async {
@@ -94,6 +96,7 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
         widget.task,
         alarmDateTime,
         repeat: _repeat,
+        fullScreen: _fullScreen,
       );
 
       if (mounted) {
@@ -328,6 +331,100 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
                     child: AnimatedAlign(
                       duration: const Duration(milliseconds: 200),
                       alignment: _repeat
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.all(2),
+                        width: 20,
+                        height: 20,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Toggle "Modo Alarme Completo (Tela Cheia)"
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _fullScreen = !_fullScreen);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: _fullScreen
+                    ? theme.primary.withValues(alpha: 0.08)
+                    : theme.surfaceVariant,
+                borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius),
+                border: Border.all(
+                  color: _fullScreen
+                      ? theme.primary.withValues(alpha: 0.35)
+                      : theme.border,
+                  width: _fullScreen ? 1 : 0.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.fullscreen_rounded,
+                    color: _fullScreen ? theme.primary : theme.textMuted,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Modo Alarme (Tela Cheia)',
+                          style: theme.fontStyleBase(TextStyle(
+                            fontSize: 14,
+                            fontWeight: _fullScreen
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          )).copyWith(
+                            color: _fullScreen
+                                ? theme.textPrimary
+                                : theme.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          'Exibe tela cheia ao disparar (apenas Android)',
+                          style: theme.fontStyleBase(TextStyle(
+                            color: theme.textMuted,
+                            fontSize: 11,
+                          )),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 44,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: _fullScreen
+                          ? theme.primary
+                          : theme.surfaceVariant,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: _fullScreen
+                              ? theme.primary
+                              : theme.border),
+                    ),
+                    child: AnimatedAlign(
+                      duration: const Duration(milliseconds: 200),
+                      alignment: _fullScreen
                           ? Alignment.centerRight
                           : Alignment.centerLeft,
                       child: Container(

@@ -52,7 +52,8 @@ class AlarmService {
 
   /// Agenda uma (ou três) notificação(ões) para a task.
   /// Chama [cancelAlarm] antes de agendar para evitar duplicatas.
-  static Future<void> scheduleAlarm(Task task) async {
+  /// [soundEnabled] respeita a preferência do usuário (UserProfile.alarmSoundEnabled).
+  static Future<void> scheduleAlarm(Task task, {bool soundEnabled = true}) async {
     if (task.alarmTime == null) return;
 
     await cancelAlarm(task.id);
@@ -66,13 +67,13 @@ class AlarmService {
     // Converter para TZDateTime no fuso local
     final tz.TZDateTime tzAlarm = tz.TZDateTime.from(alarmAt, tz.local);
 
-    // ── Notificação principal ───────────────────────────────────────
+    // ── Notificação principal ──────────────────────────────────────────────────────
     await _plugin.zonedSchedule(
       id: _notifId(task.id, 0),
       title: '⏰ ${task.text}',
       body: _body(task, 1),
       scheduledDate: tzAlarm,
-      notificationDetails: _details(task, 1),
+      notificationDetails: _details(task, 1, soundEnabled: soundEnabled),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       payload: 'complete_task_${task.id}',
     );
@@ -86,7 +87,7 @@ class AlarmService {
           title: '⏰ ${task.text} (${i + 1}/3)',
           body: _body(task, i + 1),
           scheduledDate: tzRepeat,
-          notificationDetails: _details(task, i + 1),
+          notificationDetails: _details(task, i + 1, soundEnabled: soundEnabled),
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           payload: 'complete_task_${task.id}',
         );
@@ -103,12 +104,16 @@ class AlarmService {
     }
   }
 
-  /// Agenda a notificação para a task vermelha às 8h da manhã na data agendada
-  static Future<void> scheduleRedTaskNotification(Task task) async {
+  /// Agenda a notificação para a task vermelha às 8h da manhã na data agendada.
+  /// [soundEnabled] respeita a preferência do usuário (UserProfile.alarmSoundEnabled).
+  static Future<void> scheduleRedTaskNotification(Task task, {bool soundEnabled = true}) async {
     if (task.color != TaskColor.red || task.scheduledDate == null) return;
 
     final notifId = _notifId(task.id, 9); // slot 9 para task vermelha
     await cancelRedTaskNotification(task.id);
+
+    // P7: Se a task vermelha tiver alarme individual, cancelamos a notificação padrão das 8h
+    if (task.alarmTime != null) return;
 
     final scheduledDay = task.scheduledDate!;
     // Criar a data agendada para 8:00 AM no timezone local
@@ -130,7 +135,7 @@ class AlarmService {
       title: '⚠️ Compromisso Eminente!',
       body: 'Compromisso hoje: ${task.text}',
       scheduledDate: tzAlarm,
-      notificationDetails: _redTaskDetails(task),
+      notificationDetails: _redTaskDetails(task, soundEnabled: soundEnabled),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       payload: 'complete_task_${task.id}',
     );
@@ -162,7 +167,7 @@ class AlarmService {
     return 'Disparo $shot/3 · ${shot < 3 ? "Próximo em 5 min" : "Último lembrete"}';
   }
 
-  static NotificationDetails _details(Task task, int shot) {
+  static NotificationDetails _details(Task task, int shot, {bool soundEnabled = true}) {
     Color ledColor;
     if (shot > 1) {
       ledColor = const Color(0xFFFF9500); // Âmbar para repetições
@@ -208,8 +213,9 @@ class AlarmService {
       ledOnMs: 1000,
       ledOffMs: 500,
       vibrationPattern: vibrationPattern,
-      playSound: true,
+      playSound: soundEnabled,
       styleInformation: bigTextStyleInfo,
+      fullScreenIntent: task.alarmFullScreen,
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'action_complete_task',
@@ -229,7 +235,7 @@ class AlarmService {
     return NotificationDetails(android: androidDetails, iOS: iosDetails);
   }
 
-  static NotificationDetails _redTaskDetails(Task task) {
+  static NotificationDetails _redTaskDetails(Task task, {bool soundEnabled = true}) {
     final Int64List vibrationPattern = Int64List.fromList([0, 800, 300, 800, 300, 800]);
     
     final now = DateTime.now();
@@ -264,9 +270,10 @@ class AlarmService {
       ledOnMs: 1000,
       ledOffMs: 500,
       vibrationPattern: vibrationPattern,
-      playSound: true,
+      playSound: soundEnabled,
       styleInformation: bigTextStyleInfo,
       ongoing: isToday,
+      fullScreenIntent: task.alarmFullScreen,
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'action_complete_task',

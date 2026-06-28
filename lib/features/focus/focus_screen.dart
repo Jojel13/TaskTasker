@@ -92,7 +92,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
 
     // 3. Feedback e Notificação
     HapticFeedback.vibrate();
-    await NotificationService.instance.showNotification(
+    await NotificationService.instance.showTestNotification(
       id: widget.task.id,
       title: '🎯 Foco Concluído!',
       body: 'Sessão de foco completada para: ${widget.task.text}. +8 XP!',

@@ -17,92 +17,97 @@ const TaskSchema = CollectionSchema(
   name: r'Task',
   id: 2998003626758701373,
   properties: {
-    r'alarmRepeat': PropertySchema(
+    r'alarmFullScreen': PropertySchema(
       id: 0,
+      name: r'alarmFullScreen',
+      type: IsarType.bool,
+    ),
+    r'alarmRepeat': PropertySchema(
+      id: 1,
       name: r'alarmRepeat',
       type: IsarType.bool,
     ),
     r'alarmTime': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'alarmTime',
       type: IsarType.dateTime,
     ),
     r'color': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'color',
       type: IsarType.string,
       enumMap: _TaskcolorEnumValueMap,
     ),
     r'completedOnDate': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'completedOnDate',
       type: IsarType.dateTime,
     ),
     r'createdAt': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'createdAt',
       type: IsarType.dateTime,
     ),
     r'focusCount': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'focusCount',
       type: IsarType.long,
     ),
     r'frequency': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'frequency',
       type: IsarType.string,
       enumMap: _TaskfrequencyEnumValueMap,
     ),
     r'frequencyDays': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'frequencyDays',
       type: IsarType.longList,
     ),
     r'hasImage': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'hasImage',
       type: IsarType.bool,
     ),
     r'hasSubtasks': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'hasSubtasks',
       type: IsarType.bool,
     ),
     r'imageFileName': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'imageFileName',
       type: IsarType.string,
     ),
     r'lastAppearedDate': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'lastAppearedDate',
       type: IsarType.dateTime,
     ),
     r'scheduledDate': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'scheduledDate',
       type: IsarType.dateTime,
     ),
     r'sortOrder': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'sortOrder',
       type: IsarType.long,
     ),
     r'status': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'status',
       type: IsarType.string,
       enumMap: _TaskstatusEnumValueMap,
     ),
     r'subtasks': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'subtasks',
       type: IsarType.objectList,
       target: r'Subtask',
     ),
     r'text': PropertySchema(
-      id: 16,
+      id: 17,
       name: r'text',
       type: IsarType.string,
     )
@@ -155,28 +160,29 @@ void _taskSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeBool(offsets[0], object.alarmRepeat);
-  writer.writeDateTime(offsets[1], object.alarmTime);
-  writer.writeString(offsets[2], object.color.name);
-  writer.writeDateTime(offsets[3], object.completedOnDate);
-  writer.writeDateTime(offsets[4], object.createdAt);
-  writer.writeLong(offsets[5], object.focusCount);
-  writer.writeString(offsets[6], object.frequency.name);
-  writer.writeLongList(offsets[7], object.frequencyDays);
-  writer.writeBool(offsets[8], object.hasImage);
-  writer.writeBool(offsets[9], object.hasSubtasks);
-  writer.writeString(offsets[10], object.imageFileName);
-  writer.writeDateTime(offsets[11], object.lastAppearedDate);
-  writer.writeDateTime(offsets[12], object.scheduledDate);
-  writer.writeLong(offsets[13], object.sortOrder);
-  writer.writeString(offsets[14], object.status.name);
+  writer.writeBool(offsets[0], object.alarmFullScreen);
+  writer.writeBool(offsets[1], object.alarmRepeat);
+  writer.writeDateTime(offsets[2], object.alarmTime);
+  writer.writeString(offsets[3], object.color.name);
+  writer.writeDateTime(offsets[4], object.completedOnDate);
+  writer.writeDateTime(offsets[5], object.createdAt);
+  writer.writeLong(offsets[6], object.focusCount);
+  writer.writeString(offsets[7], object.frequency.name);
+  writer.writeLongList(offsets[8], object.frequencyDays);
+  writer.writeBool(offsets[9], object.hasImage);
+  writer.writeBool(offsets[10], object.hasSubtasks);
+  writer.writeString(offsets[11], object.imageFileName);
+  writer.writeDateTime(offsets[12], object.lastAppearedDate);
+  writer.writeDateTime(offsets[13], object.scheduledDate);
+  writer.writeLong(offsets[14], object.sortOrder);
+  writer.writeString(offsets[15], object.status.name);
   writer.writeObjectList<Subtask>(
-    offsets[15],
+    offsets[16],
     allOffsets,
     SubtaskSchema.serialize,
     object.subtasks,
   );
-  writer.writeString(offsets[16], object.text);
+  writer.writeString(offsets[17], object.text);
 }
 
 Task _taskDeserialize(
@@ -186,35 +192,36 @@ Task _taskDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = Task();
-  object.alarmRepeat = reader.readBool(offsets[0]);
-  object.alarmTime = reader.readDateTimeOrNull(offsets[1]);
-  object.color = _TaskcolorValueEnumMap[reader.readStringOrNull(offsets[2])] ??
+  object.alarmFullScreen = reader.readBool(offsets[0]);
+  object.alarmRepeat = reader.readBool(offsets[1]);
+  object.alarmTime = reader.readDateTimeOrNull(offsets[2]);
+  object.color = _TaskcolorValueEnumMap[reader.readStringOrNull(offsets[3])] ??
       TaskColor.standard;
-  object.completedOnDate = reader.readDateTimeOrNull(offsets[3]);
-  object.createdAt = reader.readDateTime(offsets[4]);
-  object.focusCount = reader.readLong(offsets[5]);
+  object.completedOnDate = reader.readDateTimeOrNull(offsets[4]);
+  object.createdAt = reader.readDateTime(offsets[5]);
+  object.focusCount = reader.readLong(offsets[6]);
   object.frequency =
-      _TaskfrequencyValueEnumMap[reader.readStringOrNull(offsets[6])] ??
+      _TaskfrequencyValueEnumMap[reader.readStringOrNull(offsets[7])] ??
           FrequencyType.daily;
-  object.frequencyDays = reader.readLongList(offsets[7]) ?? [];
-  object.hasImage = reader.readBool(offsets[8]);
-  object.hasSubtasks = reader.readBool(offsets[9]);
+  object.frequencyDays = reader.readLongList(offsets[8]) ?? [];
+  object.hasImage = reader.readBool(offsets[9]);
+  object.hasSubtasks = reader.readBool(offsets[10]);
   object.id = id;
-  object.imageFileName = reader.readStringOrNull(offsets[10]);
-  object.lastAppearedDate = reader.readDateTimeOrNull(offsets[11]);
-  object.scheduledDate = reader.readDateTimeOrNull(offsets[12]);
-  object.sortOrder = reader.readLong(offsets[13]);
+  object.imageFileName = reader.readStringOrNull(offsets[11]);
+  object.lastAppearedDate = reader.readDateTimeOrNull(offsets[12]);
+  object.scheduledDate = reader.readDateTimeOrNull(offsets[13]);
+  object.sortOrder = reader.readLong(offsets[14]);
   object.status =
-      _TaskstatusValueEnumMap[reader.readStringOrNull(offsets[14])] ??
+      _TaskstatusValueEnumMap[reader.readStringOrNull(offsets[15])] ??
           TaskStatus.active;
   object.subtasks = reader.readObjectList<Subtask>(
-        offsets[15],
+        offsets[16],
         SubtaskSchema.deserialize,
         allOffsets,
         Subtask(),
       ) ??
       [];
-  object.text = reader.readString(offsets[16]);
+  object.text = reader.readString(offsets[17]);
   return object;
 }
 
@@ -228,37 +235,39 @@ P _taskDeserializeProp<P>(
     case 0:
       return (reader.readBool(offset)) as P;
     case 1:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 2:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 3:
       return (_TaskcolorValueEnumMap[reader.readStringOrNull(offset)] ??
           TaskColor.standard) as P;
-    case 3:
-      return (reader.readDateTimeOrNull(offset)) as P;
     case 4:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 5:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 6:
+      return (reader.readLong(offset)) as P;
+    case 7:
       return (_TaskfrequencyValueEnumMap[reader.readStringOrNull(offset)] ??
           FrequencyType.daily) as P;
-    case 7:
-      return (reader.readLongList(offset) ?? []) as P;
     case 8:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLongList(offset) ?? []) as P;
     case 9:
       return (reader.readBool(offset)) as P;
     case 10:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 11:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 12:
       return (reader.readDateTimeOrNull(offset)) as P;
     case 13:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 14:
+      return (reader.readLong(offset)) as P;
+    case 15:
       return (_TaskstatusValueEnumMap[reader.readStringOrNull(offset)] ??
           TaskStatus.active) as P;
-    case 15:
+    case 16:
       return (reader.readObjectList<Subtask>(
             offset,
             SubtaskSchema.deserialize,
@@ -266,7 +275,7 @@ P _taskDeserializeProp<P>(
             Subtask(),
           ) ??
           []) as P;
-    case 16:
+    case 17:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -396,6 +405,16 @@ extension TaskQueryWhere on QueryBuilder<Task, Task, QWhereClause> {
 }
 
 extension TaskQueryFilter on QueryBuilder<Task, Task, QFilterCondition> {
+  QueryBuilder<Task, Task, QAfterFilterCondition> alarmFullScreenEqualTo(
+      bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'alarmFullScreen',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<Task, Task, QAfterFilterCondition> alarmRepeatEqualTo(
       bool value) {
     return QueryBuilder.apply(this, (query) {
@@ -1806,6 +1825,18 @@ extension TaskQueryObject on QueryBuilder<Task, Task, QFilterCondition> {
 extension TaskQueryLinks on QueryBuilder<Task, Task, QFilterCondition> {}
 
 extension TaskQuerySortBy on QueryBuilder<Task, Task, QSortBy> {
+  QueryBuilder<Task, Task, QAfterSortBy> sortByAlarmFullScreen() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'alarmFullScreen', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> sortByAlarmFullScreenDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'alarmFullScreen', Sort.desc);
+    });
+  }
+
   QueryBuilder<Task, Task, QAfterSortBy> sortByAlarmRepeat() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'alarmRepeat', Sort.asc);
@@ -1988,6 +2019,18 @@ extension TaskQuerySortBy on QueryBuilder<Task, Task, QSortBy> {
 }
 
 extension TaskQuerySortThenBy on QueryBuilder<Task, Task, QSortThenBy> {
+  QueryBuilder<Task, Task, QAfterSortBy> thenByAlarmFullScreen() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'alarmFullScreen', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> thenByAlarmFullScreenDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'alarmFullScreen', Sort.desc);
+    });
+  }
+
   QueryBuilder<Task, Task, QAfterSortBy> thenByAlarmRepeat() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'alarmRepeat', Sort.asc);
@@ -2182,6 +2225,12 @@ extension TaskQuerySortThenBy on QueryBuilder<Task, Task, QSortThenBy> {
 }
 
 extension TaskQueryWhereDistinct on QueryBuilder<Task, Task, QDistinct> {
+  QueryBuilder<Task, Task, QDistinct> distinctByAlarmFullScreen() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'alarmFullScreen');
+    });
+  }
+
   QueryBuilder<Task, Task, QDistinct> distinctByAlarmRepeat() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'alarmRepeat');
@@ -2289,6 +2338,12 @@ extension TaskQueryProperty on QueryBuilder<Task, Task, QQueryProperty> {
   QueryBuilder<Task, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<Task, bool, QQueryOperations> alarmFullScreenProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'alarmFullScreen');
     });
   }
 

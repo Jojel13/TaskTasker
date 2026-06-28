@@ -18,6 +18,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/services/xp_service.dart';
+import '../../../shared/models/user_profile.dart';
 import 'dart:ui' as ui;
 
 class TaskCard extends ConsumerStatefulWidget {
@@ -328,11 +329,12 @@ class _TaskCardState extends ConsumerState<TaskCard> {
         ],
       ),
 
-      startActionPane: (!widget.isReadOnly &&
-              widget.task.color != TaskColor.red)
+      startActionPane: !widget.isReadOnly
           ? ActionPane(
               motion: const DrawerMotion(),
-              extentRatio: widget.task.color == TaskColor.blue ? 0.75 : 0.50,
+              extentRatio: widget.task.color == TaskColor.blue 
+                  ? 0.75 
+                  : (widget.task.color == TaskColor.red ? 0.25 : 0.50),
               children: [
                 if (widget.task.color == TaskColor.blue)
                   SlidableAction(
@@ -344,40 +346,41 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     padding: EdgeInsets.zero,
                   ),
 
-                SlidableAction(
-                  onPressed: (_) async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: widget.task.scheduledDate ??
-                          DateTime.now().add(const Duration(days: 1)),
-                      firstDate: DateTime.now(),
-                      lastDate:
-                          DateTime.now().add(const Duration(days: 365)),
-                      builder: (context, child) => Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: ColorScheme.dark(
-                            primary: theme.taskRed,
-                            onPrimary: Colors.white,
-                            surface: theme.background,
-                            onSurface: Colors.white,
+                if (widget.task.color != TaskColor.red)
+                  SlidableAction(
+                    onPressed: (_) async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: widget.task.scheduledDate ??
+                            DateTime.now().add(const Duration(days: 1)),
+                        firstDate: DateTime.now(),
+                        lastDate:
+                            DateTime.now().add(const Duration(days: 365)),
+                        builder: (context, child) => Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: ColorScheme.dark(
+                              primary: theme.taskRed,
+                              onPrimary: Colors.white,
+                              surface: theme.background,
+                              onSurface: Colors.white,
+                            ),
                           ),
+                          child: child!,
                         ),
-                        child: child!,
-                      ),
-                    );
-                    if (date != null && context.mounted) {
-                      await ref
-                          .read(routineServiceProvider)
-                          .setTaskRed(widget.task, date);
-                      setState(() {});
-                    }
-                  },
-                  backgroundColor:
-                      theme.taskRed.withValues(alpha: 0.12),
-                  foregroundColor: theme.taskRed,
-                  icon: Icons.calendar_today_rounded,
-                  padding: EdgeInsets.zero,
-                ),
+                      );
+                      if (date != null && context.mounted) {
+                        await ref
+                            .read(routineServiceProvider)
+                            .setTaskRed(widget.task, date);
+                        setState(() {});
+                      }
+                    },
+                    backgroundColor:
+                        theme.taskRed.withValues(alpha: 0.12),
+                    foregroundColor: theme.taskRed,
+                    icon: Icons.calendar_today_rounded,
+                    padding: EdgeInsets.zero,
+                  ),
 
                 SlidableAction(
                   onPressed: (_) =>
@@ -620,7 +623,12 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                       await isar.writeTxn(() async {
                         await isar.tasks.put(widget.task);
                       });
-                      await AlarmService.scheduleRedTaskNotification(widget.task);
+                      // Ler preferência de som do usuário
+                      final profile = await isar.userProfiles.get(1);
+                      await AlarmService.scheduleRedTaskNotification(
+                        widget.task,
+                        soundEnabled: profile?.alarmSoundEnabled ?? true,
+                      );
                       ref.invalidate(radarProvider);
                       setState(() {});
                     }

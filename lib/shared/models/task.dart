@@ -43,6 +43,9 @@ class Task {
   /// Se true: dispara 3 notificações com intervalo de 5 min
   bool alarmRepeat = false;
 
+  /// Se true: dispara no modo tela cheia (comportamento alarm clock no Android)
+  bool alarmFullScreen = false;
+
   // ─── Cache para evitar queries extras no UI ──────────────────
   bool hasImage = false;
   bool hasSubtasks = false;

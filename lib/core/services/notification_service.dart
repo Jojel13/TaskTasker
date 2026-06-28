@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' show Color;
+import 'package:flutter/material.dart' show Color, ValueNotifier;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:workmanager/workmanager.dart' hide TaskStatus;
 import 'package:path_provider/path_provider.dart';
@@ -12,6 +12,12 @@ import '../../shared/models/task.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/user_profile.dart';
 import '../../shared/models/xp_event.dart';
+
+/// P3: Notifier global que comunica ao UI qual taskId foi tocado na notificação.
+/// Quando o usuário toca no corpo da notificação (não no botão inline),
+/// este notifier recebe o ID. O [MainWrapper] escuta e navega para a task.
+/// O valor é null quando não há navegação pendente.
+final ValueNotifier<int?> pendingTaskIdNotifier = ValueNotifier<int?>(null);
 
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse response) async {
@@ -209,7 +215,7 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (response) {
-        notificationTapBackground(response);
+        _handleForegroundNotificationResponse(response);
       },
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
@@ -259,6 +265,41 @@ class NotificationService {
     }
 
     _initialized = true;
+  }
+
+  /// P3: Handler para respostas de notificações em foreground.
+  /// - Boto inline 'action_complete_task' → delega para [notificationTapBackground]
+  /// - Toque genérico (sem actionId) → sinaliza [pendingTaskIdNotifier] para navegação
+  void _handleForegroundNotificationResponse(NotificationResponse response) {
+    if (response.actionId == 'action_complete_task') {
+      // Completar task via botão inline (comportamento original)
+      notificationTapBackground(response);
+      return;
+    }
+
+    // Toque genérico no corpo da notificação: navegar para a task
+    if (response.payload != null && response.payload!.startsWith('complete_task_')) {
+      final taskIdStr = response.payload!.replaceFirst('complete_task_', '');
+      final taskId = int.tryParse(taskIdStr);
+      if (taskId != null) {
+        pendingTaskIdNotifier.value = taskId;
+      }
+    }
+  }
+
+  /// P3: Verifica se há task pendente de navegação ao abrir o app (cold start).
+  /// Deve ser chamado no [SplashScreen] após o carregamento do Isar.
+  Future<int?> checkLaunchNotification() async {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return null;
+    final details = await _flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp == true && details?.notificationResponse?.payload != null) {
+      final payload = details!.notificationResponse!.payload!;
+      if (payload.startsWith('complete_task_')) {
+        final taskIdStr = payload.replaceFirst('complete_task_', '');
+        return int.tryParse(taskIdStr);
+      }
+    }
+    return null;
   }
 
   Future<void> initialize() async {
@@ -326,18 +367,22 @@ class NotificationService {
     );
   }
 
-  Future<void> showNotification({required int id, required String title, required String body}) async {
+  /// Exibe uma notificação de teste imediata (usada pelo botão "Testar Notificação"
+  /// nas Configurações). Usa o canal [tasktasker_routine] já registrado formalmente.
+  Future<void> showTestNotification({required int id, required String title, required String body}) async {
     if (!_initialized) return;
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
-      'tasktasker_channel', 
-      'TaskTasker Notifications',
-      importance: Importance.max,
+      'tasktasker_routine',
+      'Lembretes de Rotina',
+      channelDescription: 'Notificações diárias sobre sua rotina',
+      importance: Importance.high,
       priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
     );
     const NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
-        
+
     await _flutterLocalNotificationsPlugin.show(
       id: id,
       title: title,

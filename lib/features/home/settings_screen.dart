@@ -120,10 +120,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _testNotification() async {
     final theme = ref.read(currentThemeProvider);
-    await NotificationService.instance.showNotification(
+    await NotificationService.instance.showTestNotification(
       id: 999,
-      title: '⏰ Teste de Alarme',
-      body: 'Este é um teste de alarme configurado para o canal principal.',
+      title: '⏰ Teste de Notificação',
+      body: 'Este é um teste de notificação pelo canal de Lembretes de Rotina.',
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

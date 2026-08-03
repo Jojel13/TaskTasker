@@ -100,7 +100,7 @@ final radarProvider = StreamProvider<List<RadarTaskInfo>>((ref) {
   Future<void> runQuery() async {
     final myVersion = ++queryVersion;
     try {
-      final routines = await isar.routines.where().anyDate().sortByDateDesc().findAll();
+      final routines = await ref.read(routineServiceProvider).allRoutines();
       final latestRoutine = routines.isNotEmpty ? routines.first : null;
       if (myVersion != queryVersion || controller.isClosed) return;
       if (latestRoutine == null) {

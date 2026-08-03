@@ -16,7 +16,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final _formKey = GlobalKey<FormState>();
+  late final GlobalKey<FormState> _formKey;
   
   late TextEditingController _routineNameCtrl;
   late TextEditingController _morningCtrl;
@@ -35,6 +35,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _formKey = GlobalKey<FormState>();
     _routineNameCtrl = TextEditingController();
     _morningCtrl = TextEditingController();
     _afternoonCtrl = TextEditingController();

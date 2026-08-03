@@ -37,7 +37,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
   }
 
   void _startTimer() {
-    if (_timer != null) return;
+    // AVISO-06: proteger com _isRunning (semântico) em vez de _timer != null
+    if (_isRunning) return;
     setState(() => _isRunning = true);
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -129,6 +130,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                 Navigator.pop(ctx);
                 final routineService = ref.read(routineServiceProvider);
                 await routineService.toggleTask(widget.task);
+                // BUG-13: invalidar providers para atualizar a tela de rotina e o radar
+                ref.invalidate(radarProvider);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

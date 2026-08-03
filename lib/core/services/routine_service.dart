@@ -97,6 +97,8 @@ class RoutineService {
           for (final t in tasks) {
             if (t.color == TaskColor.red) {
               final sched = t.scheduledDate;
+              // BUG-11: não propagar tasks vermelhas já concluídas
+              if (t.status == TaskStatus.completed) continue;
               if (sched == null || sched.isBefore(today)) continue; // expirada → skip
               eligible.add(t);
             } else if (t.color == TaskColor.yellow) {
@@ -454,13 +456,15 @@ class RoutineService {
         t.hour,
         t.minute,
       );
-      // Re-agendar alarme individual para a nova data
-      final profile = await _isar.userProfiles.get(1);
-      await AlarmService.scheduleAlarm(task, soundEnabled: profile?.alarmSoundEnabled ?? true);
     }
+    // BUG-07: salvar no banco ANTES de agendar alarme para garantir consistência
     await _isar.writeTxn(() => _isar.tasks.put(task));
     // Ler preferência de som do usuário antes de agendar
     final profile = await _isar.userProfiles.get(1);
+    if (task.hasAlarm) {
+      // Re-agendar alarme individual para a nova data
+      await AlarmService.scheduleAlarm(task, soundEnabled: profile?.alarmSoundEnabled ?? true);
+    }
     await AlarmService.scheduleRedTaskNotification(
       task,
       soundEnabled: profile?.alarmSoundEnabled ?? true,
@@ -469,6 +473,13 @@ class RoutineService {
 
   /// Remove o status vermelho, voltando para branco.
   Future<void> clearTaskRed(Task task) async {
+    // BUG-12: cancelar também o alarme individual (slots 0-2) além do slot 9
+    if (task.hasAlarm) {
+      await AlarmService.cancelAlarm(task.id);
+      task.alarmTime = null;
+      task.alarmRepeat = false;
+      task.alarmFullScreen = false;
+    }
     task.color = TaskColor.standard;
     task.scheduledDate = null;
     await _isar.writeTxn(() => _isar.tasks.put(task));
@@ -584,9 +595,10 @@ class RoutineService {
     if (allBlueTasks.isEmpty) return result;
 
     // Agrupar por texto para obter a versão mais recente
+    // BUG-10: normalizar texto (lowercase + trim) para evitar duplicatas por capitalização
     final Map<String, Task> latestTaskMap = {};
     for (final t in allBlueTasks) {
-      final text = t.text.trim();
+      final text = t.text.trim().toLowerCase();
       final existing = latestTaskMap[text];
       if (existing == null || t.createdAt.isAfter(existing.createdAt)) {
         latestTaskMap[text] = t;
@@ -598,7 +610,8 @@ class RoutineService {
       final latestTask = entry.value;
 
       // Evita duplicidade se já está vindo via divisão amanhã
-      if (tomorrowTexts.contains(text)) continue;
+      // BUG-10: comparar também em lowercase
+      if (tomorrowTexts.any((t) => t.trim().toLowerCase() == text)) continue;
 
       // Encontrar a rotina mais recente onde esta task deveria ter aparecido
       Routine? mostRecentEligibleRoutine;

@@ -157,10 +157,12 @@ class AlarmService {
 
   // ─── Helpers ─────────────────────────────────────────────────────
 
-  /// ID único por (taskId, slotIndex). Começa em 10000 para
-  /// não colidir com o NotificationService (que usa IDs baixos).
+  /// ID \u00fanico por (taskId, slotIndex). Come\u00e7a em 100000 para
+  /// n\u00e3o colidir com o NotificationService (que usa IDs baixos: 888, 998, 999, etc).
+  /// F\u00f3rmula: 100000 + (taskId % 2000000) * 10 + slot
+  /// Garante espa\u00e7o seguro at\u00e9 taskId ~200000 antes de qualquer risco de colis\u00e3o.
   static int _notifId(int taskId, int slot) =>
-      (10000 + (taskId * 10 + slot).abs()) % 2147483647;
+      (100000 + (taskId.abs() % 200000) * 10 + slot) % 2147483647;
 
   static String _body(Task task, int shot) {
     if (!task.alarmRepeat) return 'Toque para abrir o TaskTasker';

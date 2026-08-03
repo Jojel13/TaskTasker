@@ -33,6 +33,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
   final GlobalKey _exportBoundaryKey = GlobalKey();
 
   Future<void> _exportAsImage(AppThemeData theme, List<RoutineDay> days) async {
+    // BUG-04: capturar theme localmente no início para evitar uso stale no catch
+    final localTheme = theme;
     try {
       final boundary = _exportBoundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return;
@@ -57,8 +59,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao exportar imagem: $e', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
-            backgroundColor: theme.taskRed,
+            content: Text('Erro ao exportar imagem: $e', style: localTheme.fontStyleBase(const TextStyle(color: Colors.white))),
+            backgroundColor: localTheme.taskRed,
           ),
         );
       }

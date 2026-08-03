@@ -8,7 +8,6 @@ import '../../../core/theme/theme_config.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
 import '../../../core/services/image_service.dart';
-import '../../../core/services/alarm_service.dart';
 import 'task_settings_sheet.dart';
 import 'alarm_sheet.dart';
 import '../task_tree_screen.dart';
@@ -18,7 +17,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/services/xp_service.dart';
-import '../../../shared/models/user_profile.dart';
 import 'dart:ui' as ui;
 
 class TaskCard extends ConsumerStatefulWidget {
@@ -179,7 +177,14 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   } catch (e) {
                     widget.task.text = originalText;
                     widget.task.createdAt = originalCreatedAt;
-                    rethrow;
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Erro ao salvar tarefa: $e', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+                          backgroundColor: theme.taskRed,
+                        ),
+                      );
+                    }
                   }
                 }
               },
@@ -383,8 +388,11 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   ),
 
                 SlidableAction(
-                  onPressed: (_) =>
-                      AlarmSheet.show(context, widget.task),
+                  // AVISO-07: await + setState após fechar para atualizar badge de alarme
+                  onPressed: (_) async {
+                    await AlarmSheet.show(context, widget.task);
+                    if (mounted) setState(() {});
+                  },
                   backgroundColor: theme.primary.withValues(alpha: 0.12),
                   foregroundColor: theme.primary,
                   icon: widget.task.hasAlarm
@@ -618,17 +626,8 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                       ),
                     );
                     if (date != null && context.mounted) {
-                      widget.task.scheduledDate = date;
-                      final isar = ref.read(isarProvider);
-                      await isar.writeTxn(() async {
-                        await isar.tasks.put(widget.task);
-                      });
-                      // Ler preferência de som do usuário
-                      final profile = await isar.userProfiles.get(1);
-                      await AlarmService.scheduleRedTaskNotification(
-                        widget.task,
-                        soundEnabled: profile?.alarmSoundEnabled ?? true,
-                      );
+                      // BUG-06: usar routineService.setTaskRed para reajustar alarme individual
+                      await ref.read(routineServiceProvider).setTaskRed(widget.task, date);
                       ref.invalidate(radarProvider);
                       setState(() {});
                     }

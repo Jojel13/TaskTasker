@@ -53,10 +53,11 @@ final routineDaysProvider = FutureProvider.family<List<RoutineDay>, Id>((
   ref,
   routineId,
 ) async {
-  final isar = ref.watch(isarProvider);
+  // AVISO-03: ref.read dentro de FutureProvider para evitar re-execuções desnecessárias
+  final isar = ref.read(isarProvider);
   final routine = await isar.routines.get(routineId);
   if (routine == null) return [];
-  return ref.watch(routineServiceProvider).loadDays(routine);
+  return ref.read(routineServiceProvider).loadDays(routine);
 });
 
 // ── User Profile ──────────────────────────────────────────────────────────────
@@ -91,18 +92,50 @@ class RadarTaskInfo {
 
 final radarProvider = StreamProvider<List<RadarTaskInfo>>((ref) {
   final isar = ref.watch(isarProvider);
-  
-  final controller = StreamController<void>();
 
-  final subTasks = isar.tasks.watchLazy().listen((_) {
-    if (!controller.isClosed) controller.add(null);
-  });
-  final subRoutines = isar.routines.watchLazy().listen((_) {
-    if (!controller.isClosed) controller.add(null);
-  });
+  // BUG-03: usar StreamController broadcast + flag de versão para cancelar queries antigas
+  final controller = StreamController<List<RadarTaskInfo>>.broadcast();
+  int queryVersion = 0;
+
+  Future<void> runQuery() async {
+    final myVersion = ++queryVersion;
+    try {
+      final latestRoutine = await isar.routines.where().sortByDateDesc().findFirst();
+      if (myVersion != queryVersion || controller.isClosed) return;
+      if (latestRoutine == null) {
+        if (!controller.isClosed) controller.add([]);
+        return;
+      }
+
+      await latestRoutine.days.load();
+      final tasksList = <RadarTaskInfo>[];
+      for (final day in latestRoutine.days) {
+        await day.tasks.load();
+        final taskIds = day.tasks.map((t) => t.id).toList();
+        final dbTasks = await isar.tasks.getAll(taskIds);
+        for (final t in dbTasks) {
+          if (t != null &&
+              t.status == TaskStatus.active &&
+              (t.color == TaskColor.yellow || t.color == TaskColor.red)) {
+            tasksList.add(RadarTaskInfo(task: t, divisionName: day.customName));
+          }
+        }
+      }
+      if (myVersion == queryVersion && !controller.isClosed) {
+        controller.add(tasksList);
+      }
+    } catch (e) {
+      if (myVersion == queryVersion && !controller.isClosed) {
+        controller.addError(e);
+      }
+    }
+  }
+
+  final subTasks = isar.tasks.watchLazy().listen((_) => runQuery());
+  final subRoutines = isar.routines.watchLazy().listen((_) => runQuery());
 
   // Gatilho inicial
-  controller.add(null);
+  runQuery();
 
   ref.onDispose(() {
     subTasks.cancel();
@@ -110,26 +143,7 @@ final radarProvider = StreamProvider<List<RadarTaskInfo>>((ref) {
     controller.close();
   });
 
-  return controller.stream.asyncMap((_) async {
-    final latestRoutine = await isar.routines.where().sortByDateDesc().findFirst();
-    if (latestRoutine == null) return <RadarTaskInfo>[];
-
-    await latestRoutine.days.load();
-    final tasksList = <RadarTaskInfo>[];
-    for (final day in latestRoutine.days) {
-      await day.tasks.load();
-      final taskIds = day.tasks.map((t) => t.id).toList();
-      final dbTasks = await isar.tasks.getAll(taskIds);
-      for (final t in dbTasks) {
-        if (t != null &&
-            t.status == TaskStatus.active &&
-            (t.color == TaskColor.yellow || t.color == TaskColor.red)) {
-          tasksList.add(RadarTaskInfo(task: t, divisionName: day.customName));
-        }
-      }
-    }
-    return tasksList;
-  });
+  return controller.stream;
 });
 
 // ── Dashboard Heatmap ────────────────────────────────────────────────────────

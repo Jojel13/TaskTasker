@@ -21,7 +21,8 @@ class WeeklySummaryData {
   final int currentStreak;
   final Map<DateTime, int> tasksPerDay;
   final Map<DateTime, int> completedPerDay;
-  final DivisionType bestDivision;
+  // AVISO-10: nullable para indicar quando não há dados suficientes
+  final DivisionType? bestDivision;
   final String mostCompletedTask;
   final double successRateDifference;
   final String mascotMessage;
@@ -61,6 +62,7 @@ class _WeeklySummaryScreenState extends ConsumerState<WeeklySummaryScreen> {
   }
 
   void _loadData() {
+    // BUG-15: atribuir _summaryFuture ANTES do setState para não iniciar Future dentro do setState
     final now = DateTime.now();
     final targetDate = _showPreviousWeek ? now.subtract(const Duration(days: 7)) : now;
     _summaryFuture = _loadWeeklyData(targetDate);
@@ -126,7 +128,8 @@ class _WeeklySummaryScreenState extends ConsumerState<WeeklySummaryScreen> {
 
     final successRate = totalTasks > 0 ? (completedTasks / totalTasks * 100) : 0.0;
 
-    DivisionType bestDivision = DivisionType.morning;
+    // AVISO-10: retornar null quando não há dados para não exibir "Manhã" de forma enganosa
+    DivisionType? bestDivision;
     double bestRate = -1.0;
     for (final div in DivisionType.values) {
       final tot = divisionTotal[div] ?? 0;
@@ -254,8 +257,8 @@ class _WeeklySummaryScreenState extends ConsumerState<WeeklySummaryScreen> {
                           if (_showPreviousWeek) {
                             setState(() {
                               _showPreviousWeek = false;
-                              _loadData();
                             });
+                            _loadData();
                           }
                         },
                         child: Container(
@@ -282,8 +285,8 @@ class _WeeklySummaryScreenState extends ConsumerState<WeeklySummaryScreen> {
                           if (!_showPreviousWeek) {
                             setState(() {
                               _showPreviousWeek = true;
-                              _loadData();
                             });
+                            _loadData();
                           }
                         },
                         child: Container(
@@ -728,7 +731,8 @@ class _WeeklySummaryScreenState extends ConsumerState<WeeklySummaryScreen> {
                 style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 13)),
               ),
               Text(
-                getDivisionLabel(data.bestDivision),
+                // AVISO-10: exibir 'N/D' quando não há dados suficientes
+                data.bestDivision != null ? getDivisionLabel(data.bestDivision!) : 'N/D',
                 style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ],

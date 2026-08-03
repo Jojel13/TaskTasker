@@ -204,6 +204,16 @@ class DivisionSection extends ConsumerWidget {
     if (!isToday) return content;
 
     return DragTarget<Task>(
+      // BUG-17: aceitar apenas tasks que n\u00e3o s\u00e3o o \u00fanico elemento sendo arrastado
+      // para si mesmo (sem mover) ou que vem de outra divis\u00e3o
+      onWillAcceptWithDetails: (details) {
+        final task = details.data;
+        // Aceitar se vem de outra divis\u00e3o
+        final isFromThisDay = tasks.any((t) => t.id == task.id);
+        if (!isFromThisDay) return true;
+        // Aceitar reordenação apenas se houver mais de 1 task
+        return tasks.length > 1;
+      },
       onAcceptWithDetails: (details) async {
         final task = details.data;
         final oldIndex = tasks.indexWhere((t) => t.id == task.id);

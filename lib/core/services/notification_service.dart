@@ -6,6 +6,7 @@ import 'package:workmanager/workmanager.dart' hide TaskStatus;
 import 'package:path_provider/path_provider.dart';
 import 'package:isar/isar.dart';
 import '../database/isar_service.dart';
+import '../services/xp_service.dart';
 import '../../shared/models/routine.dart';
 import '../../shared/models/routine_day.dart';
 import '../../shared/models/task.dart';
@@ -25,50 +26,35 @@ void notificationTapBackground(NotificationResponse response) async {
     final taskIdStr = response.payload!.replaceFirst('complete_task_', '');
     final taskId = int.tryParse(taskIdStr);
     if (taskId != null) {
+      // BUG-02: usar try/finally para garantir isar.close() mesmo em caso de erro
+      Isar? isar;
       try {
         final dir = await getApplicationDocumentsDirectory();
-        final isar = await Isar.open(
+        isar = await Isar.open(
           [RoutineSchema, RoutineDaySchema, TaskSchema, UserProfileSchema, XPEventSchema],
           directory: dir.path,
           name: 'tasktasker_db',
         );
-        
+
         final task = await isar.tasks.get(taskId);
         if (task != null && task.status != TaskStatus.completed) {
+          // BUG-01: usar XpService para centralizar lógica de XP (mesma fonte de verdade)
+          final xpAmount = XpService.xpForAction(task.color);
+
           await isar.writeTxn(() async {
             task.status = TaskStatus.completed;
             task.completedOnDate = DateTime.now();
-            await isar.tasks.put(task);
-            
-            final profile = await isar.userProfiles.get(1);
-            if (profile != null) {
-              int xpGained = 10;
-              if (task.color == TaskColor.red) {
-                xpGained = 20;
-              } else if (task.color == TaskColor.yellow) {
-                xpGained = 15;
-              }
-              
-              profile.totalXP += xpGained;
-              int nextLevelXp = profile.currentLevel * 100;
-              while (profile.totalXP >= nextLevelXp) {
-                profile.totalXP -= nextLevelXp;
-                profile.currentLevel++;
-                nextLevelXp = profile.currentLevel * 100;
-              }
-              await isar.userProfiles.put(profile);
-              
-              final xpEvent = XPEvent()
-                ..amount = xpGained
-                ..description = 'Concluiu task via notificação: ${task.text}'
-                ..earnedAt = DateTime.now();
-              await isar.xPEvents.put(xpEvent);
-            }
+            await isar!.tasks.put(task);
           });
+
+          // Adicionar XP via XpService (fora da writeTxn de tasks para evitar nested txn)
+          final xpSvc = XpService(isar);
+          await xpSvc.addXp(xpAmount, 'Concluiu task via notificação: ${task.text}');
         }
-        await isar.close();
       } catch (e) {
         debugPrint('Error in notificationTapBackground: $e');
+      } finally {
+        await isar?.close();
       }
     }
   }
@@ -96,7 +82,10 @@ void callbackDispatcher() {
       }
 
       if (task == "weekly_summary_task") {
-        await notifService.showWeeklySummaryNotification();
+        // AVISO-09: respeitar notifEnabled também para o resumo semanal
+        if (profile == null || profile.notifEnabled) {
+          await notifService.showWeeklySummaryNotification();
+        }
         final delay = calculateDelayUntilNextMonday9AM(DateTime.now());
         await Workmanager().registerOneOffTask(
           "tasktasker_weekly_summary_task",
@@ -303,22 +292,23 @@ class NotificationService {
   }
 
   Future<void> initialize() async {
-    if (_initialized || kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
+    // AVISO-01: verificar _initialized ANTES de initializeForBackground (que também o seta)
+    // para evitar que Workmanager seja ignorado em chamadas subsequentes.
+    final wasAlreadyInitialized = _initialized;
+    if (!wasAlreadyInitialized) {
+      await initializeForBackground();
+      Workmanager().initialize(callbackDispatcher);
+    }
 
-    await initializeForBackground();
-    
-    Workmanager().initialize(
-      callbackDispatcher,
-    );
-    
-    _initialized = true;
-    
     final isar = IsarService.instance;
     final profile = await isar.userProfiles.get(1);
     final hours = profile?.notificationFrequencyHours ?? 6;
-    
+
     updatePeriodicChecks(hours);
-    _scheduleWeeklySummaryTask();
+    if (!wasAlreadyInitialized) {
+      _scheduleWeeklySummaryTask();
+    }
   }
   
   void updatePeriodicChecks(int hours) {

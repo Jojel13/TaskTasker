@@ -40,8 +40,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _afternoonCtrl = TextEditingController();
     _nightCtrl = TextEditingController();
     _tomorrowCtrl = TextEditingController();
-    
-    _loadProfileData();
+
+    // AVISO-04: usar addPostFrameCallback para garantir que o userProfileProvider
+    // j\u00e1 emitiu um valor antes de popular os campos de texto
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadProfileData();
+    });
   }
   
   void _loadProfileData() {

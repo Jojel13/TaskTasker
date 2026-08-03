@@ -130,11 +130,12 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
   Future<void> _saveAndCheckParent() async {
     final subtasks = widget.task.subtasks;
     final allCompleted = subtasks.isNotEmpty && subtasks.every((s) => s.isCompleted);
-    if (allCompleted && widget.task.status != TaskStatus.completed) {
+    // BUG-14: não auto-completar nem dar XP em modo leitura (rotinas hist\u00f3ricas)
+    if (!widget.isReadOnly && allCompleted && widget.task.status != TaskStatus.completed) {
       widget.task.status = TaskStatus.completed;
       widget.task.completedOnDate = DateTime.now();
       final xpService = ref.read(xpServiceProvider);
-      await xpService.addXp(XpService.xpForAction(widget.task.color), 'Task principal auto-concluída');
+      await xpService.addXp(XpService.xpForAction(widget.task.color), 'Task principal auto-conclu\u00edda');
     }
 
     final isar = ref.read(isarProvider);

@@ -289,29 +289,18 @@ class _RadarTaskCard extends ConsumerWidget {
   }
 
   Future<void> _navigateToRoutine(BuildContext context, WidgetRef ref) async {
-    final svc = ref.read(routineServiceProvider);
+    final isar = ref.read(isarProvider);
 
-    // Buscar a rotina que contém a task via RoutineService
-    final allRoutines = await svc.allRoutines();
-    Routine? targetRoutine;
+    // AVISO-05: O Radar sempre exibe tasks da rotina mais recente (latestRoutine),
+    // portanto basta buscar essa única rotina — O(1) em vez de O(n*m).
+    final latestRoutine = await isar.routines.where().sortByDateDesc().findFirst();
 
-    outer:
-    for (final routine in allRoutines) {
-      final days = await svc.loadDays(routine);
-      for (final day in days) {
-        if (day.tasks.any((t) => t.id == taskInfo.task.id)) {
-          targetRoutine = routine;
-          break outer;
-        }
-      }
-    }
-
-    if (targetRoutine == null || !context.mounted) return;
+    if (latestRoutine == null || !context.mounted) return;
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RoutineScreen(routine: targetRoutine!, scrollToTaskId: taskInfo.task.id),
+        builder: (_) => RoutineScreen(routine: latestRoutine, scrollToTaskId: taskInfo.task.id),
       ),
     );
   }

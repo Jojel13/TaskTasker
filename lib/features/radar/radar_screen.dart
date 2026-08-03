@@ -293,7 +293,7 @@ class _RadarTaskCard extends ConsumerWidget {
 
     // AVISO-05: O Radar sempre exibe tasks da rotina mais recente (latestRoutine),
     // portanto basta buscar essa única rotina — O(1) em vez de O(n*m).
-    final routines = await isar.routines.where().sortByDateDesc().findAll();
+    final routines = await isar.routines.where().anyDate().sortByDateDesc().findAll();
     final latestRoutine = routines.isNotEmpty ? routines.first : null;
 
     if (latestRoutine == null || !context.mounted) return;

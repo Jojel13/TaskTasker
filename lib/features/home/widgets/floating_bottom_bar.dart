@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,8 +20,12 @@ class FloatingBottomBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(currentThemeProvider);
 
+    // Ajusta dinamicamente para respeitar os botões/gestos de navegação do sistema Android (navigationBar insets)
+    final systemBottomPadding = MediaQuery.paddingOf(context).bottom;
+    final double bottomMargin = math.max(20.0, 10.0 + systemBottomPadding);
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(32, 0, 32, 28),
+      padding: EdgeInsets.fromLTRB(32, 0, 32, bottomMargin),
       child: Container(
         height: 68,
         decoration: BoxDecoration(

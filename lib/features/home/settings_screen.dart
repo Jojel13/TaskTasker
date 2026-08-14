@@ -125,6 +125,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _testNotification() async {
     final theme = ref.read(currentThemeProvider);
+    await NotificationService.instance.requestPermissions();
     await NotificationService.instance.showTestNotification(
       id: 999,
       title: '⏰ Teste de Notificação',
@@ -133,8 +134,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Notificação de teste enviada!', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
-          backgroundColor: theme.accent,
+          content: Text('Notificação de teste disparada!', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+          backgroundColor: theme.primary,
         ),
       );
     }
@@ -560,13 +561,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
+                          backgroundColor: theme.accent.withValues(alpha: 0.12),
                           foregroundColor: theme.accent,
-                          side: BorderSide(color: theme.accent, width: 1.0),
+                          side: BorderSide(color: theme.accent, width: 1.2),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         icon: const Icon(Icons.notifications_active_rounded, size: 18),
-                        label: Text('Testar Notificação', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                        label: Text('Testar Notificação', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                         onPressed: _testNotification,
                       ),
                     ),
@@ -598,7 +600,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           Expanded(
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.surface,
+                                backgroundColor: theme.primary.withValues(alpha: 0.15),
                                 foregroundColor: theme.primary,
                                 side: BorderSide(color: theme.primary, width: 1.0),
                                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -613,7 +615,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           Expanded(
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.surface,
+                                backgroundColor: theme.accent.withValues(alpha: 0.15),
                                 foregroundColor: theme.accent,
                                 side: BorderSide(color: theme.accent, width: 1.0),
                                 padding: const EdgeInsets.symmetric(vertical: 12),

@@ -6,6 +6,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'dart:math' as math;
 import '../../shared/widgets/particles_background.dart';
 import '../../core/providers/core_providers.dart';
+import '../../core/services/notification_service.dart';
 import '../../shared/models/enums.dart';
 import '../home/main_wrapper.dart';
 
@@ -94,6 +95,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FlutterNativeSplash.remove();
+      // Solicita permissões de notificação no background logo no startup
+      NotificationService.instance.requestPermissions();
       _simulateLoading();
     });
   }
@@ -106,6 +109,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
 
   Future<void> _simulateLoading() async {
     try {
+      FlutterNativeSplash.remove();
       final theme = ref.read(currentThemeProvider);
       final messages = _loadingMessages[theme.type] ?? _loadingMessages[AppThemeType.cyberpunkDark]!;
 
@@ -115,32 +119,29 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
       }
 
       // Phase 1: Boot
-      await Future.delayed(const Duration(milliseconds: 200));
+      await Future.delayed(const Duration(milliseconds: 150));
       if (!mounted) return;
       setState(() { _progress = 0.3; _loadingText = messages[0]; });
       
       // Phase 2: Init ISAR and services
-      await Future.delayed(const Duration(milliseconds: 400));
+      await Future.delayed(const Duration(milliseconds: 250));
       if (!mounted) return;
       setState(() { _progress = 0.7; _loadingText = messages[1]; });
       
-      await Future.delayed(const Duration(milliseconds: 400));
+      await Future.delayed(const Duration(milliseconds: 250));
       
       // Phase 3: Launch
-      await Future.delayed(const Duration(milliseconds: 200));
       if (!mounted) return;
       setState(() { _progress = 1.0; _loadingText = messages[2]; });
       
-      await Future.delayed(const Duration(milliseconds: 400));
+      await Future.delayed(const Duration(milliseconds: 200));
       
       if (mounted) {
         _goToHome(animated: true);
       }
     } catch (e) {
       if (mounted) {
-        setState(() { _loadingText = "Erro: $e"; });
-        await Future.delayed(const Duration(seconds: 2));
-        if (mounted) _goToHome(animated: true);
+        _goToHome(animated: false);
       }
     }
   }

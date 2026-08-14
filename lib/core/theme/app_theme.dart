@@ -1,124 +1,136 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'app_colors.dart';
-import 'app_text_styles.dart';
+import 'theme_config.dart';
+import '../../shared/models/enums.dart';
 
-/// Tema Peak-Cyberpunk do TaskTasker
+/// Gerador e gerenciador de temas do TaskTasker
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get darkTheme {
+  /// Constrói um ThemeData dinâmico a partir do AppThemeData ativo
+  static ThemeData createTheme(AppThemeData theme) {
+    final isDark = theme.isDark;
+    final brightness = isDark ? Brightness.dark : Brightness.light;
+
+    final colorScheme = isDark
+        ? ColorScheme.dark(
+            primary: theme.primary,
+            secondary: theme.secondary,
+            tertiary: theme.accent,
+            surface: theme.surface,
+            error: theme.taskRed,
+            onPrimary: Colors.white,
+            onSecondary: Colors.white,
+            onSurface: theme.textPrimary,
+            onError: Colors.white,
+          )
+        : ColorScheme.light(
+            primary: theme.primary,
+            secondary: theme.secondary,
+            tertiary: theme.accent,
+            surface: theme.surface,
+            error: theme.taskRed,
+            onPrimary: Colors.white,
+            onSecondary: Colors.white,
+            onSurface: theme.textPrimary,
+            onError: Colors.white,
+          );
+
+    final baseTextTheme = (isDark ? ThemeData.dark() : ThemeData.light()).textTheme;
+
     return ThemeData(
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.background,
-
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.primary,
-        secondary: AppColors.secondary,
-        tertiary: AppColors.accent,
-        surface: AppColors.surface,
-        error: AppColors.taskRed,
-        onPrimary: AppColors.background,
-        onSecondary: AppColors.background,
-        onSurface: AppColors.textPrimary,
-        onError: AppColors.background,
-      ),
-
+      useMaterial3: true,
+      brightness: brightness,
+      scaffoldBackgroundColor: theme.background,
+      colorScheme: colorScheme,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
           TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
         },
       ),
-
-      // Texto base com Exo 2
-      textTheme: GoogleFonts.exo2TextTheme(
-        ThemeData.dark().textTheme,
-      ).apply(
-        bodyColor: AppColors.textPrimary,
-        displayColor: AppColors.textPrimary,
+      textTheme: baseTextTheme.apply(
+        bodyColor: theme.textPrimary,
+        displayColor: theme.textPrimary,
       ),
-
-      // AppBar sem elevação, fundo transparente
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle.light,
-        titleTextStyle: AppTextStyles.titleLarge,
-        iconTheme: const IconThemeData(color: AppColors.primary),
+        systemOverlayStyle: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+        titleTextStyle: theme.fontStyleBase(TextStyle(
+          color: theme.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        )),
+        iconTheme: IconThemeData(color: theme.primary),
       ),
-
-      // Cards
       cardTheme: CardThemeData(
-        color: AppColors.card,
+        color: theme.card,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: AppColors.border, width: 0.5),
+          borderRadius: BorderRadius.circular(theme.borderRadius),
+          side: BorderSide(color: theme.border, width: theme.borderWidth > 0 ? theme.borderWidth : 0.5),
         ),
       ),
-
-      // Inputs
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceVariant,
+        fillColor: theme.surfaceVariant,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        hintStyle: theme.fontStyleBase(TextStyle(color: theme.textMuted, fontSize: 14)),
+        labelStyle: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 14)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: theme.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.border, width: 0.5),
+          borderSide: BorderSide(color: theme.border, width: 0.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.secondary, width: 1.5),
+          borderSide: BorderSide(color: theme.secondary, width: 1.5),
         ),
-        hintStyle: AppTextStyles.bodyMedium,
-        labelStyle: AppTextStyles.labelMedium,
       ),
-
-      // Divisor
-      dividerTheme: const DividerThemeData(
-        color: AppColors.divider,
+      dialogTheme: DialogThemeData(
+        backgroundColor: theme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titleTextStyle: theme.fontStyleBase(TextStyle(
+          color: theme.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        )),
+        contentTextStyle: theme.fontStyleBase(TextStyle(
+          color: theme.textSecondary,
+          fontSize: 14,
+        )),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: theme.accent,
+          side: BorderSide(color: theme.accent, width: 1.0),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: theme.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      dividerTheme: DividerThemeData(
+        color: theme.divider,
         thickness: 0.5,
       ),
-
-      // FloatingActionButton
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.background,
-        elevation: 8,
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: theme.primary,
+        foregroundColor: Colors.white,
+        elevation: 6,
       ),
-
-      // Dialog
-      dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        titleTextStyle: AppTextStyles.titleMedium,
-        contentTextStyle: AppTextStyles.bodyMedium,
-      ),
-
-      // BottomSheet
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-      ),
-
-      // Chips
-      chipTheme: ChipThemeData(
-        backgroundColor: AppColors.surfaceVariant,
-        selectedColor: AppColors.secondary.withValues(alpha: 0.2),
-        labelStyle: AppTextStyles.labelMedium,
-        side: const BorderSide(color: AppColors.border),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      ),
-
-      useMaterial3: true,
     );
+  }
+
+  static ThemeData get darkTheme {
+    return createTheme(AppThemeData.fromType(AppThemeType.cyberpunkDark));
   }
 }

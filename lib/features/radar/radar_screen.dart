@@ -4,7 +4,6 @@ import '../../core/providers/core_providers.dart';
 import '../../core/theme/theme_config.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/enums.dart';
-import '../../shared/models/routine.dart';
 import '../routine/widgets/task_card.dart';
 import '../routine/routine_screen.dart';
 

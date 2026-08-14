@@ -132,7 +132,12 @@ class _TaskInputFieldState extends ConsumerState<TaskInputField> {
             style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 13)),
             decoration: InputDecoration(
               isDense: true,
+              filled: false,
+              fillColor: Colors.transparent,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
               hintText: widget.placeholder,
               hintStyle: theme.fontStyleBase(TextStyle(color: theme.textMuted, fontSize: 13)),
             ),

@@ -256,6 +256,32 @@ class NotificationService {
     _initialized = true;
   }
 
+  /// Solicita permissões de notificação no Android e iOS
+  Future<bool> requestPermissions() async {
+    if (kIsWeb) return false;
+    
+    bool granted = false;
+    if (Platform.isAndroid) {
+      final android = _flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      final notifGranted = await android?.requestNotificationsPermission() ?? false;
+      final exactAlarmGranted = await android?.requestExactAlarmsPermission() ?? false;
+      granted = notifGranted || exactAlarmGranted;
+    } else if (Platform.isIOS) {
+      final ios = _flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>();
+      granted = await ios?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          ) ??
+          false;
+    }
+    return granted;
+  }
+
   /// P3: Handler para respostas de notificações em foreground.
   /// - Boto inline 'action_complete_task' → delega para [notificationTapBackground]
   /// - Toque genérico (sem actionId) → sinaliza [pendingTaskIdNotifier] para navegação
@@ -360,7 +386,11 @@ class NotificationService {
   /// Exibe uma notificação de teste imediata (usada pelo botão "Testar Notificação"
   /// nas Configurações). Usa o canal [tasktasker_routine] já registrado formalmente.
   Future<void> showTestNotification({required int id, required String title, required String body}) async {
-    if (!_initialized) return;
+    if (!_initialized) {
+      await initializeForBackground();
+    }
+    await requestPermissions();
+
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
       'tasktasker_routine',

@@ -293,13 +293,20 @@ class RoutineService {
     return await _isar.writeTxn(() async {
       final day = await _isar.routineDays.get(dayId);
       if (day == null) throw Exception('Day not found');
+      await day.tasks.load();
+      int maxSort = -1;
+      for (final t in day.tasks) {
+        if (t.sortOrder > maxSort) {
+          maxSort = t.sortOrder;
+        }
+      }
       final task = Task()
         ..text = text
         ..createdAt = DateTime.now()
+        ..sortOrder = maxSort + 1
         ..color = TaskColor.standard
         ..status = TaskStatus.active;
       await _isar.tasks.put(task);
-      await day.tasks.load();
       day.tasks.add(task);
       await day.tasks.save();
       return task;

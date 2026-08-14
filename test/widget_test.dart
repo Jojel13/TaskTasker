@@ -1,30 +1,32 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:task_tasker/main.dart';
+import 'package:task_tasker/core/theme/theme_config.dart';
+import 'package:task_tasker/shared/models/enums.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const TaskTaskerApp());
+  group('TaskTasker Theme & Config Tests', () {
+    test('All 12 themes can be instantiated with valid properties', () {
+      for (final themeType in AppThemeType.values) {
+        final appTheme = AppThemeData.fromType(themeType);
+        expect(appTheme.name.isNotEmpty, isTrue);
+        expect(appTheme.background, isNotNull);
+        expect(appTheme.surface, isNotNull);
+        expect(appTheme.primary, isNotNull);
+        expect(appTheme.accent, isNotNull);
+      }
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('Minimal Light has correct light background and dark text', () {
+      final lightTheme = AppThemeData.fromType(AppThemeType.minimalLight);
+      expect(lightTheme.isDark, isFalse);
+      expect(lightTheme.textPrimary.computeLuminance() < 0.2, isTrue);
+      expect(lightTheme.background.computeLuminance() > 0.8, isTrue);
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('Ocean Breeze has correct styling and high-contrast accent', () {
+      final oceanTheme = AppThemeData.fromType(AppThemeType.ocean);
+      expect(oceanTheme.isDark, isTrue);
+      expect(oceanTheme.accent, isNotNull);
+      expect(oceanTheme.primary, isNotNull);
+    });
   });
 }

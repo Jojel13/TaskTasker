@@ -118,47 +118,17 @@ class _TaskCardState extends ConsumerState<TaskCard> {
           if (!widget.isReadOnly) ...[
             SlidableAction(
               onPressed: (_) async {
-                final ctrl = TextEditingController(text: widget.task.text);
+                final messenger = ScaffoldMessenger.of(context);
                 final newText = await showDialog<String>(
                   context: context,
                   barrierDismissible: true,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: theme.surface,
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Editar Task', style: theme.fontStyleBase(TextStyle(color: theme.textPrimary))),
-                        IconButton(
-                          icon: Icon(Icons.close, color: theme.textMuted, size: 18),
-                          onPressed: () => Navigator.pop(ctx),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                    content: TextField(
-                      controller: ctrl,
-                      style: theme.fontStyleBase(TextStyle(color: theme.textPrimary)),
-                      decoration: InputDecoration(
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.border)),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.secondary)),
-                      ),
-                      autofocus: true,
-                    ),
-                    actions: [
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(ctx, ctrl.text),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.secondary,
-                          foregroundColor: theme.background,
-                        ),
-                        child: Text('Salvar', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold))),
-                      ),
-                    ],
+                  builder: (_) => _EditTaskDialog(
+                    initialText: widget.task.text,
+                    theme: theme,
                   ),
                 );
-                ctrl.dispose();
-                if (newText != null && newText.trim().isNotEmpty && context.mounted) {
+                if (!mounted) return;
+                if (newText != null && newText.trim().isNotEmpty) {
                   final trimmed = newText.trim();
                   final originalText = widget.task.text;
                   final originalCreatedAt = widget.task.createdAt;
@@ -177,14 +147,12 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   } catch (e) {
                     widget.task.text = originalText;
                     widget.task.createdAt = originalCreatedAt;
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Erro ao salvar tarefa: $e', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
-                          backgroundColor: theme.taskRed,
-                        ),
-                      );
-                    }
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('Erro ao salvar tarefa: $e', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
+                        backgroundColor: theme.taskRed,
+                      ),
+                    );
                   }
                 }
               },
@@ -363,12 +331,19 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                             DateTime.now().add(const Duration(days: 365)),
                         builder: (context, child) => Theme(
                           data: Theme.of(context).copyWith(
-                            colorScheme: ColorScheme.dark(
-                              primary: theme.taskRed,
-                              onPrimary: Colors.white,
-                              surface: theme.background,
-                              onSurface: Colors.white,
-                            ),
+                            colorScheme: theme.isDark
+                                ? ColorScheme.dark(
+                                    primary: theme.taskRed,
+                                    onPrimary: Colors.white,
+                                    surface: theme.surface,
+                                    onSurface: theme.textPrimary,
+                                  )
+                                : ColorScheme.light(
+                                    primary: theme.taskRed,
+                                    onPrimary: Colors.white,
+                                    surface: theme.surface,
+                                    onSurface: theme.textPrimary,
+                                  ),
                           ),
                           child: child!,
                         ),
@@ -615,12 +590,19 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                       builder: (context, child) => Theme(
                         data: Theme.of(context).copyWith(
-                          colorScheme: ColorScheme.dark(
-                            primary: theme.taskRed,
-                            onPrimary: Colors.white,
-                            surface: theme.background,
-                            onSurface: Colors.white,
-                          ),
+                          colorScheme: theme.isDark
+                              ? ColorScheme.dark(
+                                  primary: theme.taskRed,
+                                  onPrimary: Colors.white,
+                                  surface: theme.surface,
+                                  onSurface: theme.textPrimary,
+                                )
+                              : ColorScheme.light(
+                                  primary: theme.taskRed,
+                                  onPrimary: Colors.white,
+                                  surface: theme.surface,
+                                  onSurface: theme.textPrimary,
+                                ),
                         ),
                         child: child!,
                       ),
@@ -858,3 +840,101 @@ class _AlarmBadge extends ConsumerWidget {
     );
   }
 }
+
+class _EditTaskDialog extends StatefulWidget {
+  final String initialText;
+  final AppThemeData theme;
+
+  const _EditTaskDialog({
+    required this.initialText,
+    required this.theme,
+  });
+
+  @override
+  State<_EditTaskDialog> createState() => _EditTaskDialogState();
+}
+
+class _EditTaskDialogState extends State<_EditTaskDialog> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final text = _ctrl.text.trim();
+    if (text.isNotEmpty) {
+      Navigator.pop(context, text);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+    return AlertDialog(
+      backgroundColor: theme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius),
+        side: BorderSide(color: theme.border, width: 1.0),
+      ),
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Editar Task',
+            style: theme.fontStyleBase(TextStyle(
+              color: theme.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            )),
+          ),
+          IconButton(
+            icon: Icon(Icons.close, color: theme.textMuted, size: 18),
+            onPressed: () => Navigator.pop(context),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+      content: TextField(
+        controller: _ctrl,
+        style: theme.fontStyleBase(TextStyle(color: theme.textPrimary)),
+        decoration: InputDecoration(
+          filled: false,
+          fillColor: Colors.transparent,
+          enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.border)),
+          focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.secondary, width: 1.5)),
+        ),
+        autofocus: true,
+        onSubmitted: (_) => _save(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancelar', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))),
+        ),
+        ElevatedButton(
+          onPressed: _save,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.secondary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: Text(
+            'Salvar',
+            style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+

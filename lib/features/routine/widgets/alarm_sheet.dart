@@ -471,7 +471,7 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: theme.primary,
-                  foregroundColor: theme.background,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius)),
@@ -479,11 +479,11 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
                   shadowColor: Colors.transparent,
                 ),
                 icon: _saving
-                    ? SizedBox(
+                    ? const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
-                            color: theme.background, strokeWidth: 2),
+                            color: Colors.white, strokeWidth: 2),
                       )
                     : const Icon(Icons.alarm_on_rounded, size: 18),
                 label: Text(

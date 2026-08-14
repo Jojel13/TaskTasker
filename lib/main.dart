@@ -9,6 +9,7 @@ import 'core/theme/app_theme.dart';
 import 'core/database/isar_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/alarm_service.dart';
+import 'core/providers/core_providers.dart';
 import 'features/splash/splash_screen.dart';
 
 void main() async {
@@ -46,16 +47,17 @@ void main() async {
   );
 }
 
-class TaskTaskerApp extends StatelessWidget {
+class TaskTaskerApp extends ConsumerWidget {
   const TaskTaskerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentTheme = ref.watch(currentThemeProvider);
+
     return MaterialApp(
-      restorationScopeId: 'app',
       title: 'TaskTasker',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.createTheme(currentTheme),
       locale: const Locale('pt', 'BR'),
       supportedLocales: const [Locale('pt', 'BR')],
       localizationsDelegates: const [

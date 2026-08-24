@@ -13,7 +13,7 @@ jobs:
       - name: Baixar codigo do projeto
         uses: actions/checkout@v4
 
-      - name: Configurar Java
+      - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -24,19 +24,26 @@ jobs:
         with:
           channel: 'stable'
 
+      - name: Blindagem de Memória (Evita Java Heap Space)
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=512m -XX:+UseG1GC" >> ~/.gradle/gradle.properties
+
       - name: Instalar dependencias
         run: flutter pub get
 
-      - name: Corrigir SDK 36 e Namespace
+      - name: Corrigir SDK 36 e Namespace (Isar e App)
         run: |
           # 1. Injeta o namespace no banco de dados Isar
           find /home/runner/.pub-cache/ -name "build.gradle" -path "*isar_flutter_libs*" -exec sed -i '/android {/a \    namespace "dev.isar.isar_flutter_libs"' {} + || true
 
-          # 2. Força EXCLUSIVAMENTE o Isar a usar o SDK 36 (Resolve o erro lStar)
-          find /home/runner/.pub-cache/ -name "build.gradle" -path "*isar_flutter_libs*" -exec sed -i '/android {/a \    compileSdkVersion 36' {} + || true
+          # 2. Força EXCLUSIVAMENTE o Isar a usar o SDK 36
+          find /home/runner/.pub-cache/ -name "build.gradle" -path "*isar_flutter_libs*" -exec sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 36/g' {} + || true
 
-          # 3. Mantém a sua correção da câmera no aplicativo principal
-          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle*
+          # 3. Garante que o aplicativo principal use SDK 36 (Cobre arquivos .gradle e .gradle.kts sem gerar erro)
+          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts || true
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle || true
+          sed -i 's/compileSdk flutter.compileSdkVersion/compileSdk 36/g' android/app/build.gradle || true
 
       - name: Compilar APK Release
         run: flutter build apk --release
@@ -44,5 +51,5 @@ jobs:
       - name: Disponibilizar APK para download
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: TaskTasker-Release
           path: build/app/outputs/flutter-apk/app-release.apk

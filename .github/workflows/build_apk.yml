@@ -29,10 +29,13 @@ jobs:
 
       - name: Corrigir SDK 36 e Namespace
         run: |
-          # Injeta o namespace no banco de dados Isar
+          # 1. Injeta o namespace no banco de dados Isar
           find /home/runner/.pub-cache/ -name "build.gradle" -path "*isar_flutter_libs*" -exec sed -i '/android {/a \    namespace "dev.isar.isar_flutter_libs"' {} + || true
 
-          # Altera exatamente a linha do compileSdk no SEU arquivo app/build.gradle.kts
+          # 2. Força EXCLUSIVAMENTE o Isar a usar o SDK 36 (Resolve o erro lStar)
+          find /home/runner/.pub-cache/ -name "build.gradle" -path "*isar_flutter_libs*" -exec sed -i '/android {/a \    compileSdkVersion 36' {} + || true
+
+          # 3. Mantém a sua correção da câmera no aplicativo principal
           sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle*
 
       - name: Compilar APK Release

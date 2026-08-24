@@ -27,12 +27,12 @@ jobs:
       - name: Instalar dependencias
         run: flutter pub get
 
-      - name: Corrigir compatibilidade do Isar (Namespace)
+      - name: Corrigir compatibilidade do Isar e SDK
         run: |
-          # Injeta o namespace exigido pelo Android no plugin isar_flutter_libs
+          # Injeta o namespace exigido pelo Android
           find /home/runner/.pub-cache/ -name "build.gradle" -path "*isar_flutter_libs*" -exec sed -i '/android {/a \    namespace "dev.isar.isar_flutter_libs"' {} + || true
 
-          # Adiciona correcao generica para outros pacotes antigos no build.gradle
+          # Forca o namespace e o SDK 34 em todos os pacotes
           cat << 'EOF' >> android/build.gradle
 
           subprojects {
@@ -42,6 +42,7 @@ jobs:
                           if (namespace == null) {
                               namespace project.group ? project.group : "com.fix.${project.name.replaceAll('[^a-zA-Z0-9_]', '_')}"
                           }
+                          compileSdkVersion 34
                       }
                   }
               }

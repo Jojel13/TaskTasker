@@ -147,6 +147,17 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
   }
 
   void _deleteSubtask(int index) async {
+    final sub = widget.task.subtasks[index];
+    int xpToDeduct = 0;
+    if (sub.isCompleted) {
+      xpToDeduct += 3;
+    }
+    for (final mini in sub.miniTasks) {
+      if (mini.isCompleted) {
+        xpToDeduct += 5;
+      }
+    }
+
     final newSubs = List<Subtask>.from(widget.task.subtasks);
     newSubs.removeAt(index);
     widget.task.subtasks = newSubs;
@@ -159,12 +170,20 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
     await isar.writeTxn(() async {
       await isar.tasks.put(widget.task);
     });
+
+    if (xpToDeduct > 0) {
+      await ref.read(xpServiceProvider).deductXp(xpToDeduct, 'Subtask deletada (${sub.text})');
+    }
+
     await _invalidateProviders();
     setState(() {});
   }
 
   void _deleteMiniTask(int subIndex, int miniIndex) async {
     final sub = widget.task.subtasks[subIndex];
+    final mini = sub.miniTasks[miniIndex];
+    final wasCompleted = mini.isCompleted;
+
     final newMinis = List<MiniTask>.from(sub.miniTasks);
     newMinis.removeAt(miniIndex);
     sub.miniTasks = newMinis;
@@ -177,13 +196,16 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
     await isar.writeTxn(() async {
       await isar.tasks.put(widget.task);
     });
+
+    if (wasCompleted) {
+      await ref.read(xpServiceProvider).deductXp(5, 'MiniTask deletada (${mini.text})');
+    }
+
     await _invalidateProviders();
     setState(() {});
   }
 
   void _reorderSubtasks(int oldIndex, int newIndex) async {
-    if (newIndex > oldIndex) newIndex -= 1;
-
     final subs = List<Subtask>.from(widget.task.subtasks);
     final moved = subs.removeAt(oldIndex);
     subs.insert(newIndex, moved);
@@ -244,7 +266,7 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
                   : ReorderableListView.builder(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                       buildDefaultDragHandles: false,
-                      onReorder: widget.isReadOnly
+                      onReorderItem: widget.isReadOnly
                           ? (int oldIndex, int newIndex) {}
                           : _reorderSubtasks,
                       itemCount: task.subtasks.length,

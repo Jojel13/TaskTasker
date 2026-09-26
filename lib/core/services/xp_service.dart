@@ -43,30 +43,32 @@ class XpService {
   }
 
   Future<void> addXp(int amount, String description) async {
-    final profile = await _isar.userProfiles.get(1);
-    if (profile == null) return;
-    profile.totalXP = profile.totalXP + amount;
-    profile.currentLevel = levelFromTotalXp(profile.totalXP);
     final event = XPEvent()
       ..earnedAt = DateTime.now()
       ..amount = amount
       ..description = description;
+
     await _isar.writeTxn(() async {
+      final profile = await _isar.userProfiles.get(1);
+      if (profile == null) return;
+      profile.totalXP = profile.totalXP + amount;
+      profile.currentLevel = levelFromTotalXp(profile.totalXP);
       await _isar.userProfiles.put(profile);
       await _isar.xPEvents.put(event);
     });
   }
 
   Future<void> deductXp(int amount, String description) async {
-    final profile = await _isar.userProfiles.get(1);
-    if (profile == null) return;
-    profile.totalXP = max(0, profile.totalXP - amount);
-    profile.currentLevel = levelFromTotalXp(profile.totalXP);
     final event = XPEvent()
       ..earnedAt = DateTime.now()
       ..amount = -amount
       ..description = description;
+
     await _isar.writeTxn(() async {
+      final profile = await _isar.userProfiles.get(1);
+      if (profile == null) return;
+      profile.totalXP = max(0, profile.totalXP - amount);
+      profile.currentLevel = levelFromTotalXp(profile.totalXP);
       await _isar.userProfiles.put(profile);
       await _isar.xPEvents.put(event);
     });

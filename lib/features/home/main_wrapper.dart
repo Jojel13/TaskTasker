@@ -6,6 +6,9 @@ import 'home_screen.dart';
 import '../radar/radar_screen.dart';
 import 'widgets/floating_bottom_bar.dart';
 import '../routine/routine_screen.dart';
+import '../routine/screens/alarm_ringing_screen.dart';
+import '../../shared/models/task.dart';
+import '../../shared/models/enums.dart';
 import '../../shared/widgets/particles_background.dart';
 
 class MainWrapper extends ConsumerStatefulWidget {
@@ -60,9 +63,23 @@ class _MainWrapperState extends ConsumerState<MainWrapper> {
     }
   }
 
-  /// P3: Localiza a rotina de hoje e abre o [RoutineScreen] com scroll até a task.
+  /// P3: Abre a tela de alarme dedicada (se alarme de tela cheia) ou a [RoutineScreen] com scroll até a task.
   Future<void> _navigateToTask(int taskId) async {
     if (!mounted) return;
+    final isar = ref.read(isarProvider);
+    final task = await isar.tasks.get(taskId);
+    if (task != null && task.alarmFullScreen && task.status != TaskStatus.completed && mounted) {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (c, a1, a2) => AlarmRingingScreen(task: task),
+          transitionsBuilder: (c, anim, a2, child) => FadeTransition(opacity: anim, child: child),
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
+      );
+      return;
+    }
+
     final svc = ref.read(routineServiceProvider);
     final routine = await svc.findTodayRoutine();
     if (routine == null || !mounted) return;

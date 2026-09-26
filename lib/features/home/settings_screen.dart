@@ -5,6 +5,7 @@ import '../../core/providers/core_providers.dart';
 import '../../core/theme/theme_config.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/user_profile.dart';
+import '../../shared/models/routine_day.dart';
 import '../../shared/models/enums.dart';
 import '../../core/services/notification_service.dart';
 
@@ -106,9 +107,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       profile.brightnessOverride = _brightnessOverride;
       await isar.writeTxn(() async {
         await isar.userProfiles.put(profile);
+
+        // Sincronizar os nomes customizados com a rotina de hoje (se existir)
+        final todayRoutine = await ref.read(routineServiceProvider).findTodayRoutine();
+        if (todayRoutine != null) {
+          await todayRoutine.days.load();
+          for (final day in todayRoutine.days) {
+            switch (day.division) {
+              case DivisionType.morning:
+                day.customName = profile.divisionMorningName;
+                break;
+              case DivisionType.afternoon:
+                day.customName = profile.divisionAfternoonName;
+                break;
+              case DivisionType.night:
+                day.customName = profile.divisionNightName;
+                break;
+              case DivisionType.tomorrow:
+                day.customName = profile.divisionTomorrowName;
+                break;
+            }
+            await isar.routineDays.put(day);
+          }
+        }
       });
 
       NotificationService.instance.updatePeriodicChecks(_notificationFrequency.toInt());
+
+      ref.invalidate(userProfileProvider);
+      ref.invalidate(allRoutinesProvider);
+      ref.invalidate(todayRoutineProvider);
 
       if (mounted) {
         final theme = ref.read(currentThemeProvider);
@@ -195,6 +223,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ref.invalidate(userProfileProvider);
         ref.invalidate(allRoutinesProvider);
         ref.invalidate(todayRoutineProvider);
+        ref.invalidate(heatmapProvider);
+        ref.invalidate(recentXpEventsProvider);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -294,6 +324,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.invalidate(userProfileProvider);
       ref.invalidate(allRoutinesProvider);
       ref.invalidate(todayRoutineProvider);
+      ref.invalidate(heatmapProvider);
+      ref.invalidate(recentXpEventsProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

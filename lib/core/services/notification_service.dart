@@ -78,7 +78,7 @@ void callbackDispatcher() {
       final profile = await isar.userProfiles.get(1);
       if (profile != null && !profile.notifEnabled) {
         await isar.close();
-        return Future.value(true);
+        return true;
       }
 
       if (task == "weekly_summary_task") {
@@ -94,7 +94,7 @@ void callbackDispatcher() {
           existingWorkPolicy: ExistingWorkPolicy.replace,
         );
         await isar.close();
-        return Future.value(true);
+        return true;
       }
       
       final now = DateTime.now();

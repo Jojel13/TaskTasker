@@ -36,6 +36,8 @@ class BackupService {
       'lastAppearedDate': task.lastAppearedDate?.toIso8601String(),
       'alarmTime': task.alarmTime?.toIso8601String(),
       'alarmRepeat': task.alarmRepeat,
+      'alarmFullScreen': task.alarmFullScreen,
+      'focusCount': task.focusCount,
       'hasImage': task.hasImage,
       'hasSubtasks': task.hasSubtasks,
       'subtasks': task.subtasks.map((s) => _subtaskToJson(s)).toList(),
@@ -100,6 +102,10 @@ class BackupService {
       'notifNightOffsetMin': p.notifNightOffsetMin,
       'notificationFrequencyHours': p.notificationFrequencyHours,
       'appTheme': p.appTheme.name,
+      'notifEnabled': p.notifEnabled,
+      'alarmSoundEnabled': p.alarmSoundEnabled,
+      'brightnessOverride': p.brightnessOverride,
+      'useBrightnessOverride': p.useBrightnessOverride,
     };
   }
 
@@ -129,9 +135,11 @@ class BackupService {
       ..frequencyDays = (json['frequencyDays'] as List).cast<int>()
       ..lastAppearedDate = json['lastAppearedDate'] != null ? DateTime.parse(json['lastAppearedDate'] as String) : null
       ..alarmTime = json['alarmTime'] != null ? DateTime.parse(json['alarmTime'] as String) : null
-      ..alarmRepeat = json['alarmRepeat'] as bool
-      ..hasImage = json['hasImage'] as bool
-      ..hasSubtasks = json['hasSubtasks'] as bool;
+      ..alarmRepeat = json['alarmRepeat'] as bool? ?? false
+      ..alarmFullScreen = json['alarmFullScreen'] as bool? ?? false
+      ..focusCount = json['focusCount'] as int? ?? 0
+      ..hasImage = json['hasImage'] as bool? ?? false
+      ..hasSubtasks = json['hasSubtasks'] as bool? ?? false;
 
     if (json['subtasks'] != null) {
       task.subtasks = (json['subtasks'] as List)
@@ -198,7 +206,11 @@ class BackupService {
       ..notifAfternoonOffsetMin = json['notifAfternoonOffsetMin'] as int
       ..notifNightOffsetMin = json['notifNightOffsetMin'] as int
       ..notificationFrequencyHours = json['notificationFrequencyHours'] as int
-      ..appTheme = AppThemeType.values.byName(json['appTheme'] as String);
+      ..appTheme = AppThemeType.values.byName(json['appTheme'] as String)
+      ..notifEnabled = json['notifEnabled'] as bool? ?? true
+      ..alarmSoundEnabled = json['alarmSoundEnabled'] as bool? ?? true
+      ..brightnessOverride = json['brightnessOverride'] as bool? ?? false
+      ..useBrightnessOverride = json['useBrightnessOverride'] as bool? ?? false;
   }
 
   XPEvent _xpEventFromJson(Map<String, dynamic> json) {

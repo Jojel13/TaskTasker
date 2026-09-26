@@ -39,38 +39,48 @@ class HomeScreen extends ConsumerWidget {
                     color: theme.primary,
                     letterSpacing: 2.5,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   profile?.routineName ?? 'Minha Rotina',
                   style: theme.fontStyleBase(AppTextStyles.displayMedium).copyWith(
                     color: theme.textPrimary,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ]),
             ),
 
             // Streak badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: theme.surfaceVariant, // Cor sólida Peak
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: theme.accent, // Borda brilhante
-                  width: 1.0,
-                ),
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const XpDashboardScreen()),
               ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Text('🔥', style: TextStyle(fontSize: 13)),
-                const SizedBox(width: 4),
-                Text(
-                  '${profile?.streakDays ?? 0}',
-                  style: theme.fontStyleMono(AppTextStyles.monoSmall).copyWith(
-                    color: theme.accent,
-                    fontSize: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: theme.surfaceVariant, // Cor sólida Peak
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: theme.accent, // Borda brilhante
+                    width: 1.0,
                   ),
                 ),
-              ]),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('🔥', style: TextStyle(fontSize: 13)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${profile?.streakDays ?? 0}',
+                    style: theme.fontStyleMono(AppTextStyles.monoSmall).copyWith(
+                      color: theme.accent,
+                      fontSize: 12,
+                    ),
+                  ),
+                ]),
+              ),
             ),
             const SizedBox(width: 4),
 
@@ -78,44 +88,72 @@ class HomeScreen extends ConsumerWidget {
             _HeaderIconButton(
               icon: Icons.star_rounded,
               color: theme.accent,
-              tooltip: 'XP',
+              tooltip: 'XP e Nível',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const XpDashboardScreen()),
               ),
             ),
 
-            // Análise
-            _HeaderIconButton(
-              icon: Icons.bar_chart_rounded,
-              color: theme.secondary,
-              tooltip: 'Análise',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AnalyticsScreen()),
+            // Menu de opções (Análise, Resumo Semanal, Configurações)
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert_rounded, color: theme.textSecondary),
+              tooltip: 'Mais opções',
+              color: theme.surfaceVariant,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.border, width: 1),
               ),
-            ),
-
-            // Resumo Semanal
-            _HeaderIconButton(
-              icon: Icons.date_range_rounded,
-              color: theme.primary,
-              tooltip: 'Resumo Semanal',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const WeeklySummaryScreen()),
-              ),
-            ),
-
-            // Settings
-            _HeaderIconButton(
-              icon: Icons.settings_outlined,
-              color: theme.textSecondary,
-              tooltip: 'Configurações',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              ),
+              elevation: 8,
+              onSelected: (value) {
+                switch (value) {
+                  case 'analytics':
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AnalyticsScreen()),
+                    );
+                    break;
+                  case 'weekly':
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const WeeklySummaryScreen()),
+                    );
+                    break;
+                  case 'settings':
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                    );
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'analytics',
+                  child: Row(children: [
+                    Icon(Icons.bar_chart_rounded, color: theme.secondary, size: 20),
+                    const SizedBox(width: 12),
+                    Text('Análise', style: TextStyle(color: theme.textPrimary, fontSize: 14)),
+                  ]),
+                ),
+                PopupMenuItem(
+                  value: 'weekly',
+                  child: Row(children: [
+                    Icon(Icons.date_range_rounded, color: theme.primary, size: 20),
+                    const SizedBox(width: 12),
+                    Text('Resumo Semanal', style: TextStyle(color: theme.textPrimary, fontSize: 14)),
+                  ]),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'settings',
+                  child: Row(children: [
+                    Icon(Icons.settings_outlined, color: theme.textSecondary, size: 20),
+                    const SizedBox(width: 12),
+                    Text('Configurações', style: TextStyle(color: theme.textPrimary, fontSize: 14)),
+                  ]),
+                ),
+              ],
             ),
           ]),
         ),

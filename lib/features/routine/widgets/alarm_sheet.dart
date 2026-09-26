@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/theme/theme_config.dart';
 import '../../../shared/models/task.dart';
+import '../../../shared/models/enums.dart';
 
 class AlarmSheet extends ConsumerStatefulWidget {
   final Task task;
@@ -84,12 +85,18 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
 
     try {
       final now = DateTime.now();
+      final baseDate = (widget.task.color == TaskColor.red && widget.task.scheduledDate != null)
+          ? widget.task.scheduledDate!
+          : now;
+
       var alarmDateTime = DateTime(
-        now.year, now.month, now.day,
+        baseDate.year, baseDate.month, baseDate.day,
         _selectedTime.hour, _selectedTime.minute,
       );
       if (alarmDateTime.isBefore(now)) {
-        alarmDateTime = alarmDateTime.add(const Duration(days: 1));
+        if (widget.task.color != TaskColor.red) {
+          alarmDateTime = alarmDateTime.add(const Duration(days: 1));
+        }
       }
 
       await ref.read(routineServiceProvider).setAlarm(

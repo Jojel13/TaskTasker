@@ -218,6 +218,9 @@ class AlarmService {
       playSound: soundEnabled,
       styleInformation: bigTextStyleInfo,
       fullScreenIntent: task.alarmFullScreen,
+      category: AndroidNotificationCategory.alarm,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      additionalFlags: task.alarmFullScreen ? Int32List.fromList(<int>[4]) : null,
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'action_complete_task',
@@ -276,6 +279,9 @@ class AlarmService {
       styleInformation: bigTextStyleInfo,
       ongoing: isToday,
       fullScreenIntent: task.alarmFullScreen,
+      category: AndroidNotificationCategory.alarm,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      additionalFlags: task.alarmFullScreen ? Int32List.fromList(<int>[4]) : null,
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'action_complete_task',

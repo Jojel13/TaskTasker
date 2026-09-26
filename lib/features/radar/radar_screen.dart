@@ -266,7 +266,7 @@ class RadarScreen extends ConsumerWidget {
   }
 }
 
-/// Card do Radar — somente leitura. LongPress navega para a rotina.
+/// Card do Radar — somente leitura. Tap ou LongPress navega para a rotina.
 class _RadarTaskCard extends ConsumerWidget {
   final RadarTaskInfo taskInfo;
   const _RadarTaskCard({required this.taskInfo});
@@ -274,6 +274,7 @@ class _RadarTaskCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
+      onTap: () => _navigateToRoutine(context, ref),
       onLongPress: () => _navigateToRoutine(context, ref),
       child: TaskCard(
         task: taskInfo.task,

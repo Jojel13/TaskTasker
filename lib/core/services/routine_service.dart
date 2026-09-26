@@ -75,6 +75,7 @@ class RoutineService {
       DivisionType.night: [],
     };
     List<Task> tomorrowTasks = [];
+    final Set<String> propagatedKeys = {};
 
     final today = _today();
 
@@ -82,39 +83,43 @@ class RoutineService {
       await lastRoutine.days.load();
       for (final day in lastRoutine.days) {
         await day.tasks.load();
-        final tasks = day.tasks.toList();
+        // Ordenar conforme o sortOrder definido pelo usuário via drag & drop
+        final tasks = day.tasks.toList()
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
         
         if (day.division == DivisionType.tomorrow) {
           // Divisão "Para Amanhã" propaga independente da cor (se não concluída)
           for (final t in tasks) {
             if (t.status != TaskStatus.completed) {
               tomorrowTasks.add(t);
+              propagatedKeys.add('${t.createdAt.millisecondsSinceEpoch}_${t.text.trim().toLowerCase()}');
             }
           }
         } else {
-          // Outras divisões propagam apenas amarelas não concluídas e vermelhas futuras
+          // Preserva a sequência exata de tarefas amarelas, vermelhas e azuis elegíveis
           final eligible = <Task>[];
           for (final t in tasks) {
             if (t.color == TaskColor.red) {
               final sched = t.scheduledDate;
-              // BUG-11: não propagar tasks vermelhas já concluídas
               if (t.status == TaskStatus.completed) continue;
-              if (sched == null || sched.isBefore(today)) continue; // expirada → skip
+              if (sched == null || sched.isBefore(today)) continue;
               eligible.add(t);
             } else if (t.color == TaskColor.yellow) {
               if (t.completedOnDate == null) eligible.add(t);
+            } else if (t.color == TaskColor.blue) {
+              if (_blueEligible(t, today)) {
+                eligible.add(t);
+                propagatedKeys.add('${t.createdAt.millisecondsSinceEpoch}_${t.text.trim().toLowerCase()}');
+              }
             }
-            // blue: tratado separadamente no _getEligibleBlueTasks
-            // standard: nunca propaga
           }
           propagate[day.division] = eligible;
         }
       }
     }
 
-    // Coletar tasks azuis propagadas
-    final tomorrowTexts = tomorrowTasks.map((t) => t.text.trim()).toSet();
-    final blueTasksMap = await _getEligibleBlueTasks(today, pastRoutines, tomorrowTexts);
+    // Coletar outras tasks azuis elegíveis que não estavam na rotina de ontem (ex: cadências semanais)
+    final blueTasksMap = await _getEligibleBlueTasks(today, pastRoutines, propagatedKeys);
 
     // ── Copiar imagens fora da transação (Evitar I/O pesado no writeTxn)
     final Map<int, String?> copiedImages = {};
@@ -162,8 +167,12 @@ class RoutineService {
                 ...(blueTasksMap[division] ?? []),
               ];
 
-        for (final src in tasks) {
+        // Normalização contínua do sortOrder para preservar drag & drop
+        for (int i = 0; i < tasks.length; i++) {
+          final src = tasks[i];
           final copy = _copyTask(src, src.color, today);
+          copy.sortOrder = i;
+
           if (copiedImages.containsKey(src.id)) {
             copy.imageFileName = copiedImages[src.id];
           } else {
@@ -193,8 +202,6 @@ class RoutineService {
     await _notifyPendingYellowTasks(routine, notifEnabled: profile.notifEnabled);
 
     // ── Streak: verificar se o dia anterior teve tasks concluídas ─
-    // Lemos o profile novamente (fora da txn anterior) para evitar
-    // sobrescrever dados com objeto stale.
     await _checkAndFinalizeStreak(profile, today);
 
     return routine;
@@ -204,7 +211,6 @@ class RoutineService {
   /// [notifEnabled] vem do UserProfile para respeitar preferência global de notificações.
   Future<void> _notifyPendingYellowTasks(Routine routine, {required bool notifEnabled}) async {
     try {
-      // Recarregar a rotina recém-criada do banco para contar tasks amarelas
       final routineFromDb = await _isar.routines.get(routine.id);
       if (routineFromDb == null) return;
       await routineFromDb.days.load();
@@ -227,7 +233,6 @@ class RoutineService {
         );
       }
     } catch (e) {
-      // Não deixar erro aqui quebrar o fluxo principal
       debugPrint('P5 _notifyPendingYellowTasks error: $e');
     }
   }
@@ -252,7 +257,6 @@ class RoutineService {
     // Verificar se houve tasks concluídas ontem
     bool yesterdayHadCompletedTasks = false;
     if (lastDateNormalized == yesterdayNormalized) {
-      // Buscar rotina de ontem
       final yesterdayRoutine = await _isar.routines
           .filter()
           .dateBetween(yesterday, yesterday.add(const Duration(hours: 23, minutes: 59)))
@@ -267,6 +271,10 @@ class RoutineService {
             break;
           }
         }
+      } else {
+        // Se a rotina de ontem não está no banco (ex: histórico limpo), mas o lastRoutineDate
+        // confirma que o app foi aberto ontem e streak está ativo, mantém continuidade.
+        yesterdayHadCompletedTasks = updatedProfile.streakDays > 0;
       }
     }
 
@@ -405,19 +413,61 @@ class RoutineService {
 
   Future<void> toggleTask(Task task) async {
     final nowCompleted = task.status != TaskStatus.completed;
-    // A8: todas as mutasão de estado feitas dentro do writeTxn para
-    // garantir consistência módel<->banco em caso de falha
+    int subtasksXpDelta = 0;
+
     await _isar.writeTxn(() async {
       task.status = nowCompleted ? TaskStatus.completed : TaskStatus.active;
       task.completedOnDate = nowCompleted ? DateTime.now() : null;
+
+      // Cascata em subtasks e mini-tasks
+      if (nowCompleted) {
+        for (final sub in task.subtasks) {
+          if (!sub.isCompleted) {
+            sub.isCompleted = true;
+            sub.completedAt = DateTime.now();
+            subtasksXpDelta += 3;
+          }
+          for (final mini in sub.miniTasks) {
+            if (!mini.isCompleted) {
+              mini.isCompleted = true;
+              mini.completedAt = DateTime.now();
+              subtasksXpDelta += 5;
+            }
+          }
+        }
+      } else {
+        for (final sub in task.subtasks) {
+          if (sub.isCompleted) {
+            sub.isCompleted = false;
+            sub.completedAt = null;
+            subtasksXpDelta -= 3;
+          }
+          for (final mini in sub.miniTasks) {
+            if (mini.isCompleted) {
+              mini.isCompleted = false;
+              mini.completedAt = null;
+              subtasksXpDelta -= 5;
+            }
+          }
+        }
+      }
+
       await _isar.tasks.put(task);
     });
-    final desc = '${nowCompleted ? "Task" : "Desmarco task"} (${task.color.name})';
-    final xp = XpService.xpForAction(task.color);
+
+    final desc = '${nowCompleted ? "Task" : "Desmarcou task"} (${task.color.name})';
+    final mainXp = XpService.xpForAction(task.color);
+
     if (nowCompleted) {
-      await _xp.addXp(xp, desc);
+      await _xp.addXp(mainXp, desc);
+      if (subtasksXpDelta > 0) {
+        await _xp.addXp(subtasksXpDelta, 'Subtasks concluídas em cascata');
+      }
     } else {
-      await _xp.deductXp(xp, desc);
+      await _xp.deductXp(mainXp, desc);
+      if (subtasksXpDelta < 0) {
+        await _xp.deductXp(subtasksXpDelta.abs(), 'Subtasks desmarcadas em cascata');
+      }
     }
   }
 
@@ -586,7 +636,7 @@ class RoutineService {
   Future<Map<DivisionType, List<Task>>> _getEligibleBlueTasks(
     DateTime today,
     List<Routine> pastRoutines,
-    Set<String> tomorrowTexts,
+    Set<String> alreadyPropagatedKeys,
   ) async {
     final allBlueTasks = await _isar.tasks
         .filter()
@@ -601,24 +651,22 @@ class RoutineService {
 
     if (allBlueTasks.isEmpty) return result;
 
-    // Agrupar por texto para obter a versão mais recente
-    // BUG-10: normalizar texto (lowercase + trim) para evitar duplicatas por capitalização
+    // Agrupar por identidade de criação (createdAt + text) para permitir tarefas homônimas distintas
     final Map<String, Task> latestTaskMap = {};
     for (final t in allBlueTasks) {
-      final text = t.text.trim().toLowerCase();
-      final existing = latestTaskMap[text];
-      if (existing == null || t.createdAt.isAfter(existing.createdAt)) {
-        latestTaskMap[text] = t;
+      final key = '${t.createdAt.millisecondsSinceEpoch}_${t.text.trim().toLowerCase()}';
+      final existing = latestTaskMap[key];
+      if (existing == null || t.id > existing.id) {
+        latestTaskMap[key] = t;
       }
     }
 
     for (final entry in latestTaskMap.entries) {
-      final text = entry.key;
+      final key = entry.key;
       final latestTask = entry.value;
 
-      // Evita duplicidade se já está vindo via divisão amanhã
-      // BUG-10: comparar também em lowercase
-      if (tomorrowTexts.any((t) => t.trim().toLowerCase() == text)) continue;
+      // Evita duplicidade se já foi propagada na rotina
+      if (alreadyPropagatedKeys.contains(key)) continue;
 
       // Encontrar a rotina mais recente onde esta task deveria ter aparecido
       Routine? mostRecentEligibleRoutine;
@@ -638,14 +686,14 @@ class RoutineService {
         continue;
       }
 
-      // Verificar se ela existia na rotina mais recente elegível
+      // Verificar em qual divisão ela existia na rotina mais recente elegível
       await mostRecentEligibleRoutine.days.load();
       bool existsInRoutine = false;
       DivisionType foundDivision = DivisionType.morning;
 
       for (final day in mostRecentEligibleRoutine.days) {
         await day.tasks.load();
-        if (day.tasks.any((t) => t.text.trim() == text && t.color == TaskColor.blue)) {
+        if (day.tasks.any((t) => t.createdAt == latestTask.createdAt && t.color == TaskColor.blue)) {
           existsInRoutine = true;
           foundDivision = day.division;
           break;

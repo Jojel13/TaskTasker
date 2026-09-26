@@ -130,8 +130,15 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                 Navigator.pop(ctx);
                 final routineService = ref.read(routineServiceProvider);
                 await routineService.toggleTask(widget.task);
-                // BUG-13: invalidar providers para atualizar a tela de rotina e o radar
+                // Invalidar providers para sincronizar imediatamente tela de rotina, radar, XP e progresso
                 ref.invalidate(radarProvider);
+                ref.invalidate(allRoutinesProvider);
+                ref.invalidate(todayRoutineProvider);
+                ref.invalidate(userProfileProvider);
+                final routines = await routineService.allRoutines();
+                for (final r in routines) {
+                  ref.invalidate(routineDaysProvider(r.id));
+                }
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

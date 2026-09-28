@@ -201,3 +201,15 @@ final recentXpEventsProvider = StreamProvider<List<XPEvent>>((ref) {
 // ── Drag & Drop auto-scroll State ─────────────────────────────────────────────
 final isDraggingTaskProvider = StateProvider<bool>((ref) => false);
 
+// ── Weekend Backlog Tasks Provider ───────────────────────────────────────────
+final weekendTasksProvider = FutureProvider<List<Task>>((ref) async {
+  final routineService = ref.watch(routineServiceProvider);
+  return routineService.getWeekendBacklogTasks();
+});
+
+// ── Blue Habits Provider ──────────────────────────────────────────────────────
+final blueHabitsProvider = FutureProvider<List<Task>>((ref) async {
+  final routineService = ref.watch(routineServiceProvider);
+  return routineService.getAllActiveBlueHabits();
+});
+

@@ -99,6 +99,17 @@ class RoutineService {
           // Preserva a sequência exata de tarefas amarelas, vermelhas e azuis elegíveis
           final eligible = <Task>[];
           for (final t in tasks) {
+            if (t.isWeekendTask) {
+              // Task de fim de semana:
+              // Se hoje for domingo e não foi concluída no sábado, propaga para domingo!
+              // Se foi concluída, não propaga (desaparece).
+              // Se hoje for segunda-feira ou outro dia da semana, não propaga (pula para o próximo fim de semana).
+              if (today.weekday == DateTime.sunday && t.status != TaskStatus.completed) {
+                eligible.add(t);
+              }
+              continue;
+            }
+
             if (t.color == TaskColor.red) {
               final sched = t.scheduledDate;
               if (t.status == TaskStatus.completed) continue;
@@ -118,6 +129,17 @@ class RoutineService {
       }
     }
 
+    // Coletar tasks de fim de semana se hoje for sábado
+    final weekendTasksToInject = <Task>[];
+    if (today.weekday == DateTime.saturday) {
+      final backlog = await _isar.tasks
+          .filter()
+          .isWeekendTaskEqualTo(true)
+          .statusEqualTo(TaskStatus.active)
+          .findAll();
+      weekendTasksToInject.addAll(backlog);
+    }
+
     // Coletar outras tasks azuis elegíveis que não estavam na rotina de ontem (ex: cadências semanais)
     final blueTasksMap = await _getEligibleBlueTasks(today, pastRoutines, propagatedKeys);
 
@@ -129,6 +151,7 @@ class RoutineService {
               ...(propagate[division] ?? []),
               ...(blueTasksMap[division] ?? []),
               ...tomorrowTasks,
+              ...weekendTasksToInject,
             ]
           : [
               ...(propagate[division] ?? []),
@@ -161,6 +184,7 @@ class RoutineService {
                 ...(propagate[division] ?? []),
                 ...(blueTasksMap[division] ?? []),
                 ...tomorrowTasks,
+                ...weekendTasksToInject,
               ]
             : [
                 ...(propagate[division] ?? []),
@@ -641,6 +665,7 @@ class RoutineService {
     final allBlueTasks = await _isar.tasks
         .filter()
         .colorEqualTo(TaskColor.blue)
+        .isRecurrenceActiveEqualTo(true)
         .findAll();
     
     final Map<DivisionType, List<Task>> result = {
@@ -712,6 +737,10 @@ class RoutineService {
   }
 
   bool _blueEligible(Task t, DateTime today) {
+    if (!t.isRecurrenceActive) return false;
+    if (t.recurrenceEndDate != null && !today.isBefore(t.recurrenceEndDate!)) {
+      return false;
+    }
     switch (t.frequency) {
       case FrequencyType.daily: return true;
       case FrequencyType.everyOtherDay:
@@ -759,7 +788,7 @@ class RoutineService {
       ..text = src.text
       ..createdAt = src.createdAt
       ..sortOrder = src.sortOrder
-      ..color = color
+      ..color = src.isWeekendTask ? TaskColor.standard : color
       ..status = newStatus
       ..scheduledDate = src.scheduledDate
       ..completedOnDate = newCompletedOnDate
@@ -767,6 +796,9 @@ class RoutineService {
       ..frequency = src.frequency
       ..frequencyDays = List<int>.from(src.frequencyDays)
       ..lastAppearedDate = src.lastAppearedDate
+      ..isRecurrenceActive = src.isRecurrenceActive
+      ..recurrenceEndDate = src.recurrenceEndDate
+      ..isWeekendTask = src.isWeekendTask
       ..hasImage = src.hasImage
       ..hasSubtasks = src.hasSubtasks
       ..alarmTime = newAlarmTime
@@ -794,4 +826,184 @@ class RoutineService {
       return sub;
     }).toList();
   }
+
+  // ── Gestão Semanal de Tasks Azuis (A partir do dia atual) ────
+  Future<List<Task>> getAllActiveBlueHabits() async {
+    final allBlue = await _isar.tasks
+        .filter()
+        .colorEqualTo(TaskColor.blue)
+        .isRecurrenceActiveEqualTo(true)
+        .findAll();
+
+    final Map<String, Task> map = {};
+    for (final t in allBlue) {
+      final key = '${t.createdAt.millisecondsSinceEpoch}_${t.text.trim().toLowerCase()}';
+      final existing = map[key];
+      if (existing == null || t.id > existing.id) {
+        map[key] = t;
+      }
+    }
+    final list = map.values.toList();
+    list.sort((a, b) => a.text.toLowerCase().compareTo(b.text.toLowerCase()));
+    return list;
+  }
+
+  Future<void> updateBlueHabit({
+    required int sampleTaskId,
+    required String newText,
+    required FrequencyType newFrequency,
+    required List<int> newDays,
+  }) async {
+    await _isar.writeTxn(() async {
+      final sample = await _isar.tasks.get(sampleTaskId);
+      if (sample == null) return;
+      final createdAtMs = sample.createdAt.millisecondsSinceEpoch;
+      final oldText = sample.text.trim().toLowerCase();
+
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final todayRoutine = await _isar.routines.filter().dateEqualTo(today).findFirst();
+
+      if (todayRoutine != null) {
+        await todayRoutine.days.load();
+        for (final day in todayRoutine.days) {
+          await day.tasks.load();
+          for (final t in day.tasks) {
+            if (t.color == TaskColor.blue &&
+                t.createdAt.millisecondsSinceEpoch == createdAtMs &&
+                t.text.trim().toLowerCase() == oldText) {
+              t.text = newText.trim();
+              t.frequency = newFrequency;
+              t.frequencyDays = List<int>.from(newDays);
+              await _isar.tasks.put(t);
+            }
+          }
+        }
+      }
+
+      sample.text = newText.trim();
+      sample.frequency = newFrequency;
+      sample.frequencyDays = List<int>.from(newDays);
+      await _isar.tasks.put(sample);
+    });
+  }
+
+  Future<void> terminateBlueHabitFromToday(int sampleTaskId) async {
+    await _isar.writeTxn(() async {
+      final sample = await _isar.tasks.get(sampleTaskId);
+      if (sample == null) return;
+      final createdAtMs = sample.createdAt.millisecondsSinceEpoch;
+      final textLower = sample.text.trim().toLowerCase();
+
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      final allMatching = await _isar.tasks
+          .filter()
+          .colorEqualTo(TaskColor.blue)
+          .findAll();
+
+      for (final t in allMatching) {
+        if (t.createdAt.millisecondsSinceEpoch == createdAtMs &&
+            t.text.trim().toLowerCase() == textLower) {
+          t.isRecurrenceActive = false;
+          t.recurrenceEndDate = today;
+          await _isar.tasks.put(t);
+        }
+      }
+
+      final todayRoutine = await _isar.routines.filter().dateEqualTo(today).findFirst();
+      if (todayRoutine != null) {
+        await todayRoutine.days.load();
+        for (final day in todayRoutine.days) {
+          await day.tasks.load();
+          final toRemove = day.tasks.where((t) =>
+              t.color == TaskColor.blue &&
+              t.createdAt.millisecondsSinceEpoch == createdAtMs &&
+              t.text.trim().toLowerCase() == textLower &&
+              t.status != TaskStatus.completed).toList();
+          
+          for (final rem in toRemove) {
+            day.tasks.remove(rem);
+            await _isar.tasks.delete(rem.id);
+          }
+          if (toRemove.isNotEmpty) {
+            await day.tasks.save();
+          }
+        }
+      }
+    });
+  }
+
+  // ── Backlog de Tasks de Fim de Semana (Aba Escondida) ───────
+  Future<List<Task>> getWeekendBacklogTasks() async {
+    return await _isar.tasks
+        .filter()
+        .isWeekendTaskEqualTo(true)
+        .statusEqualTo(TaskStatus.active)
+        .findAll();
+  }
+
+  Future<Task> addWeekendTask(String text) async {
+    final task = Task()
+      ..text = text.trim()
+      ..createdAt = DateTime.now()
+      ..color = TaskColor.standard
+      ..status = TaskStatus.active
+      ..isWeekendTask = true;
+
+    await _isar.writeTxn(() async {
+      await _isar.tasks.put(task);
+    });
+    return task;
+  }
+
+  Future<void> moveToWeekendBacklog(int taskId) async {
+    // Cancela qualquer alarme/notificação agendado para não tocar durante a semana
+    await AlarmService.cancelAlarm(taskId);
+
+    await _isar.writeTxn(() async {
+      final task = await _isar.tasks.get(taskId);
+      if (task == null) return;
+
+      final parentDay = await _isar.routineDays
+          .filter()
+          .tasks((q) => q.idEqualTo(taskId))
+          .findFirst();
+
+      if (parentDay != null) {
+        await parentDay.tasks.load();
+        parentDay.tasks.remove(task);
+        await parentDay.tasks.save();
+      }
+
+      task.isWeekendTask = true;
+      task.color = TaskColor.standard;
+      task.status = TaskStatus.active;
+      task.alarmTime = null;
+      task.alarmRepeat = false;
+      task.alarmFullScreen = false;
+      await _isar.tasks.put(task);
+    });
+  }
+
+  Future<void> deleteWeekendTask(int taskId) async {
+    await AlarmService.cancelAlarm(taskId);
+    await _isar.writeTxn(() async {
+      final task = await _isar.tasks.get(taskId);
+      if (task != null) {
+        final parentDay = await _isar.routineDays
+            .filter()
+            .tasks((q) => q.idEqualTo(taskId))
+            .findFirst();
+        if (parentDay != null) {
+          await parentDay.tasks.load();
+          parentDay.tasks.remove(task);
+          await parentDay.tasks.save();
+        }
+        await _isar.tasks.delete(taskId);
+      }
+    });
+  }
 }
+

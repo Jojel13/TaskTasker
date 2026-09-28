@@ -141,6 +141,23 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
     final theme = ref.watch(currentThemeProvider);
     final hasAlarm = widget.task.hasAlarm;
 
+    final now = DateTime.now();
+    final isRedScheduled = widget.task.color == TaskColor.red && widget.task.scheduledDate != null;
+    final baseDate = isRedScheduled ? widget.task.scheduledDate! : now;
+    final alarmDateTime = DateTime(
+      baseDate.year,
+      baseDate.month,
+      baseDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+    final bool willFireTomorrow = alarmDateTime.isBefore(now) && !isRedScheduled;
+    final String predictionText = willFireTomorrow
+        ? '⏰ Vai tocar amanhã às ${_selectedTime.format(context)}'
+        : (isRedScheduled && !DateUtils.isSameDay(baseDate, now)
+            ? '⏰ Vai tocar em ${baseDate.day.toString().padLeft(2, '0')}/${baseDate.month.toString().padLeft(2, '0')} às ${_selectedTime.format(context)}'
+            : '⏰ Vai tocar hoje às ${_selectedTime.format(context)}');
+
     return Container(
       decoration: BoxDecoration(
         color: theme.surface,
@@ -210,7 +227,7 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
             ],
           ),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
 
           // Seletor de horário (tap para abrir TimePicker)
           GestureDetector(
@@ -256,6 +273,47 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
                         )),
                       ),
                     ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Chip preditivo de horário
+          Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: willFireTomorrow
+                    ? theme.taskYellow.withValues(alpha: 0.12)
+                    : theme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: willFireTomorrow
+                      ? theme.taskYellow.withValues(alpha: 0.35)
+                      : theme.primary.withValues(alpha: 0.35),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    willFireTomorrow ? Icons.update_rounded : Icons.today_rounded,
+                    size: 14,
+                    color: willFireTomorrow ? theme.taskYellow : theme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    predictionText,
+                    style: theme.fontStyleBase(TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: willFireTomorrow ? theme.taskYellow : theme.primary,
+                    )),
                   ),
                 ],
               ),
@@ -447,6 +505,31 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
                   ),
                 ],
               ),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 4, right: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 14,
+                  color: theme.textMuted.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Desperta como despertador com a tela bloqueada. Se limitado pelo sistema, tocará como notificação de prioridade máxima.',
+                    style: theme.fontStyleBase(TextStyle(
+                      color: theme.textMuted.withValues(alpha: 0.8),
+                      fontSize: 11,
+                      height: 1.3,
+                    )),
+                  ),
+                ),
+              ],
             ),
           ),
 

@@ -6,6 +6,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../shared/models/enums.dart';
 import '../routine/widgets/task_card.dart';
 import '../routine/routine_screen.dart';
+import 'screens/blue_tasks_manager_screen.dart';
 
 class RadarScreen extends ConsumerWidget {
   const RadarScreen({super.key});
@@ -75,10 +76,36 @@ class RadarScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('RADAR', style: theme.fontStyleBase(AppTextStyles.displayMedium).copyWith(
-                                color: theme.textPrimary,
-                                letterSpacing: 4,
-                              )),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text('RADAR', style: theme.fontStyleBase(AppTextStyles.displayMedium).copyWith(
+                                    color: theme.textPrimary,
+                                    letterSpacing: 4,
+                                  )),
+                                  OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: theme.taskBlue,
+                                      side: BorderSide(color: theme.taskBlue.withValues(alpha: 0.4)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      backgroundColor: theme.taskBlue.withValues(alpha: 0.08),
+                                    ),
+                                    icon: const Icon(Icons.repeat_rounded, size: 14),
+                                    label: Text(
+                                      'Tasks Azuis',
+                                      style: theme.fontStyleBase(const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    ),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => const BlueTasksManagerScreen()),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
                               const SizedBox(height: 4),
                               Text(
                                 '${redTasks.length} eminentes · ${yellowTasks.length} pendentes',

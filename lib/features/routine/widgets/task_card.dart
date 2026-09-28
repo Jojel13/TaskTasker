@@ -25,6 +25,7 @@ class TaskCard extends ConsumerStatefulWidget {
   final VoidCallback onColorCycle;
   final VoidCallback onDelete;
   final bool isReadOnly;
+  final bool isYesterday;
   final String? divisionName;
   final bool showRadarInfo;
 
@@ -35,6 +36,7 @@ class TaskCard extends ConsumerStatefulWidget {
     required this.onColorCycle,
     required this.onDelete,
     this.isReadOnly = false,
+    this.isYesterday = false,
     this.divisionName,
     this.showRadarInfo = false,
   });
@@ -103,17 +105,38 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     final bool hasImage = widget.task.imageFileName != null;
 
     final double activeBorderRadius = theme.borderRadius;
+    final outerBg = _isDone ? theme.card : cardBg;
+    final outerBorderColor = _isDone
+        ? theme.border
+        : theme.useGlowBorder ? taskColor : taskColor.withValues(alpha: 0.4);
+    final outerBorderWidth = _isDone ? 0.5 : theme.borderWidth;
+    final outerShadow = (_isDone || !theme.useGlowBorder) ? null : theme.glowShadow(taskColor, intensity: 0.35);
+
+    final actionOverlayColor = theme.isDark 
+        ? Colors.black.withValues(alpha: 0.16)
+        : Colors.white.withValues(alpha: 0.22);
+
+    final canInteractYesterday = widget.isYesterday;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 3),
-      child: ClipRRect(
+      decoration: BoxDecoration(
+        color: outerBg,
         borderRadius: BorderRadius.circular(activeBorderRadius),
+        border: Border.all(
+          color: outerBorderColor,
+          width: outerBorderWidth,
+        ),
+        boxShadow: outerShadow,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(math.max(0, activeBorderRadius - outerBorderWidth)),
         child: Slidable(
         key: ValueKey('slidable_${widget.task.id}_${widget.task.color.name}_${widget.task.status.name}'),
 
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
-        extentRatio: widget.isReadOnly ? 0.25 : 0.75,
+        extentRatio: (widget.isReadOnly && !canInteractYesterday) ? 0.25 : 0.75,
         children: [
           if (!widget.isReadOnly) ...[
             SlidableAction(
@@ -156,7 +179,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   }
                 }
               },
-              backgroundColor: theme.surface,
+              backgroundColor: actionOverlayColor,
               foregroundColor: theme.taskBlue,
               icon: Icons.edit_rounded,
               padding: EdgeInsets.zero,
@@ -174,7 +197,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   );
                 }
               },
-              backgroundColor: theme.surface,
+              backgroundColor: actionOverlayColor,
               foregroundColor: theme.textSecondary,
               icon: Icons.copy_rounded,
               padding: EdgeInsets.zero,
@@ -241,7 +264,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   }
                 }
               },
-              backgroundColor: theme.surface,
+              backgroundColor: actionOverlayColor,
               foregroundColor: theme.textSecondary,
               icon: Icons.camera_alt_rounded,
               padding: EdgeInsets.zero,
@@ -252,11 +275,11 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             onPressed: (_) async {
               await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => TaskTreeScreen(task: widget.task, isReadOnly: widget.isReadOnly)),
+                MaterialPageRoute(builder: (_) => TaskTreeScreen(task: widget.task, isReadOnly: widget.isReadOnly && !canInteractYesterday)),
               );
               setState(() {});
             },
-            backgroundColor: theme.surface,
+            backgroundColor: actionOverlayColor,
             foregroundColor: theme.taskYellow,
             icon: Icons.account_tree_rounded,
             padding: EdgeInsets.zero,
@@ -270,13 +293,13 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               );
               setState(() {});
             },
-            backgroundColor: theme.surface,
+            backgroundColor: actionOverlayColor,
             foregroundColor: theme.accent,
             icon: Icons.timer_rounded,
             padding: EdgeInsets.zero,
           ),
 
-          if (!widget.isReadOnly)
+          if (!widget.isReadOnly || canInteractYesterday)
             SlidableAction(
               onPressed: (_) {
                 showDialog(
@@ -294,7 +317,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   ),
                 );
               },
-              backgroundColor: theme.taskRed.withValues(alpha: 0.12),
+              backgroundColor: theme.taskRed.withValues(alpha: 0.22),
               foregroundColor: theme.taskRed,
               icon: Icons.delete_outline_rounded,
               padding: EdgeInsets.zero,
@@ -302,7 +325,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
         ],
       ),
 
-      startActionPane: !widget.isReadOnly
+      startActionPane: (!widget.isReadOnly && !canInteractYesterday)
           ? ActionPane(
               motion: const DrawerMotion(),
               extentRatio: widget.task.color == TaskColor.blue 
@@ -313,7 +336,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   SlidableAction(
                     onPressed: (_) =>
                         TaskSettingsSheet.show(context, widget.task),
-                    backgroundColor: theme.surface,
+                    backgroundColor: actionOverlayColor,
                     foregroundColor: theme.taskBlue,
                     icon: Icons.repeat_rounded,
                     padding: EdgeInsets.zero,
@@ -356,7 +379,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                       }
                     },
                     backgroundColor:
-                        theme.taskRed.withValues(alpha: 0.12),
+                        theme.taskRed.withValues(alpha: 0.18),
                     foregroundColor: theme.taskRed,
                     icon: Icons.calendar_today_rounded,
                     padding: EdgeInsets.zero,
@@ -368,7 +391,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     await AlarmSheet.show(context, widget.task);
                     if (mounted) setState(() {});
                   },
-                  backgroundColor: theme.primary.withValues(alpha: 0.12),
+                  backgroundColor: theme.primary.withValues(alpha: 0.18),
                   foregroundColor: theme.primary,
                   icon: widget.task.hasAlarm
                       ? Icons.alarm_on_rounded
@@ -382,22 +405,14 @@ class _TaskCardState extends ConsumerState<TaskCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         decoration: BoxDecoration(
-          color: _isDone ? theme.card : cardBg,
-          borderRadius: BorderRadius.circular(activeBorderRadius),
-          border: Border.all(
-            color: _isDone
-                ? theme.border
-                : theme.useGlowBorder ? taskColor : taskColor.withValues(alpha: 0.4),
-            width: _isDone ? 0.5 : theme.borderWidth,
-          ),
-          boxShadow: (_isDone || !theme.useGlowBorder) ? null : theme.glowShadow(taskColor, intensity: 0.35),
+          color: outerBg,
         ),
         child: Column(
           children: [
             Row(children: [
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: widget.isReadOnly || _isDone || _isToggleLocked ? null : () {
+                onTap: ((widget.isReadOnly && !canInteractYesterday) || _isDone || _isToggleLocked) ? null : () {
                   HapticFeedback.selectionClick();
                   if (widget.task.color == TaskColor.red) {
                     ref.read(routineServiceProvider).clearTaskRed(widget.task)
@@ -413,6 +428,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: theme.surfaceVariant,
+
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: _isDone
@@ -438,7 +454,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                             color: _isDone ? theme.textMuted : taskColor,
                           ),
                         ),
-                        if (!widget.isReadOnly && !_isDone) ...[
+                        if ((!widget.isReadOnly || canInteractYesterday) && !_isDone) ...[
                           const SizedBox(width: 5),
                           Text(
                             _colorLabel,

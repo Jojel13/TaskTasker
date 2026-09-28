@@ -14,6 +14,7 @@ class DivisionSection extends ConsumerWidget {
   final Routine routine;
   final RoutineDay day;
   final bool isToday;
+  final bool isYesterday;
   /// Mapa de GlobalKeys para permitir scroll-to-task a partir do Radar
   final Map<int, GlobalKey>? taskKeys;
 
@@ -22,6 +23,7 @@ class DivisionSection extends ConsumerWidget {
     required this.routine,
     required this.day,
     this.isToday = true,
+    this.isYesterday = false,
     this.taskKeys,
   });
 
@@ -106,6 +108,7 @@ class DivisionSection extends ConsumerWidget {
         key: ValueKey(task.id),
         task: task,
         isReadOnly: !isToday,
+        isYesterday: isYesterday,
         onToggle: () async {
           await ref.read(routineServiceProvider).toggleTask(task);
           ref.invalidate(routineDaysProvider(routine.id));
@@ -136,9 +139,29 @@ class DivisionSection extends ConsumerWidget {
         delay: const Duration(milliseconds: 300),
         feedback: Material(
           color: Colors.transparent,
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width - 40,
-            child: Opacity(opacity: 0.85, child: card),
+          elevation: 0,
+          child: Transform.rotate(
+            angle: -0.024,
+            child: Transform.scale(
+              scale: 1.03,
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width - 32,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(theme.borderRadius),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: theme.isDark ? 0.45 : 0.22),
+                        blurRadius: 18,
+                        spreadRadius: 1,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Opacity(opacity: 0.96, child: card),
+                ),
+              ),
+            ),
           ),
         ),
         childWhenDragging: Opacity(opacity: 0.2, child: card),

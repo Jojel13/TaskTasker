@@ -35,6 +35,11 @@ class Task {
   FrequencyType frequency = FrequencyType.daily;
   List<int> frequencyDays = []; // ISO weekdays: [1=seg ... 7=dom]
   DateTime? lastAppearedDate;
+  bool isRecurrenceActive = true;
+  DateTime? recurrenceEndDate;
+
+  // ─── Task de Fim de Semana (Aba Escondida) ────────────────────
+  bool isWeekendTask = false;
 
   // ─── Alarme Individual (Fase 3) ──────────────────────────────
   /// Horário do alarme. null = sem alarme.

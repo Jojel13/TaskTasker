@@ -79,35 +79,50 @@ const TaskSchema = CollectionSchema(
       name: r'imageFileName',
       type: IsarType.string,
     ),
-    r'lastAppearedDate': PropertySchema(
+    r'isRecurrenceActive': PropertySchema(
       id: 12,
+      name: r'isRecurrenceActive',
+      type: IsarType.bool,
+    ),
+    r'isWeekendTask': PropertySchema(
+      id: 13,
+      name: r'isWeekendTask',
+      type: IsarType.bool,
+    ),
+    r'lastAppearedDate': PropertySchema(
+      id: 14,
       name: r'lastAppearedDate',
       type: IsarType.dateTime,
     ),
+    r'recurrenceEndDate': PropertySchema(
+      id: 15,
+      name: r'recurrenceEndDate',
+      type: IsarType.dateTime,
+    ),
     r'scheduledDate': PropertySchema(
-      id: 13,
+      id: 16,
       name: r'scheduledDate',
       type: IsarType.dateTime,
     ),
     r'sortOrder': PropertySchema(
-      id: 14,
+      id: 17,
       name: r'sortOrder',
       type: IsarType.long,
     ),
     r'status': PropertySchema(
-      id: 15,
+      id: 18,
       name: r'status',
       type: IsarType.string,
       enumMap: _TaskstatusEnumValueMap,
     ),
     r'subtasks': PropertySchema(
-      id: 16,
+      id: 19,
       name: r'subtasks',
       type: IsarType.objectList,
       target: r'Subtask',
     ),
     r'text': PropertySchema(
-      id: 17,
+      id: 20,
       name: r'text',
       type: IsarType.string,
     )
@@ -172,17 +187,20 @@ void _taskSerialize(
   writer.writeBool(offsets[9], object.hasImage);
   writer.writeBool(offsets[10], object.hasSubtasks);
   writer.writeString(offsets[11], object.imageFileName);
-  writer.writeDateTime(offsets[12], object.lastAppearedDate);
-  writer.writeDateTime(offsets[13], object.scheduledDate);
-  writer.writeLong(offsets[14], object.sortOrder);
-  writer.writeString(offsets[15], object.status.name);
+  writer.writeBool(offsets[12], object.isRecurrenceActive);
+  writer.writeBool(offsets[13], object.isWeekendTask);
+  writer.writeDateTime(offsets[14], object.lastAppearedDate);
+  writer.writeDateTime(offsets[15], object.recurrenceEndDate);
+  writer.writeDateTime(offsets[16], object.scheduledDate);
+  writer.writeLong(offsets[17], object.sortOrder);
+  writer.writeString(offsets[18], object.status.name);
   writer.writeObjectList<Subtask>(
-    offsets[16],
+    offsets[19],
     allOffsets,
     SubtaskSchema.serialize,
     object.subtasks,
   );
-  writer.writeString(offsets[17], object.text);
+  writer.writeString(offsets[20], object.text);
 }
 
 Task _taskDeserialize(
@@ -208,20 +226,23 @@ Task _taskDeserialize(
   object.hasSubtasks = reader.readBool(offsets[10]);
   object.id = id;
   object.imageFileName = reader.readStringOrNull(offsets[11]);
-  object.lastAppearedDate = reader.readDateTimeOrNull(offsets[12]);
-  object.scheduledDate = reader.readDateTimeOrNull(offsets[13]);
-  object.sortOrder = reader.readLong(offsets[14]);
+  object.isRecurrenceActive = reader.readBool(offsets[12]);
+  object.isWeekendTask = reader.readBool(offsets[13]);
+  object.lastAppearedDate = reader.readDateTimeOrNull(offsets[14]);
+  object.recurrenceEndDate = reader.readDateTimeOrNull(offsets[15]);
+  object.scheduledDate = reader.readDateTimeOrNull(offsets[16]);
+  object.sortOrder = reader.readLong(offsets[17]);
   object.status =
-      _TaskstatusValueEnumMap[reader.readStringOrNull(offsets[15])] ??
+      _TaskstatusValueEnumMap[reader.readStringOrNull(offsets[18])] ??
           TaskStatus.active;
   object.subtasks = reader.readObjectList<Subtask>(
-        offsets[16],
+        offsets[19],
         SubtaskSchema.deserialize,
         allOffsets,
         Subtask(),
       ) ??
       [];
-  object.text = reader.readString(offsets[17]);
+  object.text = reader.readString(offsets[20]);
   return object;
 }
 
@@ -259,15 +280,21 @@ P _taskDeserializeProp<P>(
     case 11:
       return (reader.readStringOrNull(offset)) as P;
     case 12:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 13:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 14:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 15:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 16:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 17:
+      return (reader.readLong(offset)) as P;
+    case 18:
       return (_TaskstatusValueEnumMap[reader.readStringOrNull(offset)] ??
           TaskStatus.active) as P;
-    case 16:
+    case 19:
       return (reader.readObjectList<Subtask>(
             offset,
             SubtaskSchema.deserialize,
@@ -275,7 +302,7 @@ P _taskDeserializeProp<P>(
             Subtask(),
           ) ??
           []) as P;
-    case 17:
+    case 20:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1282,6 +1309,26 @@ extension TaskQueryFilter on QueryBuilder<Task, Task, QFilterCondition> {
     });
   }
 
+  QueryBuilder<Task, Task, QAfterFilterCondition> isRecurrenceActiveEqualTo(
+      bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isRecurrenceActive',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> isWeekendTaskEqualTo(
+      bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isWeekendTask',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<Task, Task, QAfterFilterCondition> lastAppearedDateIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -1343,6 +1390,75 @@ extension TaskQueryFilter on QueryBuilder<Task, Task, QFilterCondition> {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'lastAppearedDate',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> recurrenceEndDateIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'recurrenceEndDate',
+      ));
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> recurrenceEndDateIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'recurrenceEndDate',
+      ));
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> recurrenceEndDateEqualTo(
+      DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'recurrenceEndDate',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> recurrenceEndDateGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'recurrenceEndDate',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> recurrenceEndDateLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'recurrenceEndDate',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> recurrenceEndDateBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'recurrenceEndDate',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -1957,6 +2073,30 @@ extension TaskQuerySortBy on QueryBuilder<Task, Task, QSortBy> {
     });
   }
 
+  QueryBuilder<Task, Task, QAfterSortBy> sortByIsRecurrenceActive() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRecurrenceActive', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> sortByIsRecurrenceActiveDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRecurrenceActive', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> sortByIsWeekendTask() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isWeekendTask', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> sortByIsWeekendTaskDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isWeekendTask', Sort.desc);
+    });
+  }
+
   QueryBuilder<Task, Task, QAfterSortBy> sortByLastAppearedDate() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastAppearedDate', Sort.asc);
@@ -1966,6 +2106,18 @@ extension TaskQuerySortBy on QueryBuilder<Task, Task, QSortBy> {
   QueryBuilder<Task, Task, QAfterSortBy> sortByLastAppearedDateDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastAppearedDate', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> sortByRecurrenceEndDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceEndDate', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> sortByRecurrenceEndDateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceEndDate', Sort.desc);
     });
   }
 
@@ -2163,6 +2315,30 @@ extension TaskQuerySortThenBy on QueryBuilder<Task, Task, QSortThenBy> {
     });
   }
 
+  QueryBuilder<Task, Task, QAfterSortBy> thenByIsRecurrenceActive() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRecurrenceActive', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> thenByIsRecurrenceActiveDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRecurrenceActive', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> thenByIsWeekendTask() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isWeekendTask', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> thenByIsWeekendTaskDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isWeekendTask', Sort.desc);
+    });
+  }
+
   QueryBuilder<Task, Task, QAfterSortBy> thenByLastAppearedDate() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastAppearedDate', Sort.asc);
@@ -2172,6 +2348,18 @@ extension TaskQuerySortThenBy on QueryBuilder<Task, Task, QSortThenBy> {
   QueryBuilder<Task, Task, QAfterSortBy> thenByLastAppearedDateDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastAppearedDate', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> thenByRecurrenceEndDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceEndDate', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> thenByRecurrenceEndDateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'recurrenceEndDate', Sort.desc);
     });
   }
 
@@ -2301,9 +2489,27 @@ extension TaskQueryWhereDistinct on QueryBuilder<Task, Task, QDistinct> {
     });
   }
 
+  QueryBuilder<Task, Task, QDistinct> distinctByIsRecurrenceActive() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isRecurrenceActive');
+    });
+  }
+
+  QueryBuilder<Task, Task, QDistinct> distinctByIsWeekendTask() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isWeekendTask');
+    });
+  }
+
   QueryBuilder<Task, Task, QDistinct> distinctByLastAppearedDate() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'lastAppearedDate');
+    });
+  }
+
+  QueryBuilder<Task, Task, QDistinct> distinctByRecurrenceEndDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'recurrenceEndDate');
     });
   }
 
@@ -2413,9 +2619,27 @@ extension TaskQueryProperty on QueryBuilder<Task, Task, QQueryProperty> {
     });
   }
 
+  QueryBuilder<Task, bool, QQueryOperations> isRecurrenceActiveProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isRecurrenceActive');
+    });
+  }
+
+  QueryBuilder<Task, bool, QQueryOperations> isWeekendTaskProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isWeekendTask');
+    });
+  }
+
   QueryBuilder<Task, DateTime?, QQueryOperations> lastAppearedDateProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'lastAppearedDate');
+    });
+  }
+
+  QueryBuilder<Task, DateTime?, QQueryOperations> recurrenceEndDateProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'recurrenceEndDate');
     });
   }
 

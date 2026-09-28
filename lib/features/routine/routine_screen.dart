@@ -14,6 +14,7 @@ import '../../shared/models/routine_day.dart';
 import '../../shared/widgets/xp_bar.dart';
 import 'widgets/division_section.dart';
 import 'widgets/routine_export_widget.dart';
+import 'widgets/weekend_drawer_sheet.dart';
 
 class RoutineScreen extends ConsumerStatefulWidget {
   final Routine routine;
@@ -72,6 +73,13 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     return widget.routine.date.year == now.year &&
         widget.routine.date.month == now.month &&
         widget.routine.date.day == now.day;
+  }
+
+  bool get _isYesterday {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final rDate = DateTime(widget.routine.date.year, widget.routine.date.month, widget.routine.date.day);
+    return rDate == today.subtract(const Duration(days: 1));
   }
 
   @override
@@ -218,6 +226,10 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             child: XpBar(),
           ),
 
+          // ── Weekend Tab Trigger (Aba Escondida com DragTarget) ─
+          if (_isToday)
+            WeekendTabTrigger(routineId: widget.routine.id),
+
           // ── Content ─────────────────────────────────────────
           Expanded(
             child: Listener(
@@ -263,6 +275,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                             routine: widget.routine,
                             day: day,
                             isToday: _isToday,
+                            isYesterday: _isYesterday,
                             taskKeys: _taskKeys,
                           )).toList(),
                         );
@@ -270,17 +283,102 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                     ),
                   ),
                   
-                  // Efeito Glass para Histórico (rotinas antigas)
+                  // Efeito Especular de Vidro / Feixe de Espelho para Histórico
                   if (!_isToday)
                     Positioned.fill(
                       child: IgnorePointer(
-                        child: ClipRect(
-                          child: BackdropFilter(
-                            filter: ui.ImageFilter.blur(sigmaX: 2.0, sigmaY: 2.0),
-                            child: Container(
-                              color: theme.background.withValues(alpha: 0.15),
+                        ignoring: true, // Garante que toques e gestos alcancem as tasks de ontem
+                        child: Stack(
+                          children: [
+                            // 1. Feixe de Luz Especular Diagonal (135°) simulando reflexo de espelho
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: const Alignment(-1.0, -1.0),
+                                    end: const Alignment(1.0, 1.0),
+                                    stops: const [0.0, 0.30, 0.40, 0.50, 0.60, 0.70, 1.0],
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.transparent,
+                                      (theme.isDark ? Colors.white : Colors.white).withValues(
+                                        alpha: theme.isDark ? 0.04 : 0.12,
+                                      ),
+                                      (theme.isDark ? Colors.white : Colors.white).withValues(
+                                        alpha: theme.isDark ? 0.08 : 0.20,
+                                      ),
+                                      (theme.isDark ? Colors.white : Colors.white).withValues(
+                                        alpha: theme.isDark ? 0.04 : 0.12,
+                                      ),
+                                      Colors.transparent,
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+
+                            // 2. Realce Chanfrado Superior (Rim Light / Beveled Edge)
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              height: 1.5,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.transparent,
+                                      (theme.isDark ? Colors.white : theme.primary).withValues(alpha: 0.35),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // 3. Brilho Reflexivo nos Cantos
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              width: 90,
+                              height: 90,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: RadialGradient(
+                                    center: Alignment.topRight,
+                                    radius: 1.0,
+                                    colors: [
+                                      (theme.isDark ? Colors.white : theme.accent).withValues(
+                                        alpha: theme.isDark ? 0.08 : 0.15,
+                                      ),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              width: 90,
+                              height: 90,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: RadialGradient(
+                                    center: Alignment.bottomLeft,
+                                    radius: 1.0,
+                                    colors: [
+                                      (theme.isDark ? Colors.white : theme.secondary).withValues(
+                                        alpha: theme.isDark ? 0.06 : 0.12,
+                                      ),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

@@ -362,6 +362,32 @@ class RoutineService {
       await _isar.tasks.delete(taskId);
     });
 
+    // Se era uma task azul, marcar TODAS as cópias do mesmo hábito como inativas
+    // para evitar que a task apareça como "fantasma" no gerenciador de tasks azuis.
+    // Chave: apenas TEXTO (não createdAt) porque moveTaskToDay reseta o createdAt
+    // gerando grupos distintos que compartilham o mesmo hábito.
+    if (task != null && task.color == TaskColor.blue) {
+      final textLower = task.text.trim().toLowerCase();
+      final allBlue = await _isar.tasks
+          .filter()
+          .colorEqualTo(TaskColor.blue)
+          .findAll();
+      final siblings = allBlue
+          .where((t) => t.text.trim().toLowerCase() == textLower)
+          .toList();
+      if (siblings.isNotEmpty) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        await _isar.writeTxn(() async {
+          for (final s in siblings) {
+            s.isRecurrenceActive = false;
+            s.recurrenceEndDate = today;
+            await _isar.tasks.put(s);
+          }
+        });
+      }
+    }
+
     if (imageToDelete != null) {
       await ImageService.deleteImage(imageToDelete);
     }
@@ -756,21 +782,13 @@ class RoutineService {
     bool newAlarmRepeat = src.alarmRepeat;
 
     if (src.alarmTime != null) {
-      final candidate = DateTime(
+      newAlarmTime = DateTime(
         targetDate.year,
         targetDate.month,
         targetDate.day,
         src.alarmTime!.hour,
         src.alarmTime!.minute,
       );
-      // P1: Se o horário calculado para hoje já passou, descartamos o alarme
-      // para evitar badge ⏰ "fantasma" sem notificação real agendada.
-      if (candidate.isAfter(DateTime.now())) {
-        newAlarmTime = candidate;
-      } else {
-        newAlarmTime = null;
-        newAlarmRepeat = false;
-      }
     }
 
     final copiedSubtasks = _copySubtasks(src, color);
@@ -828,22 +846,75 @@ class RoutineService {
   }
 
   // ── Gestão Semanal de Tasks Azuis (A partir do dia atual) ────
+  /// Retorna a lista de hábitos azuis ativos para exibição no gerenciador.
+  /// Estratégia: busca APENAS tasks que estão efetivamente dentro de RoutineDays
+  /// (hoje e nos últimos 14 dias), evitando tasks órfãs/fantasmas que foram
+  /// deletadas mas cujos registros ainda existem na tabela global do Isar.
+  /// Deduplica por TEXTO (não por createdAt) para lidar com o caso de
+  /// moveTaskToDay resetar o createdAt gerando grupos duplicados.
   Future<List<Task>> getAllActiveBlueHabits() async {
-    final allBlue = await _isar.tasks
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final lookbackStart = today.subtract(const Duration(days: 14));
+
+    // Buscar rotinas dos últimos 14 dias + hoje, mais recentes primeiro
+    final routines = await _isar.routines
         .filter()
-        .colorEqualTo(TaskColor.blue)
-        .isRecurrenceActiveEqualTo(true)
+        .dateBetween(lookbackStart, today.add(const Duration(hours: 23, minutes: 59)))
+        .sortByDateDesc()
         .findAll();
 
-    final Map<String, Task> map = {};
-    for (final t in allBlue) {
-      final key = '${t.createdAt.millisecondsSinceEpoch}_${t.text.trim().toLowerCase()}';
-      final existing = map[key];
-      if (existing == null || t.id > existing.id) {
-        map[key] = t;
+    // Chave de deduplicação: apenas o texto normalizado
+    // Prioridade: instância de hoje > instância de maior ID (mais recente)
+    final Map<String, Task> result = {};
+
+    for (final routine in routines) {
+      final isToday = routine.date.year == today.year &&
+          routine.date.month == today.month &&
+          routine.date.day == today.day;
+
+      await routine.days.load();
+      for (final day in routine.days) {
+        await day.tasks.load();
+        for (final t in day.tasks) {
+          if (t.color != TaskColor.blue || !t.isRecurrenceActive) continue;
+
+          final key = t.text.trim().toLowerCase();
+          final existing = result[key];
+
+          if (existing == null) {
+            result[key] = t;
+          } else {
+            // Verificar se o existing é de hoje
+            final existingRoutine = routines.firstWhere(
+              (r) => r.date.year == today.year &&
+                     r.date.month == today.month &&
+                     r.date.day == today.day,
+              orElse: () => routines.last,
+            );
+            await existingRoutine.days.load();
+            bool existingIsToday = false;
+            for (final d in existingRoutine.days) {
+              await d.tasks.load();
+              if (d.tasks.any((tt) => tt.id == existing.id)) {
+                existingIsToday = true;
+                break;
+              }
+            }
+
+            if (isToday && !existingIsToday) {
+              result[key] = t; // hoje tem prioridade
+            } else if (!isToday && existingIsToday) {
+              // manter o de hoje
+            } else if (t.id > existing.id) {
+              result[key] = t; // pegar o mais recente
+            }
+          }
+        }
       }
     }
-    final list = map.values.toList();
+
+    final list = result.values.toList();
     list.sort((a, b) => a.text.toLowerCase().compareTo(b.text.toLowerCase()));
     return list;
   }
@@ -854,85 +925,74 @@ class RoutineService {
     required FrequencyType newFrequency,
     required List<int> newDays,
   }) async {
+    final sample = await _isar.tasks.get(sampleTaskId);
+    if (sample == null) return;
+    final oldText = sample.text.trim().toLowerCase();
+
+    // Atualizar TODAS as cópias azuis com o mesmo texto (ignora createdAt,
+    // pois moveTaskToDay pode ter resetado o createdAt de algumas cópias).
+    final allBlue = await _isar.tasks
+        .filter()
+        .colorEqualTo(TaskColor.blue)
+        .findAll();
+    final toUpdate = allBlue.where((t) =>
+        t.text.trim().toLowerCase() == oldText).toList();
+
     await _isar.writeTxn(() async {
-      final sample = await _isar.tasks.get(sampleTaskId);
-      if (sample == null) return;
-      final createdAtMs = sample.createdAt.millisecondsSinceEpoch;
-      final oldText = sample.text.trim().toLowerCase();
-
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final todayRoutine = await _isar.routines.filter().dateEqualTo(today).findFirst();
-
-      if (todayRoutine != null) {
-        await todayRoutine.days.load();
-        for (final day in todayRoutine.days) {
-          await day.tasks.load();
-          for (final t in day.tasks) {
-            if (t.color == TaskColor.blue &&
-                t.createdAt.millisecondsSinceEpoch == createdAtMs &&
-                t.text.trim().toLowerCase() == oldText) {
-              t.text = newText.trim();
-              t.frequency = newFrequency;
-              t.frequencyDays = List<int>.from(newDays);
-              await _isar.tasks.put(t);
-            }
-          }
-        }
+      for (final t in toUpdate) {
+        t.text = newText.trim();
+        t.frequency = newFrequency;
+        t.frequencyDays = List<int>.from(newDays);
+        await _isar.tasks.put(t);
       }
-
-      sample.text = newText.trim();
-      sample.frequency = newFrequency;
-      sample.frequencyDays = List<int>.from(newDays);
-      await _isar.tasks.put(sample);
     });
   }
 
   Future<void> terminateBlueHabitFromToday(int sampleTaskId) async {
+    final sample = await _isar.tasks.get(sampleTaskId);
+    if (sample == null) return;
+    final textLower = sample.text.trim().toLowerCase();
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Marcar TODAS as cópias azuis com o mesmo texto como inativas.
+    // Usa texto como chave (não createdAt) porque moveTaskToDay pode ter
+    // resetado o createdAt de algumas cópias, gerando grupos distintos.
+    final allBlue = await _isar.tasks
+        .filter()
+        .colorEqualTo(TaskColor.blue)
+        .findAll();
+    final toDeactivate = allBlue.where((t) =>
+        t.text.trim().toLowerCase() == textLower).toList();
+
     await _isar.writeTxn(() async {
-      final sample = await _isar.tasks.get(sampleTaskId);
-      if (sample == null) return;
-      final createdAtMs = sample.createdAt.millisecondsSinceEpoch;
-      final textLower = sample.text.trim().toLowerCase();
-
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-
-      final allMatching = await _isar.tasks
-          .filter()
-          .colorEqualTo(TaskColor.blue)
-          .findAll();
-
-      for (final t in allMatching) {
-        if (t.createdAt.millisecondsSinceEpoch == createdAtMs &&
-            t.text.trim().toLowerCase() == textLower) {
-          t.isRecurrenceActive = false;
-          t.recurrenceEndDate = today;
-          await _isar.tasks.put(t);
-        }
-      }
-
-      final todayRoutine = await _isar.routines.filter().dateEqualTo(today).findFirst();
-      if (todayRoutine != null) {
-        await todayRoutine.days.load();
-        for (final day in todayRoutine.days) {
-          await day.tasks.load();
-          final toRemove = day.tasks.where((t) =>
-              t.color == TaskColor.blue &&
-              t.createdAt.millisecondsSinceEpoch == createdAtMs &&
-              t.text.trim().toLowerCase() == textLower &&
-              t.status != TaskStatus.completed).toList();
-          
-          for (final rem in toRemove) {
-            day.tasks.remove(rem);
-            await _isar.tasks.delete(rem.id);
-          }
-          if (toRemove.isNotEmpty) {
-            await day.tasks.save();
-          }
-        }
+      for (final t in toDeactivate) {
+        t.isRecurrenceActive = false;
+        t.recurrenceEndDate = today;
+        await _isar.tasks.put(t);
       }
     });
+
+    // Remover da rotina de hoje (task não concluída) — usa texto como chave
+    final todayRoutine = await _isar.routines.filter().dateEqualTo(today).findFirst();
+    if (todayRoutine != null) {
+      await todayRoutine.days.load();
+      for (final day in todayRoutine.days) {
+        await day.tasks.load();
+        final toRemove = day.tasks.where((t) =>
+            t.color == TaskColor.blue &&
+            t.text.trim().toLowerCase() == textLower &&
+            t.status != TaskStatus.completed).toList();
+        for (final rem in toRemove) {
+          day.tasks.remove(rem);
+          await _isar.writeTxn(() async => await _isar.tasks.delete(rem.id));
+        }
+        if (toRemove.isNotEmpty) {
+          await _isar.writeTxn(() async => await day.tasks.save());
+        }
+      }
+    }
   }
 
   // ── Backlog de Tasks de Fim de Semana (Aba Escondida) ───────

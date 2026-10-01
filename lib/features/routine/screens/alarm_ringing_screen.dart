@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
@@ -31,6 +32,11 @@ class _AlarmRingingScreenState extends ConsumerState<AlarmRingingScreen> with Si
   @override
   void initState() {
     super.initState();
+    // Manter tela acesa durante o alarme
+    WakelockPlus.enable();
+    // Tela cheia imersiva (esconde barras do sistema)
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -58,6 +64,12 @@ class _AlarmRingingScreenState extends ConsumerState<AlarmRingingScreen> with Si
     _clockTimer.cancel();
     _vibrationTimer.cancel();
     _pulseController.dispose();
+    // Liberar wake lock e restaurar UI normal
+    WakelockPlus.disable();
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.edgeToEdge,
+      overlays: SystemUiOverlay.values,
+    );
     super.dispose();
   }
 

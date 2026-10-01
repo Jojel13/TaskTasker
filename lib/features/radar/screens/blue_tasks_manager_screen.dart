@@ -6,6 +6,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
 import '../../../shared/widgets/blur_confirm_dialog.dart';
+import '../../routine/widgets/alarm_sheet.dart';
 
 class BlueTasksManagerScreen extends ConsumerStatefulWidget {
   const BlueTasksManagerScreen({super.key});
@@ -223,7 +224,53 @@ class _BlueTasksManagerScreenState extends ConsumerState<BlueTasksManagerScreen>
                                           fontWeight: FontWeight.w600,
                                         )),
                                       ),
+                                      // Badge de alarme
+                                      if (habit.hasAlarm) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: theme.primary.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: theme.primary.withValues(alpha: 0.4),
+                                              width: 0.5,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.alarm_on_rounded, size: 11, color: theme.primary),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${habit.alarmTime!.hour.toString().padLeft(2, '0')}:${habit.alarmTime!.minute.toString().padLeft(2, '0')}',
+                                                style: theme.fontStyleMono(TextStyle(
+                                                  color: theme.primary,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                )),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                       const Spacer(),
+                                      // Botão de alarme
+                                      IconButton(
+                                        icon: Icon(
+                                          habit.hasAlarm ? Icons.alarm_on_rounded : Icons.alarm_add_rounded,
+                                          size: 18,
+                                          color: habit.hasAlarm ? theme.primary : theme.textMuted,
+                                        ),
+                                        onPressed: () async {
+                                          await AlarmSheet.show(context, habit);
+                                          ref.invalidate(blueHabitsProvider);
+                                        },
+                                        tooltip: habit.hasAlarm ? 'Editar alarme' : 'Adicionar alarme',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                      ),
+                                      const SizedBox(width: 10),
                                       // Botão de editar
                                       IconButton(
                                         icon: Icon(Icons.edit_rounded, size: 18, color: theme.taskBlue),

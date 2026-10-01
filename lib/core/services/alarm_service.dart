@@ -40,7 +40,7 @@ class AlarmService {
       'task_alarms',
       'Alarmes de Tasks',
       description: 'Alarmes individuais do TaskTasker',
-      importance: Importance.high,
+      importance: Importance.max,
     );
     await _plugin
         .resolvePlatformSpecificImplementation<
@@ -220,7 +220,10 @@ class AlarmService {
       fullScreenIntent: task.alarmFullScreen,
       category: AndroidNotificationCategory.alarm,
       audioAttributesUsage: AudioAttributesUsage.alarm,
-      additionalFlags: task.alarmFullScreen ? Int32List.fromList(<int>[4]) : null,
+      // FLAG_INSISTENT=4, FLAG_SHOW_WHEN_LOCKED=0x80, FLAG_TURN_SCREEN_ON=0x200
+      additionalFlags: task.alarmFullScreen
+          ? Int32List.fromList(<int>[4, 0x80, 0x200])
+          : Int32List.fromList(<int>[4]),
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'action_complete_task',

@@ -96,13 +96,13 @@ class DivisionSection extends ConsumerWidget {
     // ── Task list ──────────────────────────────────────────────
     for (int i = 0; i < tasks.length; i++) {
       final task = tasks[i];
-      Key dragKey;
-      if (taskKeys != null) {
-        taskKeys![task.id] ??= GlobalKey();
-        dragKey = taskKeys![task.id]!;
-      } else {
-        dragKey = ValueKey('drag_${task.id}');
-      }
+      // Use ValueKey for widget identity; GlobalKey is only a scroll-anchor
+      // injected via KeyedSubtree to avoid Duplicate GlobalKey errors when
+      // the same task briefly appears in two divisions (e.g. tomorrow→today).
+      final widgetKey = ValueKey('task_widget_${task.id}_${day.division.name}');
+      final GlobalKey? scrollAnchorKey = taskKeys != null
+          ? (taskKeys![task.id] ??= GlobalKey())
+          : null;
 
       final card = TaskCard(
         key: ValueKey(task.id),
@@ -124,17 +124,19 @@ class DivisionSection extends ConsumerWidget {
       );
 
       if (!isToday) {
-        children.add(
-          SizedBox(key: dragKey, child: card)
-              .animate(delay: Duration(milliseconds: i * 40))
-              .fade(duration: 150.ms)
-              .slideX(begin: 0.03, end: 0),
-        );
+        Widget readOnlyCard = SizedBox(key: widgetKey, child: card)
+            .animate(delay: Duration(milliseconds: i * 40))
+            .fade(duration: 150.ms)
+            .slideX(begin: 0.03, end: 0);
+        if (scrollAnchorKey != null) {
+          readOnlyCard = KeyedSubtree(key: scrollAnchorKey, child: readOnlyCard);
+        }
+        children.add(readOnlyCard);
         continue;
       }
 
       final draggable = LongPressDraggable<Task>(
-        key: dragKey,
+        key: widgetKey,
         data: task,
         delay: const Duration(milliseconds: 300),
         feedback: Material(
@@ -171,7 +173,7 @@ class DivisionSection extends ConsumerWidget {
         child: card,
       );
 
-      children.add(DragTarget<Task>(
+      Widget dragTargetWidget = DragTarget<Task>(
         onWillAcceptWithDetails: (details) => details.data.id != task.id,
         onAcceptWithDetails: (details) async {
           final droppedTask = details.data;
@@ -190,7 +192,7 @@ class DivisionSection extends ConsumerWidget {
             children: [
               if (isHovering)
                 Container(
-                  height: 56, // Tamanho aproximado de um card fechado
+                  height: 56,
                   margin: const EdgeInsets.only(bottom: 6, top: 2),
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.1),
@@ -204,7 +206,13 @@ class DivisionSection extends ConsumerWidget {
         },
       ).animate(delay: Duration(milliseconds: i * 40))
        .fade(duration: 150.ms)
-       .slideX(begin: 0.03, end: 0));
+       .slideX(begin: 0.03, end: 0);
+
+      // Wrap with scroll-anchor key (GlobalKey) without making it the widget key
+      if (scrollAnchorKey != null) {
+        dragTargetWidget = KeyedSubtree(key: scrollAnchorKey, child: dragTargetWidget);
+      }
+      children.add(dragTargetWidget);
     }
 
     // ── Input field ────────────────────────────────────────────

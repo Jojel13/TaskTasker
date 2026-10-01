@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/theme_config.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/widgets/blur_confirm_dialog.dart';
 
@@ -272,10 +273,18 @@ class WeekendDrawerSheet extends ConsumerStatefulWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.65),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: WeekendDrawerSheet(routineId: routineId),
-      ),
+      // useSafeArea garante que o sheet não fique atrás da nav bar
+      useSafeArea: false,
+      builder: (context) {
+        final mq = MediaQuery.of(context);
+        // viewInsets.bottom = teclado visível
+        // viewPadding.bottom = barra de navegação do Android (gesture bar ou botões)
+        final bottomInset = mq.viewInsets.bottom + mq.viewPadding.bottom;
+        return Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: WeekendDrawerSheet(routineId: routineId),
+        );
+      },
     );
   }
 
@@ -498,58 +507,23 @@ class _WeekendDrawerSheetState extends ConsumerState<WeekendDrawerSheet> {
 
                 return ListView.separated(
                   shrinkWrap: true,
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                  padding: EdgeInsets.fromLTRB(20, 8, 20, 24 + MediaQuery.of(context).viewPadding.bottom),
                   itemCount: tasks.length,
                   separatorBuilder: (context, index) => const SizedBox(height: 6),
                   itemBuilder: (context, index) {
                     final t = tasks[index];
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: theme.surfaceVariant,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: theme.border),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: theme.taskStandard,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              t.text,
-                              style: theme.fontStyleBase(TextStyle(
-                                color: theme.textPrimary,
-                                fontSize: 13,
-                              )),
-                            ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete_outline_rounded, size: 18, color: theme.textMuted),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (_) => BlurConfirmDialog(
-                                  title: 'Remover Task',
-                                  message: 'Deseja remover esta task do fim de semana?',
-                                  confirmLabel: 'Remover',
-                                  onConfirm: () async {
-                                    await ref.read(routineServiceProvider).deleteWeekendTask(t.id);
-                                    ref.invalidate(weekendTasksProvider);
-                                    ref.invalidate(routineDaysProvider(widget.routineId));
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
+                    return _WeekendTaskCard(
+                      task: t,
+                      theme: theme,
+                      onDelete: () async {
+                        await ref.read(routineServiceProvider).deleteWeekendTask(t.id);
+                        ref.invalidate(weekendTasksProvider);
+                        ref.invalidate(routineDaysProvider(widget.routineId));
+                      },
+                      onEdit: () async {
+                        await _WeekendEditSheet.show(context, t);
+                        ref.invalidate(weekendTasksProvider);
+                      },
                     );
                   },
                 );
@@ -557,6 +531,333 @@ class _WeekendDrawerSheetState extends ConsumerState<WeekendDrawerSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Card de task de fim de semana ────────────────────────────────────────────
+class _WeekendTaskCard extends StatefulWidget {
+  final Task task;
+  final AppThemeData theme;
+  final VoidCallback onDelete;
+  final VoidCallback onEdit;
+
+  const _WeekendTaskCard({
+    required this.task,
+    required this.theme,
+    required this.onDelete,
+    required this.onEdit,
+  });
+
+  @override
+  State<_WeekendTaskCard> createState() => _WeekendTaskCardState();
+}
+
+class _WeekendTaskCardState extends State<_WeekendTaskCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.task;
+    final theme = widget.theme;
+    final hasSubtasks = t.subtasks.isNotEmpty;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.surfaceVariant,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.border),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: theme.taskStandard),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: hasSubtasks ? () => setState(() => _expanded = !_expanded) : null,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.text,
+                          style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 13)),
+                        ),
+                        if (hasSubtasks)
+                          Text(
+                            '${t.subtasks.length} subtask${t.subtasks.length > 1 ? 's' : ''}  •  toque para ver',
+                            style: theme.fontStyleBase(TextStyle(color: theme.textMuted, fontSize: 10)),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (hasSubtasks)
+                  IconButton(
+                    icon: Icon(
+                      _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: theme.textMuted,
+                    ),
+                    onPressed: () => setState(() => _expanded = !_expanded),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: Icon(Icons.edit_outlined, size: 18, color: theme.textMuted),
+                  onPressed: widget.onEdit,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Editar task',
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: Icon(Icons.delete_outline_rounded, size: 18, color: theme.textMuted),
+                  onPressed: () => showDialog(
+                    context: context,
+                    builder: (_) => BlurConfirmDialog(
+                      title: 'Remover Task',
+                      message: 'Deseja remover esta task do fim de semana?',
+                      confirmLabel: 'Remover',
+                      onConfirm: widget.onDelete,
+                    ),
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+          if (_expanded && hasSubtasks)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.fromLTRB(34, 0, 14, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: t.subtasks.map((sub) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        sub.isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                        size: 14,
+                        color: sub.isCompleted ? theme.secondary : theme.textMuted,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          sub.text,
+                          style: theme.fontStyleBase(TextStyle(
+                            color: sub.isCompleted ? theme.textMuted : theme.textSecondary,
+                            fontSize: 12,
+                            decoration: sub.isCompleted ? TextDecoration.lineThrough : null,
+                          )),
+                        ),
+                      ),
+                    ],
+                  ),
+                )).toList(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Sheet de edicao de task de fim de semana ─────────────────────────────────
+class _WeekendEditSheet extends ConsumerStatefulWidget {
+  final Task task;
+  const _WeekendEditSheet({required this.task});
+
+  static Future<void> show(BuildContext context, Task task) {
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).viewPadding.bottom,
+        ),
+        child: _WeekendEditSheet(task: task),
+      ),
+    );
+  }
+
+  @override
+  ConsumerState<_WeekendEditSheet> createState() => _WeekendEditSheetState();
+}
+
+class _WeekendEditSheetState extends ConsumerState<_WeekendEditSheet> {
+  late TextEditingController _textController;
+  late List<TextEditingController> _subtaskControllers;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _textController = TextEditingController(text: widget.task.text);
+    _subtaskControllers = widget.task.subtasks
+        .map((s) => TextEditingController(text: s.text))
+        .toList();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    for (final c in _subtaskControllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final text = _textController.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() => _isSaving = true);
+    try {
+      final isar = ref.read(isarProvider);
+      final task = widget.task;
+      task.text = text;
+      for (int i = 0; i < task.subtasks.length && i < _subtaskControllers.length; i++) {
+        final newText = _subtaskControllers[i].text.trim();
+        if (newText.isNotEmpty) {
+          task.subtasks[i].text = newText;
+        }
+      }
+      await isar.writeTxn(() => isar.tasks.put(task));
+      if (mounted) Navigator.pop(context);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ref.watch(currentThemeProvider);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.surface,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(theme.borderRadius > 22 ? 22 : theme.borderRadius),
+        ),
+        border: Border(top: BorderSide(color: theme.border)),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: theme.border, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Editar Task de Fim de Semana',
+                  style: theme.fontStyleBase(const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))
+                      .copyWith(color: theme.textPrimary),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(color: theme.surfaceVariant, shape: BoxShape.circle),
+                    child: Icon(Icons.close_rounded, size: 18, color: theme.textMuted),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text('Nome', style: theme.fontStyleBase(const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)).copyWith(color: theme.textMuted)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: theme.surfaceVariant,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: theme.border),
+              ),
+              child: TextField(
+                controller: _textController,
+                autofocus: true,
+                style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 14)),
+                decoration: const InputDecoration(border: InputBorder.none),
+              ),
+            ),
+            if (widget.task.subtasks.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Text('Subtasks', style: theme.fontStyleBase(const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)).copyWith(color: theme.textMuted)),
+              const SizedBox(height: 8),
+              ...List.generate(widget.task.subtasks.length, (i) {
+                final sub = widget.task.subtasks[i];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: theme.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        sub.isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                        size: 16,
+                        color: sub.isCompleted ? theme.secondary : theme.textMuted,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: _subtaskControllers[i],
+                          style: theme.fontStyleBase(TextStyle(
+                            color: theme.textPrimary,
+                            fontSize: 13,
+                            decoration: sub.isCompleted ? TextDecoration.lineThrough : null,
+                          )),
+                          decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: theme.secondary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: _isSaving ? null : _save,
+                child: _isSaving
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Salvar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

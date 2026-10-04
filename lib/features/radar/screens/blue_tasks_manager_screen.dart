@@ -215,20 +215,24 @@ class _BlueTasksManagerScreenState extends ConsumerState<BlueTasksManagerScreen>
                                           ],
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        habit.frequency.label,
-                                        style: theme.fontStyleBase(TextStyle(
-                                          color: theme.taskBlue,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        )),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          habit.frequency.label,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: theme.fontStyleBase(TextStyle(
+                                            color: theme.taskBlue,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          )),
+                                        ),
                                       ),
                                       // Badge de alarme
                                       if (habit.hasAlarm) ...[
-                                        const SizedBox(width: 8),
+                                        const SizedBox(width: 6),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
                                             color: theme.primary.withValues(alpha: 0.12),
                                             borderRadius: BorderRadius.circular(10),
@@ -241,7 +245,7 @@ class _BlueTasksManagerScreenState extends ConsumerState<BlueTasksManagerScreen>
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(Icons.alarm_on_rounded, size: 11, color: theme.primary),
-                                              const SizedBox(width: 4),
+                                              const SizedBox(width: 3),
                                               Text(
                                                 '${habit.alarmTime!.hour.toString().padLeft(2, '0')}:${habit.alarmTime!.minute.toString().padLeft(2, '0')}',
                                                 style: theme.fontStyleMono(TextStyle(
@@ -255,34 +259,37 @@ class _BlueTasksManagerScreenState extends ConsumerState<BlueTasksManagerScreen>
                                         ),
                                       ],
                                       const Spacer(),
-                                      // Botão de alarme
+                                      // Botões de ação compactos
                                       IconButton(
                                         icon: Icon(
                                           habit.hasAlarm ? Icons.alarm_on_rounded : Icons.alarm_add_rounded,
                                           size: 18,
                                           color: habit.hasAlarm ? theme.primary : theme.textMuted,
                                         ),
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.all(4),
+                                        constraints: const BoxConstraints(),
                                         onPressed: () async {
                                           await AlarmSheet.show(context, habit);
                                           ref.invalidate(blueHabitsProvider);
                                         },
                                         tooltip: habit.hasAlarm ? 'Editar alarme' : 'Adicionar alarme',
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
                                       ),
-                                      const SizedBox(width: 10),
-                                      // Botão de editar
+                                      const SizedBox(width: 4),
                                       IconButton(
                                         icon: Icon(Icons.edit_rounded, size: 18, color: theme.taskBlue),
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.all(4),
+                                        constraints: const BoxConstraints(),
                                         onPressed: () => _editHabit(context, habit),
                                         tooltip: 'Editar hábito',
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
                                       ),
-                                      const SizedBox(width: 14),
-                                      // Botão de apagar a partir de hoje
+                                      const SizedBox(width: 4),
                                       IconButton(
                                         icon: Icon(Icons.delete_outline_rounded, size: 18, color: theme.taskRed),
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.all(4),
+                                        constraints: const BoxConstraints(),
                                         onPressed: () {
                                           showDialog(
                                             context: context,
@@ -308,8 +315,6 @@ class _BlueTasksManagerScreenState extends ConsumerState<BlueTasksManagerScreen>
                                           );
                                         },
                                         tooltip: 'Apagar a partir de hoje',
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
                                       ),
                                     ],
                                   ),

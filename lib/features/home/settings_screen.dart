@@ -227,7 +227,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final theme = ref.read(currentThemeProvider);
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         backgroundColor: theme.surface,
         title: Text('Confirmar Importação', style: theme.fontStyleBase(TextStyle(color: theme.taskRed))),
         content: Text(
@@ -236,11 +236,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: Text('Cancelar', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(ctx, true),
             child: Text('Importar', style: theme.fontStyleBase(TextStyle(color: theme.taskRed))),
           ),
         ],
@@ -248,9 +248,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
 
     if (confirm != true) return;
+    if (!mounted) return;
 
     setState(() => _isBackupLoading = true);
     final success = await ref.read(backupServiceProvider).importBackupFromFile();
+    if (!mounted) return;
     setState(() => _isBackupLoading = false);
 
     if (mounted) {
@@ -306,52 +308,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _importBackupClipboard() async {
     final theme = ref.read(currentThemeProvider);
-    final textCtrl = TextEditingController();
-    final confirm = await showDialog<bool>(
+    final jsonText = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.surface,
-        title: Text('Importar Código de Backup', style: theme.fontStyleBase(TextStyle(color: theme.accent))),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Cole o código JSON de backup abaixo. Isso substituirá todos os seus dados atuais.',
-              style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 13)),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: textCtrl,
-              maxLines: 5,
-              style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 12)),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: theme.background,
-                hintText: 'Cole o JSON aqui...',
-                hintStyle: theme.fontStyleBase(TextStyle(color: theme.textMuted)),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancelar', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Restaurar', style: theme.fontStyleBase(TextStyle(color: theme.accent))),
-          ),
-        ],
-      ),
+      builder: (ctx) => _ImportJsonDialog(theme: theme),
     );
 
-    final jsonText = textCtrl.text.trim();
-    textCtrl.dispose();
-
-    if (confirm != true || jsonText.isEmpty) return;
+    if (jsonText == null || jsonText.isEmpty) return;
+    if (!mounted) return;
 
     setState(() => _isBackupLoading = true);
     try {
@@ -392,12 +355,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final theme = ref.watch(currentThemeProvider);
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
-      transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
-      child: Scaffold(
-        key: ValueKey(theme.type),
-        backgroundColor: theme.background,
+    return Scaffold(
+      backgroundColor: theme.background,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -866,26 +825,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   void _confirmDeleteHistory() async {
     final theme = ref.read(currentThemeProvider);
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         backgroundColor: theme.surface,
         title: Text('Tem certeza?', style: theme.fontStyleBase(TextStyle(color: theme.taskRed))),
         content: Text('Esta ação é irreversível e todas as fotos de rotinas passadas serão perdidas.', style: theme.fontStyleBase(TextStyle(color: theme.textPrimary))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancelar', style: theme.fontStyleBase(TextStyle(color: theme.textMuted)))),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Apagar', style: theme.fontStyleBase(TextStyle(color: theme.taskRed)))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancelar', style: theme.fontStyleBase(TextStyle(color: theme.textMuted)))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Apagar', style: theme.fontStyleBase(TextStyle(color: theme.taskRed)))),
         ],
-      )
+      ),
     );
     
     if (confirm != true) return;
+    if (!mounted) return;
     
     final routineService = ref.read(routineServiceProvider);
     await routineService.deleteAllPastRoutines();
@@ -1003,6 +962,82 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               fontSize: 10,
             )),
           ),
+      ],
+    );
+  }
+}
+
+class _ImportJsonDialog extends StatefulWidget {
+  final AppThemeData theme;
+
+  const _ImportJsonDialog({required this.theme});
+
+  @override
+  State<_ImportJsonDialog> createState() => _ImportJsonDialogState();
+}
+
+class _ImportJsonDialogState extends State<_ImportJsonDialog> {
+  late final TextEditingController _textCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _textCtrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _textCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+    return AlertDialog(
+      backgroundColor: theme.surface,
+      title: Text(
+        'Importar Código de Backup',
+        style: theme.fontStyleBase(TextStyle(color: theme.accent, fontWeight: FontWeight.bold)),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Cole o código JSON de backup abaixo. Isso substituirá todos os seus dados atuais.',
+            style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 13)),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _textCtrl,
+            maxLines: 5,
+            style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 12)),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: theme.background,
+              hintText: 'Cole o JSON aqui...',
+              hintStyle: theme.fontStyleBase(TextStyle(color: theme.textMuted)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(null),
+          child: Text('Cancelar', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))),
+        ),
+        TextButton(
+          onPressed: () {
+            final text = _textCtrl.text.trim();
+            Navigator.of(context).pop(text.isNotEmpty ? text : null);
+          },
+          child: Text(
+            'Restaurar',
+            style: theme.fontStyleBase(TextStyle(color: theme.accent, fontWeight: FontWeight.bold)),
+          ),
+        ),
       ],
     );
   }

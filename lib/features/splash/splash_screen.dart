@@ -6,7 +6,6 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'dart:math' as math;
 import '../../shared/widgets/particles_background.dart';
 import '../../core/providers/core_providers.dart';
-import '../../core/services/notification_service.dart';
 import '../../shared/models/enums.dart';
 import '../home/main_wrapper.dart';
 
@@ -95,8 +94,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FlutterNativeSplash.remove();
-      // Solicita permissões de notificação no background logo no startup
-      NotificationService.instance.requestPermissions();
       _simulateLoading();
     });
   }

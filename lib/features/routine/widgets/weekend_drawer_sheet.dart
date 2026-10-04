@@ -5,6 +5,7 @@ import '../../../core/providers/core_providers.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/theme_config.dart';
 import '../../../shared/models/task.dart';
+import '../../../shared/models/enums.dart';
 import '../../../shared/widgets/blur_confirm_dialog.dart';
 
 /// Gatilho reativo com DragTarget para a aba de Fim de Semana
@@ -58,6 +59,9 @@ class _WeekendTabTriggerState extends ConsumerState<WeekendTabTrigger> with Sing
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: DragTarget<Task>(
         onWillAcceptWithDetails: (details) {
+          if (details.data.status == TaskStatus.completed) {
+            return false;
+          }
           if (!_isHovered) {
             HapticFeedback.selectionClick();
             setState(() => _isHovered = true);
@@ -93,7 +97,9 @@ class _WeekendTabTriggerState extends ConsumerState<WeekendTabTrigger> with Sing
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '"${task.text}" agendada para o Fim de Semana!',
+                        task.color != TaskColor.standard
+                            ? '"${task.text}" movida para o Fim de Semana (convertida em tarefa padrão).'
+                            : '"${task.text}" agendada para o Fim de Semana!',
                         style: theme.fontStyleBase(const TextStyle(color: Colors.white)),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -515,6 +521,11 @@ class _WeekendDrawerSheetState extends ConsumerState<WeekendDrawerSheet> {
                     return _WeekendTaskCard(
                       task: t,
                       theme: theme,
+                      onToggle: () async {
+                        await ref.read(routineServiceProvider).toggleTask(t);
+                        ref.invalidate(weekendTasksProvider);
+                        ref.invalidate(routineDaysProvider(widget.routineId));
+                      },
                       onDelete: () async {
                         await ref.read(routineServiceProvider).deleteWeekendTask(t.id);
                         ref.invalidate(weekendTasksProvider);
@@ -540,12 +551,14 @@ class _WeekendDrawerSheetState extends ConsumerState<WeekendDrawerSheet> {
 class _WeekendTaskCard extends StatefulWidget {
   final Task task;
   final AppThemeData theme;
+  final VoidCallback onToggle;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
 
   const _WeekendTaskCard({
     required this.task,
     required this.theme,
+    required this.onToggle,
     required this.onDelete,
     required this.onEdit,
   });
@@ -561,13 +574,14 @@ class _WeekendTaskCardState extends State<_WeekendTaskCard> {
   Widget build(BuildContext context) {
     final t = widget.task;
     final theme = widget.theme;
+    final isCompleted = t.status == TaskStatus.completed;
     final hasSubtasks = t.subtasks.isNotEmpty;
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.surfaceVariant,
+        color: isCompleted ? theme.surfaceVariant.withValues(alpha: 0.6) : theme.surfaceVariant,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.border),
+        border: Border.all(color: isCompleted ? theme.border.withValues(alpha: 0.5) : theme.border),
       ),
       child: Column(
         children: [
@@ -575,21 +589,39 @@ class _WeekendTaskCardState extends State<_WeekendTaskCard> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: theme.taskStandard),
+                GestureDetector(
+                  onTap: widget.onToggle,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isCompleted ? theme.accent : Colors.transparent,
+                      border: Border.all(
+                        color: isCompleted ? theme.accent : theme.border,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: isCompleted
+                        ? const Icon(Icons.check, size: 13, color: Colors.white)
+                        : null,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: GestureDetector(
-                    onTap: hasSubtasks ? () => setState(() => _expanded = !_expanded) : null,
+                    onTap: hasSubtasks ? () => setState(() => _expanded = !_expanded) : widget.onToggle,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           t.text,
-                          style: theme.fontStyleBase(TextStyle(color: theme.textPrimary, fontSize: 13)),
+                          style: theme.fontStyleBase(TextStyle(
+                            color: isCompleted ? theme.textMuted : theme.textPrimary,
+                            fontSize: 13,
+                            decoration: isCompleted ? TextDecoration.lineThrough : null,
+                          )),
                         ),
                         if (hasSubtasks)
                           Text(
@@ -728,16 +760,11 @@ class _WeekendEditSheetState extends ConsumerState<_WeekendEditSheet> {
 
     setState(() => _isSaving = true);
     try {
-      final isar = ref.read(isarProvider);
-      final task = widget.task;
-      task.text = text;
-      for (int i = 0; i < task.subtasks.length && i < _subtaskControllers.length; i++) {
-        final newText = _subtaskControllers[i].text.trim();
-        if (newText.isNotEmpty) {
-          task.subtasks[i].text = newText;
-        }
-      }
-      await isar.writeTxn(() => isar.tasks.put(task));
+      await ref.read(routineServiceProvider).updateWeekendTask(
+        widget.task.id,
+        text,
+        _subtaskControllers.map((c) => c.text).toList(),
+      );
       if (mounted) Navigator.pop(context);
     } finally {
       if (mounted) setState(() => _isSaving = false);

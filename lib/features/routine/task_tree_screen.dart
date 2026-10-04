@@ -11,7 +11,6 @@ import '../../shared/models/mini_task.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/routine_day.dart';
 import '../../shared/models/routine.dart';
-import '../../core/services/xp_service.dart';
 import 'widgets/task_input_field.dart';
 
 class TaskTreeScreen extends ConsumerStatefulWidget {
@@ -130,18 +129,16 @@ class _TaskTreeScreenState extends ConsumerState<TaskTreeScreen> {
   Future<void> _saveAndCheckParent() async {
     final subtasks = widget.task.subtasks;
     final allCompleted = subtasks.isNotEmpty && subtasks.every((s) => s.isCompleted);
-    // BUG-14: não auto-completar nem dar XP em modo leitura (rotinas hist\u00f3ricas)
-    if (!widget.isReadOnly && allCompleted && widget.task.status != TaskStatus.completed) {
-      widget.task.status = TaskStatus.completed;
-      widget.task.completedOnDate = DateTime.now();
-      final xpService = ref.read(xpServiceProvider);
-      await xpService.addXp(XpService.xpForAction(widget.task.color), 'Task principal auto-conclu\u00edda');
-    }
-
     final isar = ref.read(isarProvider);
     await isar.writeTxn(() async {
       await isar.tasks.put(widget.task);
     });
+
+    // Auto-conclusão da task pai via ponto único de conclusão
+    if (!widget.isReadOnly && allCompleted && widget.task.status != TaskStatus.completed) {
+      await ref.read(routineServiceProvider).completeTask(widget.task.id);
+    }
+
     await _invalidateProviders();
     setState(() {});
   }

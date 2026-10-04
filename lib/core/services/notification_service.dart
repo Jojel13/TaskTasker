@@ -6,56 +6,66 @@ import 'package:workmanager/workmanager.dart' hide TaskStatus;
 import 'package:path_provider/path_provider.dart';
 import 'package:isar/isar.dart';
 import '../database/isar_service.dart';
-import '../services/xp_service.dart';
 import '../../shared/models/routine.dart';
 import '../../shared/models/routine_day.dart';
 import '../../shared/models/task.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/user_profile.dart';
 import '../../shared/models/xp_event.dart';
+import '../services/routine_service.dart';
+import 'alarm_service.dart';
 
-/// P3: Notifier global que comunica ao UI qual taskId foi tocado na notificação.
-/// Quando o usuário toca no corpo da notificação (não no botão inline),
-/// este notifier recebe o ID. O [MainWrapper] escuta e navega para a task.
+/// P3: Notifier global que comunica ao UI qual payload de notificação foi tocado.
+/// Valores: `complete_task_<taskId>` ou `habit_alarm_<habitId>`.
+/// O [MainWrapper] escuta e navega (tela de alarme ou rotina).
 /// O valor é null quando não há navegação pendente.
-final ValueNotifier<int?> pendingTaskIdNotifier = ValueNotifier<int?>(null);
+final ValueNotifier<String?> pendingPayloadNotifier = ValueNotifier<String?>(null);
 
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse response) async {
-  if (response.actionId == 'action_complete_task' && response.payload != null) {
-    final taskIdStr = response.payload!.replaceFirst('complete_task_', '');
-    final taskId = int.tryParse(taskIdStr);
-    if (taskId != null) {
-      // BUG-02: usar try/finally para garantir isar.close() mesmo em caso de erro
-      Isar? isar;
+  if (response.actionId != 'action_complete_task' || response.payload == null) return;
+  final payload = response.payload!;
+
+  Isar? isar = Isar.getInstance('tasktasker_db');
+  bool openedHere = false;
+  try {
+    if (isar == null) {
+      // Isolate de background: abrir o banco e inicializar timezone/plugin,
+      // pois a conclusão pode re-agendar alarmes (hábitos).
+      final dir = await getApplicationDocumentsDirectory();
+      isar = await Isar.open(
+        [RoutineSchema, RoutineDaySchema, TaskSchema, UserProfileSchema, XPEventSchema],
+        directory: dir.path,
+        name: 'tasktasker_db',
+      );
+      openedHere = true;
       try {
-        final dir = await getApplicationDocumentsDirectory();
-        isar = await Isar.open(
-          [RoutineSchema, RoutineDaySchema, TaskSchema, UserProfileSchema, XPEventSchema],
-          directory: dir.path,
-          name: 'tasktasker_db',
-        );
-
-        final task = await isar.tasks.get(taskId);
-        if (task != null && task.status != TaskStatus.completed) {
-          // BUG-01: usar XpService para centralizar lógica de XP (mesma fonte de verdade)
-          final xpAmount = XpService.xpForAction(task.color);
-
-          await isar.writeTxn(() async {
-            task.status = TaskStatus.completed;
-            task.completedOnDate = DateTime.now();
-            await isar!.tasks.put(task);
-          });
-
-          // Adicionar XP via XpService (fora da writeTxn de tasks para evitar nested txn)
-          final xpSvc = XpService(isar);
-          await xpSvc.addXp(xpAmount, 'Concluiu task via notificação: ${task.text}');
-        }
+        await AlarmService.initialize(); // timezone local (agendamentos)
       } catch (e) {
-        debugPrint('Error in notificationTapBackground: $e');
-      } finally {
-        await isar?.close();
+        debugPrint('Background AlarmService init failed: $e');
       }
+    }
+
+    final routineService = RoutineService(isar);
+    Task? task;
+    if (payload.startsWith('complete_task_')) {
+      final taskId = int.tryParse(payload.replaceFirst('complete_task_', ''));
+      if (taskId != null) task = await isar.tasks.get(taskId);
+    } else if (payload.startsWith('habit_alarm_')) {
+      // Alarme de hábito disparado sem rotina do dia: o toque explícito em
+      // "Concluir" cria a rotina de hoje para registrar a conclusão.
+      final habitId = payload.replaceFirst('habit_alarm_', '');
+      task = await routineService.resolveHabitTaskForToday(habitId, createIfMissing: true);
+    }
+
+    if (task != null) {
+      await routineService.completeTask(task.id);
+    }
+  } catch (e) {
+    debugPrint('Error in notificationTapBackground: $e');
+  } finally {
+    if (openedHere) {
+      await isar?.close();
     }
   }
 }
@@ -166,7 +176,7 @@ void callbackDispatcher() {
           }
           
           await notifService.showRichDailyNotification(
-            id: now.hour * 60 + now.minute,
+            id: 5000 + now.hour, // faixa fixa: não colide com 888/998/999 nem alarmes
             title: title,
             summary: summary,
             lines: activeTaskTexts,
@@ -224,14 +234,6 @@ class NotificationService {
           playSound: true,
         ),
         AndroidNotificationChannel(
-          'task_alarms',
-          '⏰ Alarme de Task',
-          description: 'Alarmes individuais configurados para cada tarefa',
-          importance: Importance.max,
-          playSound: true,
-          enableVibration: true,
-        ),
-        AndroidNotificationChannel(
           'task_red_alert',
           '🔴 Compromisso Urgente',
           description: 'Notificações para tarefas vermelhas inadiáveis',
@@ -248,7 +250,7 @@ class NotificationService {
         ),
       ];
 
-      for (final channel in channels) {
+      for (final channel in [...channels, ...AlarmService.alarmChannels]) {
         await androidPlugin.createNotificationChannel(channel);
       }
     }
@@ -267,7 +269,7 @@ class NotificationService {
               AndroidFlutterLocalNotificationsPlugin>();
       final notifGranted = await android?.requestNotificationsPermission() ?? false;
       final exactAlarmGranted = await android?.requestExactAlarmsPermission() ?? false;
-      granted = notifGranted || exactAlarmGranted;
+      granted = notifGranted && exactAlarmGranted;
     } else if (Platform.isIOS) {
       final ios = _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
@@ -283,35 +285,30 @@ class NotificationService {
   }
 
   /// P3: Handler para respostas de notificações em foreground.
-  /// - Boto inline 'action_complete_task' → delega para [notificationTapBackground]
-  /// - Toque genérico (sem actionId) → sinaliza [pendingTaskIdNotifier] para navegação
+  /// - Botão inline 'action_complete_task' → delega para [notificationTapBackground]
+  ///   (que reutiliza a instância Isar já aberta no isolate principal)
+  /// - Toque genérico (sem actionId) → sinaliza [pendingPayloadNotifier] para navegação
   void _handleForegroundNotificationResponse(NotificationResponse response) {
     if (response.actionId == 'action_complete_task') {
-      // Completar task via botão inline (comportamento original)
       notificationTapBackground(response);
       return;
     }
 
-    // Toque genérico no corpo da notificação: navegar para a task
-    if (response.payload != null && response.payload!.startsWith('complete_task_')) {
-      final taskIdStr = response.payload!.replaceFirst('complete_task_', '');
-      final taskId = int.tryParse(taskIdStr);
-      if (taskId != null) {
-        pendingTaskIdNotifier.value = taskId;
-      }
+    final payload = response.payload;
+    if (payload != null &&
+        (payload.startsWith('complete_task_') || payload.startsWith('habit_alarm_'))) {
+      pendingPayloadNotifier.value = payload;
     }
   }
 
-  /// P3: Verifica se há task pendente de navegação ao abrir o app (cold start).
-  /// Deve ser chamado no [SplashScreen] após o carregamento do Isar.
-  Future<int?> checkLaunchNotification() async {
+  /// P3: Payload da notificação que abriu o app (cold start), se houver.
+  Future<String?> checkLaunchNotification() async {
     if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return null;
     final details = await _flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
     if (details?.didNotificationLaunchApp == true && details?.notificationResponse?.payload != null) {
       final payload = details!.notificationResponse!.payload!;
-      if (payload.startsWith('complete_task_')) {
-        final taskIdStr = payload.replaceFirst('complete_task_', '');
-        return int.tryParse(taskIdStr);
+      if (payload.startsWith('complete_task_') || payload.startsWith('habit_alarm_')) {
+        return payload;
       }
     }
     return null;
@@ -342,6 +339,8 @@ class NotificationService {
       "tasktasker_daily_checks",
       "check_routines_and_notify",
       frequency: Duration(hours: hours),
+      // Sem 'update' a política padrão (keep) ignora a nova frequência
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
       constraints: Constraints(
         requiresBatteryNotLow: true,
       ),
@@ -389,7 +388,8 @@ class NotificationService {
     if (!_initialized) {
       await initializeForBackground();
     }
-    await requestPermissions();
+    // Permissões são solicitadas no fluxo dedicado (PermissionService);
+    // pedir aqui abria o diálogo do sistema a cada aviso automático.
 
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(

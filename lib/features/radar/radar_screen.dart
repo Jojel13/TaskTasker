@@ -310,7 +310,7 @@ class _RadarTaskCard extends ConsumerWidget {
         showRadarInfo: true,
         onToggle: () {},
         onColorCycle: () {},
-        onDelete: () {},
+        onDelete: ({bool endHabit = false}) {},
       ),
     );
   }

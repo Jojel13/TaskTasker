@@ -11,6 +11,8 @@ import 'xp_service.dart';
 import 'image_service.dart';
 import 'alarm_service.dart';
 import 'notification_service.dart';
+import '../utils/blue_cadence.dart';
+import '../utils/habit_id.dart';
 
 class RoutineService {
   final Isar _isar;
@@ -54,10 +56,17 @@ class RoutineService {
     return days;
   }
 
+  static bool _isCreating = false;
+
   // ── Criar rotina ─────────────────────────────────────────────
   Future<Routine> createRoutine() async {
-    final existing = await findTodayRoutine();
-    if (existing != null) return existing;
+    while (_isCreating) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+    _isCreating = true;
+    try {
+      final existing = await findTodayRoutine();
+      if (existing != null) return existing;
 
     // ── Ler profile ANTES da transação (nunca criar vazio) ──────
     final profile = await _isar.userProfiles.get(1);
@@ -75,7 +84,7 @@ class RoutineService {
       DivisionType.night: [],
     };
     List<Task> tomorrowTasks = [];
-    final Set<String> propagatedKeys = {};
+    final Set<String> propagatedHabitIds = {};
 
     final today = _today();
 
@@ -92,7 +101,9 @@ class RoutineService {
           for (final t in tasks) {
             if (t.status != TaskStatus.completed) {
               tomorrowTasks.add(t);
-              propagatedKeys.add('${t.createdAt.millisecondsSinceEpoch}_${t.text.trim().toLowerCase()}');
+              if (t.color == TaskColor.blue && t.habitId != null) {
+                propagatedHabitIds.add(t.habitId!);
+              }
             }
           }
         } else {
@@ -111,16 +122,17 @@ class RoutineService {
             }
 
             if (t.color == TaskColor.red) {
-              final sched = t.scheduledDate;
+              // Vermelha não concluída propaga até ser feita; se a data já passou,
+              // segue como "atrasada" (badge na UI) em vez de sumir.
               if (t.status == TaskStatus.completed) continue;
-              if (sched == null || sched.isBefore(today)) continue;
+              if (t.scheduledDate == null) continue;
               eligible.add(t);
             } else if (t.color == TaskColor.yellow) {
               if (t.completedOnDate == null) eligible.add(t);
             } else if (t.color == TaskColor.blue) {
-              if (_blueEligible(t, today)) {
+              if (BlueCadence.isEligibleOn(t, today)) {
                 eligible.add(t);
-                propagatedKeys.add('${t.createdAt.millisecondsSinceEpoch}_${t.text.trim().toLowerCase()}');
+                if (t.habitId != null) propagatedHabitIds.add(t.habitId!);
               }
             }
           }
@@ -129,19 +141,32 @@ class RoutineService {
       }
     }
 
-    // Coletar tasks de fim de semana se hoje for sábado
+    // Coletar tasks de fim de semana se hoje for sábado ou domingo
     final weekendTasksToInject = <Task>[];
-    if (today.weekday == DateTime.saturday) {
-      final backlog = await _isar.tasks
-          .filter()
-          .isWeekendTaskEqualTo(true)
-          .statusEqualTo(TaskStatus.active)
-          .findAll();
-      weekendTasksToInject.addAll(backlog);
+    bool didInjectWeekendTasks = false;
+    if (today.weekday == DateTime.saturday || today.weekday == DateTime.sunday) {
+      bool alreadyInjected = false;
+      if (profile.lastWeekendInjection != null) {
+        final last = profile.lastWeekendInjection!;
+        final thisSaturday = today.weekday == DateTime.saturday ? today : today.subtract(const Duration(days: 1));
+        if (!last.isBefore(thisSaturday)) {
+          alreadyInjected = true;
+        }
+      }
+      if (!alreadyInjected) {
+        final backlog = await _isar.tasks
+            .filter()
+            .isWeekendTaskEqualTo(true)
+            .weekendOriginIdIsNull()
+            .statusEqualTo(TaskStatus.active)
+            .findAll();
+        weekendTasksToInject.addAll(backlog);
+        didInjectWeekendTasks = true;
+      }
     }
 
     // Coletar outras tasks azuis elegíveis que não estavam na rotina de ontem (ex: cadências semanais)
-    final blueTasksMap = await _getEligibleBlueTasks(today, pastRoutines, propagatedKeys);
+    final blueTasksMap = await _getEligibleBlueTasks(today, propagatedHabitIds);
 
     // ── Copiar imagens fora da transação (Evitar I/O pesado no writeTxn)
     final Map<int, String?> copiedImages = {};
@@ -164,9 +189,22 @@ class RoutineService {
       }
     }
 
-    final List<Task> tasksWithAlarms = [];
+    final List<Task> createdCopies = [];
+    final List<int> sourceIds = [];
 
     final routine = await _isar.writeTxn(() async {
+      final doubleCheck = await _isar.routines
+          .where()
+          .filter()
+          .dateBetween(today, today.add(const Duration(hours: 23, minutes: 59)))
+          .findFirst();
+      if (doubleCheck != null) return doubleCheck;
+
+      if (didInjectWeekendTasks) {
+        profile.lastWeekendInjection = today;
+        await _isar.userProfiles.put(profile);
+      }
+
       final r = Routine()
         ..name = profile.routineName
         ..date = today
@@ -204,10 +242,8 @@ class RoutineService {
           }
           await _isar.tasks.put(copy);
           day.tasks.add(copy);
-
-          if (copy.hasAlarm) {
-            tasksWithAlarms.add(copy);
-          }
+          createdCopies.add(copy);
+          sourceIds.add(src.id);
         }
         await day.tasks.save();
         r.days.add(day);
@@ -216,11 +252,23 @@ class RoutineService {
       return r;
     });
 
-    // Agendar alarmes (respeitando preferência de som do usuário)
+    // Alarmes migram da task de origem (rotina anterior) para a cópia de hoje:
+    // sem isso o "✓ Concluir" da notificação marcaria a task de ontem.
     final soundEnabled = profile.alarmSoundEnabled;
-    for (final task in tasksWithAlarms) {
-      await AlarmService.scheduleAlarm(task, soundEnabled: soundEnabled);
+    for (final id in sourceIds) {
+      await AlarmService.cancelAllForTask(id);
     }
+    for (final copy in createdCopies) {
+      if (copy.hasAlarm) {
+        await AlarmService.scheduleAlarm(copy, soundEnabled: soundEnabled);
+      }
+      if (copy.color == TaskColor.red) {
+        await AlarmService.scheduleRedTaskNotification(copy, soundEnabled: soundEnabled);
+      }
+    }
+    // A rotina de hoje passa a ser a fonte dos alarmes azuis de hoje;
+    // os pré-agendamentos de hábito seguem cobrindo os próximos dias.
+    await refreshAllHabitAlarms();
 
     // P5: Notificar tasks amarelas propagadas do dia anterior
     await _notifyPendingYellowTasks(routine, notifEnabled: profile.notifEnabled);
@@ -229,6 +277,9 @@ class RoutineService {
     await _checkAndFinalizeStreak(profile, today);
 
     return routine;
+    } finally {
+      _isCreating = false;
+    }
   }
 
   /// P5: Conta tasks amarelas propagadas e dispara notificação discreta se houver pendências.
@@ -345,12 +396,28 @@ class RoutineService {
     });
   }
 
+  /// Conclusão de task — ponto único para UI, notificações e subtasks
+  Future<void> completeTask(int taskId) async {
+    final task = await _isar.tasks.get(taskId);
+    if (task == null || task.status == TaskStatus.completed) return;
+    await toggleTask(task);
+  }
+
+  /// Desmarcação de task
+  Future<void> uncompleteTask(int taskId) async {
+    final task = await _isar.tasks.get(taskId);
+    if (task == null || task.status != TaskStatus.completed) return;
+    await toggleTask(task);
+  }
+
   /// Deleta task e estorna XP se estava concluída.
-  /// Exceção: tasks azuis que já apareceram (propagadas) não estornam streak.
-  Future<void> deleteTask(Id dayId, Id taskId) async {
+  /// Se [endHabit] for true, desativa a recorrência do hábito em todas as cópias.
+  Future<void> deleteTask(Id dayId, Id taskId, {bool endHabit = false}) async {
     // Ler task ANTES da transação para decisão de XP
     final task = await _isar.tasks.get(taskId);
     final String? imageToDelete = task?.imageFileName;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
     await _isar.writeTxn(() async {
       final day = await _isar.routineDays.get(dayId);
@@ -362,29 +429,12 @@ class RoutineService {
       await _isar.tasks.delete(taskId);
     });
 
-    // Se era uma task azul, marcar TODAS as cópias do mesmo hábito como inativas
-    // para evitar que a task apareça como "fantasma" no gerenciador de tasks azuis.
-    // Chave: apenas TEXTO (não createdAt) porque moveTaskToDay reseta o createdAt
-    // gerando grupos distintos que compartilham o mesmo hábito.
     if (task != null && task.color == TaskColor.blue) {
-      final textLower = task.text.trim().toLowerCase();
-      final allBlue = await _isar.tasks
-          .filter()
-          .colorEqualTo(TaskColor.blue)
-          .findAll();
-      final siblings = allBlue
-          .where((t) => t.text.trim().toLowerCase() == textLower)
-          .toList();
-      if (siblings.isNotEmpty) {
-        final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day);
-        await _isar.writeTxn(() async {
-          for (final s in siblings) {
-            s.isRecurrenceActive = false;
-            s.recurrenceEndDate = today;
-            await _isar.tasks.put(s);
-          }
-        });
+      if (endHabit) {
+        await terminateBlueHabitFromToday(taskId);
+      } else if (task.habitId != null) {
+        // Apagada apenas hoje: cancela o alarme de hoje deste hábito
+        await AlarmService.cancelHabitAlarmForDay(task.habitId!, today);
       }
     }
 
@@ -393,12 +443,7 @@ class RoutineService {
     }
 
     if (task != null) {
-      if (task.hasAlarm) {
-        await AlarmService.cancelAlarm(taskId);
-      }
-      if (task.color == TaskColor.red) {
-        await AlarmService.cancelRedTaskNotification(taskId);
-      }
+      await AlarmService.cancelAllForTask(taskId);
     }
 
     // Estornar XP se a task estava concluída
@@ -408,16 +453,14 @@ class RoutineService {
     }
   }
 
-
-
-  Future<void> moveTaskToDay(Id taskId, Id newDayId) async {
+  Future<void> moveTaskToDay(Id taskId, Id newDayId, {int? targetIndex}) async {
     await _isar.writeTxn(() async {
       final task = await _isar.tasks.get(taskId);
       if (task == null) return;
 
-      // M6: Resetar cadência de tasks azuis se movidas
+      // M6: Atualizar âncora de cadência sem alterar createdAt
       if (task.color == TaskColor.blue) {
-        task.createdAt = DateTime.now();
+        task.cadenceAnchor = DateTime.now();
         await _isar.tasks.put(task);
       }
 
@@ -432,7 +475,24 @@ class RoutineService {
       final newDay = await _isar.routineDays.get(newDayId);
       if (newDay != null) {
         await newDay.tasks.load();
-        newDay.tasks.add(task);
+        final existingTasks = newDay.tasks.toList()
+          ..sort((a, b) => a.sortOrder != b.sortOrder
+              ? a.sortOrder.compareTo(b.sortOrder)
+              : a.createdAt.compareTo(b.createdAt));
+
+        if (targetIndex != null && targetIndex >= 0 && targetIndex <= existingTasks.length) {
+          existingTasks.insert(targetIndex, task);
+        } else {
+          existingTasks.add(task);
+        }
+
+        for (int i = 0; i < existingTasks.length; i++) {
+          existingTasks[i].sortOrder = i;
+        }
+        await _isar.tasks.putAll(existingTasks);
+
+        newDay.tasks.clear();
+        newDay.tasks.addAll(existingTasks);
         await newDay.tasks.save();
       }
     });
@@ -503,6 +563,16 @@ class RoutineService {
       }
 
       await _isar.tasks.put(task);
+
+      // Se for cópia de FDS na rotina, sincroniza com o original no backlog (fica riscada)
+      if (task.weekendOriginId != null) {
+        final origin = await _isar.tasks.get(task.weekendOriginId!);
+        if (origin != null) {
+          origin.status = task.status;
+          origin.completedOnDate = task.completedOnDate;
+          await _isar.tasks.put(origin);
+        }
+      }
     });
 
     final desc = '${nowCompleted ? "Task" : "Desmarcou task"} (${task.color.name})';
@@ -513,10 +583,25 @@ class RoutineService {
       if (subtasksXpDelta > 0) {
         await _xp.addXp(subtasksXpDelta, 'Subtasks concluídas em cascata');
       }
+      await AlarmService.cancelAlarm(task.id);
+      await AlarmService.cancelRedTaskNotification(task.id);
+      if (task.color == TaskColor.blue && task.habitId != null) {
+        final now = DateTime.now();
+        await AlarmService.cancelHabitAlarmForDay(
+          task.habitId!,
+          DateTime(now.year, now.month, now.day),
+        );
+      }
     } else {
       await _xp.deductXp(mainXp, desc);
       if (subtasksXpDelta < 0) {
         await _xp.deductXp(subtasksXpDelta.abs(), 'Subtasks desmarcadas em cascata');
+      }
+      final profile = await _isar.userProfiles.get(1);
+      final soundEnabled = profile?.alarmSoundEnabled ?? true;
+      await AlarmService.scheduleAlarm(task, soundEnabled: soundEnabled);
+      if (task.color == TaskColor.red) {
+        await AlarmService.scheduleRedTaskNotification(task, soundEnabled: soundEnabled);
       }
     }
   }
@@ -530,6 +615,38 @@ class RoutineService {
       TaskColor.yellow   => TaskColor.standard,
       TaskColor.red      => TaskColor.standard, // red → reset (nunca deve ocorrer via loop)
     };
+
+    // Ao virar azul: atribuir habitId se não tiver e definir âncora de cadência
+    if (next == TaskColor.blue) {
+      task.habitId ??= HabitIdGenerator.generate();
+      task.cadenceAnchor ??= DateTime.now();
+      task.isRecurrenceActive = true;
+    }
+
+    // Ao sair do azul (para amarelo): encerrar recorrência das outras cópias
+    if (task.color == TaskColor.blue && next != TaskColor.blue) {
+      final habitId = task.habitId;
+      if (habitId != null) {
+        await AlarmService.cancelHabitAlarms(habitId);
+        final siblings = await _isar.tasks
+            .filter()
+            .habitIdEqualTo(habitId)
+            .findAll();
+        for (final s in siblings) {
+          if (s.id != task.id) {
+            s.isRecurrenceActive = false;
+            s.recurrenceEndDate = DateTime.now();
+          }
+        }
+        if (siblings.isNotEmpty) {
+          await _isar.writeTxn(() => _isar.tasks.putAll(siblings));
+        }
+      }
+      task.frequency = FrequencyType.daily;
+      task.frequencyDays = [];
+      task.isRecurrenceActive = true;
+    }
+
     // Ao voltar para branco, limpar data agendada e frequência
     if (next == TaskColor.standard) {
       task.scheduledDate = null;
@@ -539,11 +656,7 @@ class RoutineService {
         task.alarmRepeat = false;
       }
     }
-    // Ao sair do azul, limpar frequência
-    if (task.color == TaskColor.blue && next != TaskColor.blue) {
-      task.frequency = FrequencyType.daily;
-      task.frequencyDays = [];
-    }
+
     task.color = next;
     await _isar.writeTxn(() => _isar.tasks.put(task));
   }
@@ -605,14 +718,39 @@ class RoutineService {
     task.alarmFullScreen = fullScreen;
     await _isar.writeTxn(() => _isar.tasks.put(task));
 
-    // Se for uma task vermelha, precisamos recancelar a notificação padrão das 8h (slot 9)
+    final profile = await _isar.userProfiles.get(1);
+    final soundEnabled = profile?.alarmSoundEnabled ?? true;
+
+    // Resposta do usuário: vermelha toca as duas (alarme pontual + notificação das 8h)
     if (task.color == TaskColor.red) {
-      await AlarmService.cancelRedTaskNotification(task.id);
+      await AlarmService.scheduleRedTaskNotification(task, soundEnabled: soundEnabled);
     }
 
-    // Ler preferência de som do usuário antes de agendar
-    final profile = await _isar.userProfiles.get(1);
-    await AlarmService.scheduleAlarm(task, soundEnabled: profile?.alarmSoundEnabled ?? true);
+    // Se for azul com hábito, sincronizar alarme com todas as cópias ativas e re-agendar janela
+    if (task.color == TaskColor.blue && task.habitId != null) {
+      final siblings = await _isar.tasks
+          .filter()
+          .habitIdEqualTo(task.habitId!)
+          .isRecurrenceActiveEqualTo(true)
+          .findAll();
+      for (final s in siblings) {
+        if (s.id != task.id) {
+          s.alarmTime = time;
+          s.alarmRepeat = repeat;
+          s.alarmFullScreen = fullScreen;
+        }
+      }
+      if (siblings.isNotEmpty) {
+        await _isar.writeTxn(() => _isar.tasks.putAll(siblings));
+      }
+      await AlarmService.refreshHabitAlarms(
+        task,
+        includeToday: false,
+        soundEnabled: soundEnabled,
+      );
+    }
+
+    await AlarmService.scheduleAlarm(task, soundEnabled: soundEnabled);
   }
 
   /// Remove o alarme de uma task.
@@ -623,11 +761,99 @@ class RoutineService {
     task.alarmFullScreen = false;
     await _isar.writeTxn(() => _isar.tasks.put(task));
 
+    // Se for azul com hábito, cancelar alarmes futuros e limpar cópias ativas
+    if (task.color == TaskColor.blue && task.habitId != null) {
+      await AlarmService.cancelHabitAlarms(task.habitId!);
+      final siblings = await _isar.tasks
+          .filter()
+          .habitIdEqualTo(task.habitId!)
+          .isRecurrenceActiveEqualTo(true)
+          .findAll();
+      for (final s in siblings) {
+        if (s.id != task.id) {
+          s.alarmTime = null;
+          s.alarmRepeat = false;
+          s.alarmFullScreen = false;
+        }
+      }
+      if (siblings.isNotEmpty) {
+        await _isar.writeTxn(() => _isar.tasks.putAll(siblings));
+      }
+    }
+
     // Se for vermelha, ao limpar o alarme individual devemos re-agendar a notificação padrão das 8h (slot 9)
     if (task.color == TaskColor.red) {
       final profile = await _isar.userProfiles.get(1);
       await AlarmService.scheduleRedTaskNotification(task, soundEnabled: profile?.alarmSoundEnabled ?? true);
     }
+  }
+
+  /// Renomeia a tarefa. Se for azul com hábito, propaga o novo nome para todas as cópias
+  /// ativas sem mexer no createdAt histórico.
+  Future<void> renameTask(int taskId, String newText) async {
+    final trimmed = newText.trim();
+    if (trimmed.isEmpty) return;
+    await _isar.writeTxn(() async {
+      final task = await _isar.tasks.get(taskId);
+      if (task == null) return;
+      task.text = trimmed;
+      await _isar.tasks.put(task);
+
+      if (task.color == TaskColor.blue && task.habitId != null) {
+        final siblings = await _isar.tasks
+            .filter()
+            .habitIdEqualTo(task.habitId!)
+            .isRecurrenceActiveEqualTo(true)
+            .findAll();
+        for (final s in siblings) {
+          s.text = trimmed;
+        }
+        if (siblings.isNotEmpty) {
+          await _isar.tasks.putAll(siblings);
+        }
+      }
+    });
+  }
+
+  /// Vincula imagem à tarefa e apaga arquivo anterior se existir
+  Future<void> attachTaskImage(int taskId, String fileName) async {
+    await _isar.writeTxn(() async {
+      final task = await _isar.tasks.get(taskId);
+      if (task == null) return;
+      if (task.imageFileName != null && task.imageFileName != fileName) {
+        await ImageService.deleteImage(task.imageFileName!);
+      }
+      task.imageFileName = fileName;
+      task.hasImage = true;
+      await _isar.tasks.put(task);
+    });
+  }
+
+  /// Registra conclusão de foco Pomodoro com incremento seguro e XP
+  Future<void> recordFocusSession(int taskId) async {
+    final task = await _isar.tasks.get(taskId);
+    if (task == null) return;
+    await _isar.writeTxn(() async {
+      task.focusCount++;
+      await _isar.tasks.put(task);
+    });
+    await _xp.addXp(8, 'Sessão de foco concluída 🎯 (${task.text})');
+  }
+
+  /// Atualiza tarefa do backlog de fim de semana
+  Future<void> updateWeekendTask(int taskId, String text, List<String> subtaskTexts) async {
+    await _isar.writeTxn(() async {
+      final task = await _isar.tasks.get(taskId);
+      if (task == null) return;
+      task.text = text.trim();
+      for (int i = 0; i < task.subtasks.length && i < subtaskTexts.length; i++) {
+        final subText = subtaskTexts[i].trim();
+        if (subText.isNotEmpty) {
+          task.subtasks[i].text = subText;
+        }
+      }
+      await _isar.tasks.put(task);
+    });
   }
 
   Future<void> updateTaskSortOrder(List<Task> tasks) async {
@@ -654,7 +880,7 @@ class RoutineService {
         if (t.imageFileName != null) {
           imagesToDelete.add(t.imageFileName!);
         }
-        if (t.hasAlarm) {
+        if (t.hasAlarm || t.color == TaskColor.red) {
           alarmsToCancel.add(t.id);
         }
       }
@@ -666,7 +892,7 @@ class RoutineService {
       await _isar.routines.delete(routineId);
     });
     for (final taskId in alarmsToCancel) {
-      await AlarmService.cancelAlarm(taskId);
+      await AlarmService.cancelAllForTask(taskId);
     }
     for (final image in imagesToDelete) {
       await ImageService.deleteImage(image);
@@ -685,15 +911,14 @@ class RoutineService {
   // ── Helpers ──────────────────────────────────────────────────
   Future<Map<DivisionType, List<Task>>> _getEligibleBlueTasks(
     DateTime today,
-    List<Routine> pastRoutines,
-    Set<String> alreadyPropagatedKeys,
+    Set<String> alreadyPropagatedHabitIds,
   ) async {
     final allBlueTasks = await _isar.tasks
         .filter()
         .colorEqualTo(TaskColor.blue)
         .isRecurrenceActiveEqualTo(true)
         .findAll();
-    
+
     final Map<DivisionType, List<Task>> result = {
       DivisionType.morning: [],
       DivisionType.afternoon: [],
@@ -702,10 +927,10 @@ class RoutineService {
 
     if (allBlueTasks.isEmpty) return result;
 
-    // Agrupar por identidade de criação (createdAt + text) para permitir tarefas homônimas distintas
+    // Agrupar por habitId (ou texto se habitId for nulo)
     final Map<String, Task> latestTaskMap = {};
     for (final t in allBlueTasks) {
-      final key = '${t.createdAt.millisecondsSinceEpoch}_${t.text.trim().toLowerCase()}';
+      final key = t.habitId ?? t.text.trim().toLowerCase();
       final existing = latestTaskMap[key];
       if (existing == null || t.id > existing.id) {
         latestTaskMap[key] = t;
@@ -717,64 +942,66 @@ class RoutineService {
       final latestTask = entry.value;
 
       // Evita duplicidade se já foi propagada na rotina
-      if (alreadyPropagatedKeys.contains(key)) continue;
-
-      // Encontrar a rotina mais recente onde esta task deveria ter aparecido
-      Routine? mostRecentEligibleRoutine;
-      for (final r in pastRoutines) {
-        final rDate = DateTime(r.date.year, r.date.month, r.date.day);
-        if (_blueEligible(latestTask, rDate)) {
-          mostRecentEligibleRoutine = r;
-          break;
-        }
-      }
-
-      if (mostRecentEligibleRoutine == null) {
-        // Sem ocorrência elegível passada: se elegível hoje, adiciona à manhã por padrão
-        if (_blueEligible(latestTask, today)) {
-          result[DivisionType.morning]!.add(latestTask);
-        }
+      if (alreadyPropagatedHabitIds.contains(key) ||
+          (latestTask.habitId != null && alreadyPropagatedHabitIds.contains(latestTask.habitId!))) {
         continue;
       }
 
-      // Verificar em qual divisão ela existia na rotina mais recente elegível
-      await mostRecentEligibleRoutine.days.load();
-      bool existsInRoutine = false;
-      DivisionType foundDivision = DivisionType.morning;
+      if (!BlueCadence.isEligibleOn(latestTask, today)) continue;
 
-      for (final day in mostRecentEligibleRoutine.days) {
-        await day.tasks.load();
-        if (day.tasks.any((t) => t.createdAt == latestTask.createdAt && t.color == TaskColor.blue)) {
-          existsInRoutine = true;
-          foundDivision = day.division;
-          break;
-        }
+      // Encontrar a divisão mais recente onde este hábito esteve
+      DivisionType targetDivision = DivisionType.morning;
+      final parentDay = await _isar.routineDays
+          .filter()
+          .tasks((q) => q.idEqualTo(latestTask.id))
+          .findFirst();
+      if (parentDay != null && parentDay.division != DivisionType.tomorrow) {
+        targetDivision = parentDay.division;
       }
 
-      if (existsInRoutine) {
-        final targetDivision = foundDivision == DivisionType.tomorrow ? DivisionType.morning : foundDivision;
-        if (_blueEligible(latestTask, today)) {
-          result[targetDivision]!.add(latestTask);
-        }
-      }
+      result[targetDivision]!.add(latestTask);
     }
 
     return result;
   }
 
-  bool _blueEligible(Task t, DateTime today) {
-    if (!t.isRecurrenceActive) return false;
-    if (t.recurrenceEndDate != null && !today.isBefore(t.recurrenceEndDate!)) {
-      return false;
+  /// Re-agenda alarmes para a janela de próximos dias de todos os hábitos azuis ativos
+  Future<void> refreshAllHabitAlarms() async {
+    final habits = await getAllActiveBlueHabits();
+    final profile = await _isar.userProfiles.get(1);
+    final soundEnabled = profile?.alarmSoundEnabled ?? true;
+    for (final h in habits) {
+      await AlarmService.refreshHabitAlarms(
+        h,
+        includeToday: false, // rotina de hoje tem os alarmes das tasks de hoje
+        soundEnabled: soundEnabled,
+      );
     }
-    switch (t.frequency) {
-      case FrequencyType.daily: return true;
-      case FrequencyType.everyOtherDay:
-        final diff = today.difference(DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day)).inDays;
-        return diff % 2 == 0;
-      case FrequencyType.custom:
-        return t.frequencyDays.contains(today.weekday);
+  }
+
+  /// Localiza a task correspondente a um hábito na rotina de hoje
+  Future<Task?> resolveHabitTaskForToday(String habitId, {bool createIfMissing = false}) async {
+    final todayRoutine = await findTodayRoutine();
+    if (todayRoutine != null) {
+      await todayRoutine.days.load();
+      for (final day in todayRoutine.days) {
+        await day.tasks.load();
+        for (final t in day.tasks) {
+          if (t.habitId == habitId) return t;
+        }
+      }
     }
+    if (createIfMissing) {
+      final r = await createRoutine();
+      await r.days.load();
+      for (final day in r.days) {
+        await day.tasks.load();
+        for (final t in day.tasks) {
+          if (t.habitId == habitId) return t;
+        }
+      }
+    }
+    return null;
   }
 
   Task _copyTask(Task src, TaskColor color, DateTime targetDate) {
@@ -816,9 +1043,12 @@ class RoutineService {
       ..lastAppearedDate = src.lastAppearedDate
       ..isRecurrenceActive = src.isRecurrenceActive
       ..recurrenceEndDate = src.recurrenceEndDate
-      ..isWeekendTask = src.isWeekendTask
+      ..isWeekendTask = false
+      ..weekendOriginId = src.isWeekendTask ? (src.weekendOriginId ?? src.id) : null
       ..hasImage = src.hasImage
       ..hasSubtasks = src.hasSubtasks
+      ..habitId = src.habitId
+      ..cadenceAnchor = src.cadenceAnchor
       ..alarmTime = newAlarmTime
       ..alarmRepeat = newAlarmRepeat
       ..alarmFullScreen = src.alarmFullScreen
@@ -847,70 +1077,20 @@ class RoutineService {
 
   // ── Gestão Semanal de Tasks Azuis (A partir do dia atual) ────
   /// Retorna a lista de hábitos azuis ativos para exibição no gerenciador.
-  /// Estratégia: busca APENAS tasks que estão efetivamente dentro de RoutineDays
-  /// (hoje e nos últimos 14 dias), evitando tasks órfãs/fantasmas que foram
-  /// deletadas mas cujos registros ainda existem na tabela global do Isar.
-  /// Deduplica por TEXTO (não por createdAt) para lidar com o caso de
-  /// moveTaskToDay resetar o createdAt gerando grupos duplicados.
+  /// Deduplica por `habitId` (com fallback para texto normalizado).
   Future<List<Task>> getAllActiveBlueHabits() async {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final lookbackStart = today.subtract(const Duration(days: 14));
-
-    // Buscar rotinas dos últimos 14 dias + hoje, mais recentes primeiro
-    final routines = await _isar.routines
+    final allBlue = await _isar.tasks
         .filter()
-        .dateBetween(lookbackStart, today.add(const Duration(hours: 23, minutes: 59)))
-        .sortByDateDesc()
+        .colorEqualTo(TaskColor.blue)
+        .isRecurrenceActiveEqualTo(true)
         .findAll();
 
-    // Chave de deduplicação: apenas o texto normalizado
-    // Prioridade: instância de hoje > instância de maior ID (mais recente)
     final Map<String, Task> result = {};
-
-    for (final routine in routines) {
-      final isToday = routine.date.year == today.year &&
-          routine.date.month == today.month &&
-          routine.date.day == today.day;
-
-      await routine.days.load();
-      for (final day in routine.days) {
-        await day.tasks.load();
-        for (final t in day.tasks) {
-          if (t.color != TaskColor.blue || !t.isRecurrenceActive) continue;
-
-          final key = t.text.trim().toLowerCase();
-          final existing = result[key];
-
-          if (existing == null) {
-            result[key] = t;
-          } else {
-            // Verificar se o existing é de hoje
-            final existingRoutine = routines.firstWhere(
-              (r) => r.date.year == today.year &&
-                     r.date.month == today.month &&
-                     r.date.day == today.day,
-              orElse: () => routines.last,
-            );
-            await existingRoutine.days.load();
-            bool existingIsToday = false;
-            for (final d in existingRoutine.days) {
-              await d.tasks.load();
-              if (d.tasks.any((tt) => tt.id == existing.id)) {
-                existingIsToday = true;
-                break;
-              }
-            }
-
-            if (isToday && !existingIsToday) {
-              result[key] = t; // hoje tem prioridade
-            } else if (!isToday && existingIsToday) {
-              // manter o de hoje
-            } else if (t.id > existing.id) {
-              result[key] = t; // pegar o mais recente
-            }
-          }
-        }
+    for (final t in allBlue) {
+      final key = t.habitId ?? t.text.trim().toLowerCase();
+      final existing = result[key];
+      if (existing == null || t.id > existing.id) {
+        result[key] = t;
       }
     }
 
@@ -927,16 +1107,18 @@ class RoutineService {
   }) async {
     final sample = await _isar.tasks.get(sampleTaskId);
     if (sample == null) return;
+    final habitId = sample.habitId;
     final oldText = sample.text.trim().toLowerCase();
 
-    // Atualizar TODAS as cópias azuis com o mesmo texto (ignora createdAt,
-    // pois moveTaskToDay pode ter resetado o createdAt de algumas cópias).
     final allBlue = await _isar.tasks
         .filter()
         .colorEqualTo(TaskColor.blue)
         .findAll();
-    final toUpdate = allBlue.where((t) =>
-        t.text.trim().toLowerCase() == oldText).toList();
+
+    final toUpdate = allBlue.where((t) {
+      if (habitId != null && t.habitId == habitId) return true;
+      return t.text.trim().toLowerCase() == oldText;
+    }).toList();
 
     await _isar.writeTxn(() async {
       for (final t in toUpdate) {
@@ -946,25 +1128,40 @@ class RoutineService {
         await _isar.tasks.put(t);
       }
     });
+
+    if (toUpdate.isNotEmpty) {
+      final profile = await _isar.userProfiles.get(1);
+      final soundEnabled = profile?.alarmSoundEnabled ?? true;
+      await AlarmService.refreshHabitAlarms(
+        toUpdate.last,
+        includeToday: false,
+        soundEnabled: soundEnabled,
+      );
+    }
   }
 
   Future<void> terminateBlueHabitFromToday(int sampleTaskId) async {
     final sample = await _isar.tasks.get(sampleTaskId);
     if (sample == null) return;
+    final habitId = sample.habitId;
     final textLower = sample.text.trim().toLowerCase();
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    // Marcar TODAS as cópias azuis com o mesmo texto como inativas.
-    // Usa texto como chave (não createdAt) porque moveTaskToDay pode ter
-    // resetado o createdAt de algumas cópias, gerando grupos distintos.
+    if (habitId != null) {
+      await AlarmService.cancelHabitAlarms(habitId);
+    }
+
     final allBlue = await _isar.tasks
         .filter()
         .colorEqualTo(TaskColor.blue)
         .findAll();
-    final toDeactivate = allBlue.where((t) =>
-        t.text.trim().toLowerCase() == textLower).toList();
+
+    final toDeactivate = allBlue.where((t) {
+      if (habitId != null && t.habitId == habitId) return true;
+      return t.text.trim().toLowerCase() == textLower;
+    }).toList();
 
     await _isar.writeTxn(() async {
       for (final t in toDeactivate) {
@@ -974,18 +1171,21 @@ class RoutineService {
       }
     });
 
-    // Remover da rotina de hoje (task não concluída) — usa texto como chave
+    // Remover da rotina de hoje se não concluída
     final todayRoutine = await _isar.routines.filter().dateEqualTo(today).findFirst();
     if (todayRoutine != null) {
       await todayRoutine.days.load();
       for (final day in todayRoutine.days) {
         await day.tasks.load();
-        final toRemove = day.tasks.where((t) =>
-            t.color == TaskColor.blue &&
-            t.text.trim().toLowerCase() == textLower &&
-            t.status != TaskStatus.completed).toList();
+        final toRemove = day.tasks.where((t) {
+          final matches = (habitId != null && t.habitId == habitId) ||
+              t.text.trim().toLowerCase() == textLower;
+          return t.color == TaskColor.blue && matches && t.status != TaskStatus.completed;
+        }).toList();
+
         for (final rem in toRemove) {
           day.tasks.remove(rem);
+          await AlarmService.cancelAllForTask(rem.id);
           await _isar.writeTxn(() async => await _isar.tasks.delete(rem.id));
         }
         if (toRemove.isNotEmpty) {
@@ -996,11 +1196,12 @@ class RoutineService {
   }
 
   // ── Backlog de Tasks de Fim de Semana (Aba Escondida) ───────
+  /// Retorna as tarefas do backlog do FDS (mantém concluídas riscadas para o usuário ver)
   Future<List<Task>> getWeekendBacklogTasks() async {
     return await _isar.tasks
         .filter()
         .isWeekendTaskEqualTo(true)
-        .statusEqualTo(TaskStatus.active)
+        .weekendOriginIdIsNull()
         .findAll();
   }
 
@@ -1019,8 +1220,7 @@ class RoutineService {
   }
 
   Future<void> moveToWeekendBacklog(int taskId) async {
-    // Cancela qualquer alarme/notificação agendado para não tocar durante a semana
-    await AlarmService.cancelAlarm(taskId);
+    await AlarmService.cancelAllForTask(taskId);
 
     await _isar.writeTxn(() async {
       final task = await _isar.tasks.get(taskId);
@@ -1048,7 +1248,7 @@ class RoutineService {
   }
 
   Future<void> deleteWeekendTask(int taskId) async {
-    await AlarmService.cancelAlarm(taskId);
+    await AlarmService.cancelAllForTask(taskId);
     await _isar.writeTxn(() async {
       final task = await _isar.tasks.get(taskId);
       if (task != null) {

@@ -77,7 +77,11 @@ class _AlarmRingingScreenState extends ConsumerState<AlarmRingingScreen> with Si
     if (_actionInProgress) return;
     setState(() => _actionInProgress = true);
     await AlarmService.cancelAlarm(widget.task.id);
-    await ref.read(routineServiceProvider).toggleTask(widget.task);
+    final isar = ref.read(isarProvider);
+    final freshTask = await isar.tasks.get(widget.task.id) ?? widget.task;
+    if (freshTask.status != TaskStatus.completed) {
+      await ref.read(routineServiceProvider).toggleTask(freshTask);
+    }
     if (mounted) {
       Navigator.pop(context);
     }
@@ -88,12 +92,11 @@ class _AlarmRingingScreenState extends ConsumerState<AlarmRingingScreen> with Si
     setState(() => _actionInProgress = true);
     final snoozeTime = DateTime.now().add(const Duration(minutes: 5));
     await AlarmService.cancelAlarm(widget.task.id);
-    await ref.read(routineServiceProvider).setAlarm(
-      widget.task,
-      snoozeTime,
-      repeat: false,
-      fullScreen: true,
-    );
+    
+    final profile = ref.read(userProfileProvider).value;
+    final soundEnabled = profile?.alarmSoundEnabled ?? true;
+    await AlarmService.scheduleSnooze(widget.task, 5, soundEnabled: soundEnabled);
+    
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -131,9 +134,11 @@ class _AlarmRingingScreenState extends ConsumerState<AlarmRingingScreen> with Si
       TaskColor.standard => theme.primary,
     };
 
-    return Scaffold(
-      backgroundColor: theme.background,
-      body: SafeArea(
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: theme.background,
+        body: SafeArea(
         child: Stack(
           children: [
             // Efeito de pulso de fundo
@@ -370,6 +375,7 @@ class _AlarmRingingScreenState extends ConsumerState<AlarmRingingScreen> with Si
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

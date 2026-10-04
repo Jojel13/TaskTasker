@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import '../database/isar_service.dart';
@@ -34,10 +35,55 @@ final allRoutinesProvider = StreamProvider<List<Routine>>((ref) {
   return isar.routines.where().sortByDateDesc().watch(fireImmediately: true);
 });
 
+class DateNotifier extends StateNotifier<DateTime> with WidgetsBindingObserver {
+  Timer? _midnightTimer;
+
+  DateNotifier() : super(_startOfDay()) {
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleMidnightUpdate();
+  }
+
+  static DateTime _startOfDay() {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
+  }
+
+  void _checkDate() {
+    final current = _startOfDay();
+    if (state != current) {
+      state = current;
+      _scheduleMidnightUpdate();
+    }
+  }
+
+  void _scheduleMidnightUpdate() {
+    _midnightTimer?.cancel();
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final duration = tomorrow.difference(now) + const Duration(seconds: 1);
+    _midnightTimer = Timer(duration, _checkDate);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkDate();
+    }
+  }
+
+  @override
+  void dispose() {
+    _midnightTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+}
+
+final dateProvider = StateNotifierProvider<DateNotifier, DateTime>((ref) => DateNotifier());
+
 final todayRoutineProvider = StreamProvider<Routine?>((ref) async* {
   final isar = ref.watch(isarProvider);
-  final n = DateTime.now();
-  final today = DateTime(n.year, n.month, n.day);
+  final today = ref.watch(dateProvider);
   
   await for (final _ in isar.routines.watchLazy(fireImmediately: true)) {
     final routine = await isar.routines
@@ -202,14 +248,21 @@ final recentXpEventsProvider = StreamProvider<List<XPEvent>>((ref) {
 final isDraggingTaskProvider = StateProvider<bool>((ref) => false);
 
 // ── Weekend Backlog Tasks Provider ───────────────────────────────────────────
-final weekendTasksProvider = FutureProvider<List<Task>>((ref) async {
+final weekendTasksProvider = StreamProvider<List<Task>>((ref) async* {
+  final isar = ref.watch(isarProvider);
   final routineService = ref.watch(routineServiceProvider);
-  return routineService.getWeekendBacklogTasks();
+  await for (final _ in isar.tasks.watchLazy(fireImmediately: true)) {
+    yield await routineService.getWeekendBacklogTasks();
+  }
 });
 
 // ── Blue Habits Provider ──────────────────────────────────────────────────────
-final blueHabitsProvider = FutureProvider<List<Task>>((ref) async {
+final blueHabitsProvider = StreamProvider<List<Task>>((ref) async* {
+  final isar = ref.watch(isarProvider);
   final routineService = ref.watch(routineServiceProvider);
-  return routineService.getAllActiveBlueHabits();
+  await for (final _ in isar.tasks.watchLazy(fireImmediately: true)) {
+    yield await routineService.getAllActiveBlueHabits();
+  }
 });
+
 

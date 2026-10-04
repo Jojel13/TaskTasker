@@ -15,6 +15,7 @@ class Task {
   int sortOrder = 0; // Alterado pelo drag & drop
 
   @Enumerated(EnumType.name)
+  @Index()
   late TaskColor color;
 
   @Enumerated(EnumType.name)
@@ -31,15 +32,22 @@ class Task {
   String? imageFileName;
 
   // ─── Frequência (task azul) ──────────────────────────────────
+  @Index()
+  String? habitId;
+
   @Enumerated(EnumType.name)
   FrequencyType frequency = FrequencyType.daily;
   List<int> frequencyDays = []; // ISO weekdays: [1=seg ... 7=dom]
   DateTime? lastAppearedDate;
+  
+  @Index()
   bool isRecurrenceActive = true;
   DateTime? recurrenceEndDate;
+  DateTime? cadenceAnchor;
 
   // ─── Task de Fim de Semana (Aba Escondida) ────────────────────
   bool isWeekendTask = false;
+  int? weekendOriginId;
 
   // ─── Alarme Individual (Fase 3) ──────────────────────────────
   /// Horário do alarme. null = sem alarme.

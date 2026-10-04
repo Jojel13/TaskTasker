@@ -68,53 +68,58 @@ const UserProfileSchema = CollectionSchema(
       name: r'lastRoutineDate',
       type: IsarType.dateTime,
     ),
-    r'notifAfternoonOffsetMin': PropertySchema(
+    r'lastWeekendInjection': PropertySchema(
       id: 10,
+      name: r'lastWeekendInjection',
+      type: IsarType.dateTime,
+    ),
+    r'notifAfternoonOffsetMin': PropertySchema(
+      id: 11,
       name: r'notifAfternoonOffsetMin',
       type: IsarType.long,
     ),
     r'notifEnabled': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'notifEnabled',
       type: IsarType.bool,
     ),
     r'notifMorningOffsetMin': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'notifMorningOffsetMin',
       type: IsarType.long,
     ),
     r'notifNightOffsetMin': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'notifNightOffsetMin',
       type: IsarType.long,
     ),
     r'notificationFrequencyHours': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'notificationFrequencyHours',
       type: IsarType.long,
     ),
     r'routineName': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'routineName',
       type: IsarType.string,
     ),
     r'streakDays': PropertySchema(
-      id: 16,
+      id: 17,
       name: r'streakDays',
       type: IsarType.long,
     ),
     r'streakRecord': PropertySchema(
-      id: 17,
+      id: 18,
       name: r'streakRecord',
       type: IsarType.long,
     ),
     r'totalXP': PropertySchema(
-      id: 18,
+      id: 19,
       name: r'totalXP',
       type: IsarType.long,
     ),
     r'useBrightnessOverride': PropertySchema(
-      id: 19,
+      id: 20,
       name: r'useBrightnessOverride',
       type: IsarType.bool,
     )
@@ -163,16 +168,17 @@ void _userProfileSerialize(
   writer.writeString(offsets[7], object.divisionTomorrowName);
   writer.writeDateTime(offsets[8], object.lastOpenedDate);
   writer.writeDateTime(offsets[9], object.lastRoutineDate);
-  writer.writeLong(offsets[10], object.notifAfternoonOffsetMin);
-  writer.writeBool(offsets[11], object.notifEnabled);
-  writer.writeLong(offsets[12], object.notifMorningOffsetMin);
-  writer.writeLong(offsets[13], object.notifNightOffsetMin);
-  writer.writeLong(offsets[14], object.notificationFrequencyHours);
-  writer.writeString(offsets[15], object.routineName);
-  writer.writeLong(offsets[16], object.streakDays);
-  writer.writeLong(offsets[17], object.streakRecord);
-  writer.writeLong(offsets[18], object.totalXP);
-  writer.writeBool(offsets[19], object.useBrightnessOverride);
+  writer.writeDateTime(offsets[10], object.lastWeekendInjection);
+  writer.writeLong(offsets[11], object.notifAfternoonOffsetMin);
+  writer.writeBool(offsets[12], object.notifEnabled);
+  writer.writeLong(offsets[13], object.notifMorningOffsetMin);
+  writer.writeLong(offsets[14], object.notifNightOffsetMin);
+  writer.writeLong(offsets[15], object.notificationFrequencyHours);
+  writer.writeString(offsets[16], object.routineName);
+  writer.writeLong(offsets[17], object.streakDays);
+  writer.writeLong(offsets[18], object.streakRecord);
+  writer.writeLong(offsets[19], object.totalXP);
+  writer.writeBool(offsets[20], object.useBrightnessOverride);
 }
 
 UserProfile _userProfileDeserialize(
@@ -195,16 +201,17 @@ UserProfile _userProfileDeserialize(
   object.id = id;
   object.lastOpenedDate = reader.readDateTimeOrNull(offsets[8]);
   object.lastRoutineDate = reader.readDateTimeOrNull(offsets[9]);
-  object.notifAfternoonOffsetMin = reader.readLong(offsets[10]);
-  object.notifEnabled = reader.readBool(offsets[11]);
-  object.notifMorningOffsetMin = reader.readLong(offsets[12]);
-  object.notifNightOffsetMin = reader.readLong(offsets[13]);
-  object.notificationFrequencyHours = reader.readLong(offsets[14]);
-  object.routineName = reader.readString(offsets[15]);
-  object.streakDays = reader.readLong(offsets[16]);
-  object.streakRecord = reader.readLong(offsets[17]);
-  object.totalXP = reader.readLong(offsets[18]);
-  object.useBrightnessOverride = reader.readBool(offsets[19]);
+  object.lastWeekendInjection = reader.readDateTimeOrNull(offsets[10]);
+  object.notifAfternoonOffsetMin = reader.readLong(offsets[11]);
+  object.notifEnabled = reader.readBool(offsets[12]);
+  object.notifMorningOffsetMin = reader.readLong(offsets[13]);
+  object.notifNightOffsetMin = reader.readLong(offsets[14]);
+  object.notificationFrequencyHours = reader.readLong(offsets[15]);
+  object.routineName = reader.readString(offsets[16]);
+  object.streakDays = reader.readLong(offsets[17]);
+  object.streakRecord = reader.readLong(offsets[18]);
+  object.totalXP = reader.readLong(offsets[19]);
+  object.useBrightnessOverride = reader.readBool(offsets[20]);
   return object;
 }
 
@@ -237,24 +244,26 @@ P _userProfileDeserializeProp<P>(
     case 9:
       return (reader.readDateTimeOrNull(offset)) as P;
     case 10:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 11:
-      return (reader.readBool(offset)) as P;
-    case 12:
       return (reader.readLong(offset)) as P;
+    case 12:
+      return (reader.readBool(offset)) as P;
     case 13:
       return (reader.readLong(offset)) as P;
     case 14:
       return (reader.readLong(offset)) as P;
     case 15:
-      return (reader.readString(offset)) as P;
-    case 16:
       return (reader.readLong(offset)) as P;
+    case 16:
+      return (reader.readString(offset)) as P;
     case 17:
       return (reader.readLong(offset)) as P;
     case 18:
       return (reader.readLong(offset)) as P;
     case 19:
+      return (reader.readLong(offset)) as P;
+    case 20:
       return (reader.readBool(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1261,6 +1270,80 @@ extension UserProfileQueryFilter
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      lastWeekendInjectionIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'lastWeekendInjection',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      lastWeekendInjectionIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'lastWeekendInjection',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      lastWeekendInjectionEqualTo(DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'lastWeekendInjection',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      lastWeekendInjectionGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'lastWeekendInjection',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      lastWeekendInjectionLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'lastWeekendInjection',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      lastWeekendInjectionBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'lastWeekendInjection',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
       notifAfternoonOffsetMinEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -1951,6 +2034,20 @@ extension UserProfileQuerySortBy
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByLastWeekendInjection() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastWeekendInjection', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByLastWeekendInjectionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastWeekendInjection', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
       sortByNotifAfternoonOffsetMin() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'notifAfternoonOffsetMin', Sort.asc);
@@ -2233,6 +2330,20 @@ extension UserProfileQuerySortThenBy
   }
 
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByLastWeekendInjection() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastWeekendInjection', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByLastWeekendInjectionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastWeekendInjection', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
       thenByNotifAfternoonOffsetMin() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'notifAfternoonOffsetMin', Sort.asc);
@@ -2439,6 +2550,13 @@ extension UserProfileQueryWhereDistinct
   }
 
   QueryBuilder<UserProfile, UserProfile, QDistinct>
+      distinctByLastWeekendInjection() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'lastWeekendInjection');
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QDistinct>
       distinctByNotifAfternoonOffsetMin() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'notifAfternoonOffsetMin');
@@ -2578,6 +2696,13 @@ extension UserProfileQueryProperty
       lastRoutineDateProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'lastRoutineDate');
+    });
+  }
+
+  QueryBuilder<UserProfile, DateTime?, QQueryOperations>
+      lastWeekendInjectionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'lastWeekendInjection');
     });
   }
 

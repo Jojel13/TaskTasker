@@ -55,15 +55,14 @@ class _TaskSettingsSheetState extends ConsumerState<TaskSettingsSheet> {
         }
         return;
       }
-      task.frequency = _selectedFrequency;
-      task.frequencyDays = _selectedDays.toList();
-      task.createdAt = DateTime.now();
+      await ref.read(routineServiceProvider).updateBlueHabit(
+        sampleTaskId: task.id,
+        newText: task.text,
+        newFrequency: _selectedFrequency,
+        newDays: _selectedDays.toList(),
+      );
+      ref.invalidate(blueHabitsProvider);
     }
-
-    final isar = ref.read(isarProvider);
-    await isar.writeTxn(() async {
-      await isar.tasks.put(task);
-    });
 
     if (mounted) Navigator.pop(context);
   }

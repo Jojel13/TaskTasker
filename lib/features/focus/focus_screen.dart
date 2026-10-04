@@ -79,17 +79,9 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
   }
 
   Future<void> _onFocusCompleted() async {
-    final isar = ref.read(isarProvider);
-    final xpService = ref.read(xpServiceProvider);
-
-    // 1. Incrementar focusCount
+    // 1 & 2: Incrementar focusCount e registrar XP via service centralizado
+    await ref.read(routineServiceProvider).recordFocusSession(widget.task.id);
     widget.task.focusCount++;
-    await isar.writeTxn(() async {
-      await isar.tasks.put(widget.task);
-    });
-
-    // 2. Dar XP bonus
-    await xpService.addXp(8, 'Sessão de foco concluída 🎯 (${widget.task.text})');
 
     // 3. Feedback e Notificação
     HapticFeedback.vibrate();

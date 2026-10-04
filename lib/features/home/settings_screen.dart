@@ -8,6 +8,8 @@ import '../../shared/models/user_profile.dart';
 import '../../shared/models/routine_day.dart';
 import '../../shared/models/enums.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/alarm_service.dart';
+import '../../core/services/permission_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -32,6 +34,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _alarmSoundEnabled = true;
   bool _useBrightnessOverride = false;
   bool _brightnessOverride = false;
+  PermissionStatusReport? _permissionReport;
 
   @override
   void initState() {
@@ -44,10 +47,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _tomorrowCtrl = TextEditingController();
 
     // AVISO-04: usar addPostFrameCallback para garantir que o userProfileProvider
-    // j\u00e1 emitiu um valor antes de popular os campos de texto
+    // já emitiu um valor antes de popular os campos de texto
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadProfileData();
+      if (mounted) {
+        _loadProfileData();
+        _checkAlarmHealth();
+      }
     });
+  }
+
+  Future<void> _checkAlarmHealth() async {
+    final report = await PermissionService.checkAll();
+    if (mounted) {
+      setState(() => _permissionReport = report);
+    }
   }
   
   void _loadProfileData() {
@@ -94,6 +107,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
         return;
       }
+      final oldAlarmSound = profile.alarmSoundEnabled;
+      final alarmSoundChanged = oldAlarmSound != _alarmSoundEnabled;
+
       profile.routineName = _routineNameCtrl.text;
       profile.divisionMorningName = _morningCtrl.text;
       profile.divisionAfternoonName = _afternoonCtrl.text;
@@ -131,6 +147,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           }
         }
       });
+
+      if (alarmSoundChanged) {
+        final todayRoutine = await ref.read(routineServiceProvider).findTodayRoutine();
+        if (todayRoutine != null) {
+          await todayRoutine.days.load();
+          for (final day in todayRoutine.days) {
+            await day.tasks.load();
+            for (final t in day.tasks) {
+              if (t.hasAlarm) {
+                await AlarmService.scheduleAlarm(t, soundEnabled: _alarmSoundEnabled);
+              }
+              if (t.color == TaskColor.red) {
+                await AlarmService.scheduleRedTaskNotification(t, soundEnabled: _alarmSoundEnabled);
+              }
+            }
+          }
+        }
+        await ref.read(routineServiceProvider).refreshAllHabitAlarms();
+      }
 
       NotificationService.instance.updatePeriodicChecks(_notificationFrequency.toInt());
 
@@ -564,6 +599,80 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       },
                     ),
                     const Divider(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.surfaceVariant.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: _permissionReport?.allGranted == true 
+                              ? theme.primary.withValues(alpha: 0.3) 
+                              : theme.taskRed.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _permissionReport?.allGranted == true ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                                size: 18,
+                                color: _permissionReport?.allGranted == true ? theme.primary : theme.taskRed,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Saúde dos Alarmes',
+                                style: theme.fontStyleBase(TextStyle(
+                                  color: theme.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                )),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          _buildPermissionRow(
+                            theme,
+                            'Permissão de Notificações',
+                            _permissionReport?.notifications ?? true,
+                            onRequest: () async {
+                              await PermissionService.requestNotifications();
+                              _checkAlarmHealth();
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          _buildPermissionRow(
+                            theme,
+                            'Alarmes Exatos (Disparo pontual)',
+                            _permissionReport?.exactAlarms ?? true,
+                            onRequest: () async {
+                              await PermissionService.requestExactAlarms();
+                              _checkAlarmHealth();
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton.icon(
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                alignment: Alignment.centerLeft,
+                              ),
+                              icon: Icon(Icons.fullscreen_rounded, size: 16, color: theme.accent),
+                              label: Text(
+                                'Ajustar Alarme em Tela Cheia (Android 14+)',
+                                style: theme.fontStyleBase(TextStyle(color: theme.accent, fontSize: 11)),
+                              ),
+                              onPressed: () async {
+                                await PermissionService.requestFullScreenIntent();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 24),
                     Text(
                       'Frequência de lembretes automáticos:',
                       style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 13)),
@@ -844,4 +953,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+
+  Widget _buildPermissionRow(
+    AppThemeData theme,
+    String label,
+    bool granted, {
+    required VoidCallback onRequest,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          granted ? Icons.check_circle_outline_rounded : Icons.cancel_outlined,
+          size: 15,
+          color: granted ? theme.primary : theme.taskRed,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: theme.fontStyleBase(TextStyle(
+              color: granted ? theme.textPrimary : theme.textSecondary,
+              fontSize: 12,
+            )),
+          ),
+        ),
+        if (!granted)
+          TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: onRequest,
+            child: Text(
+              'Permitir',
+              style: theme.fontStyleBase(TextStyle(
+                color: theme.taskRed,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              )),
+            ),
+          )
+        else
+          Text(
+            'OK',
+            style: theme.fontStyleMono(TextStyle(
+              color: theme.primary,
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            )),
+          ),
+      ],
+    );
+  }
 }
+

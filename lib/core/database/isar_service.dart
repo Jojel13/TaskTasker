@@ -5,6 +5,7 @@ import '../../shared/models/routine_day.dart';
 import '../../shared/models/task.dart';
 import '../../shared/models/user_profile.dart';
 import '../../shared/models/xp_event.dart';
+import 'migration_service.dart';
 
 /// Serviço singleton de acesso ao ISAR
 class IsarService {
@@ -45,6 +46,9 @@ class IsarService {
 
     // Garante que o UserProfile singleton existe
     await _ensureUserProfile();
+
+    // Migrações de dados versionadas (idempotentes)
+    await MigrationService.run(_isar);
   }
 
   static Future<void> _ensureUserProfile() async {

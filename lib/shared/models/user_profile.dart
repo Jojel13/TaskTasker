@@ -15,6 +15,7 @@ class UserProfile {
   int streakRecord = 0;
   DateTime? lastOpenedDate;
   DateTime? lastRoutineDate; // Data da última rotina criada
+  DateTime? lastWeekendInjection;
 
   // ─── Nomes customizáveis das divisões ────────────────────────
   String divisionMorningName   = 'Manhã';
@@ -37,4 +38,7 @@ class UserProfile {
   bool alarmSoundEnabled = true;
   bool brightnessOverride = false;
   bool useBrightnessOverride = false;
+
+  // ─── Migrações ───────────────────────────────────────────────
+  int schemaVersion = 1;
 }

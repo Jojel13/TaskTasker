@@ -7,6 +7,7 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import '../../shared/models/task.dart';
 import '../../shared/models/enums.dart';
+import '../utils/blue_cadence.dart';
 import 'notification_service.dart';
 
 /// Serviço de alarmes individuais por task (Fase 3)
@@ -35,18 +36,42 @@ class AlarmService {
       debugPrint('Error setting local timezone: $e');
     }
 
-    // Criar canal de alta importância no Android
-    const androidChannel = AndroidNotificationChannel(
-      'task_alarms',
-      'Alarmes de Tasks',
-      description: 'Alarmes individuais do TaskTasker',
-      importance: Importance.max,
-    );
-    await _plugin
+    // Canais de alarme (Android). Canais são imutáveis após criados, por isso
+    // o som de despertador exige um id novo (v2) em vez do antigo 'task_alarms'.
+    final android = _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(androidChannel);
+            AndroidFlutterLocalNotificationsPlugin>();
+    for (final channel in alarmChannels) {
+      await android?.createNotificationChannel(channel);
+    }
+    // Remove o canal legado (som de notificação comum)
+    await android?.deleteNotificationChannel(channelId: 'task_alarms');
   }
+
+  static const String alarmChannelId = 'task_alarms_v2';
+  static const String alarmSilentChannelId = 'task_alarms_silent_v2';
+
+  /// Canais compartilhados com o [NotificationService] (fonte única).
+  static final List<AndroidNotificationChannel> alarmChannels = [
+    const AndroidNotificationChannel(
+      alarmChannelId,
+      '⏰ Alarme de Task',
+      description: 'Alarmes individuais configurados para cada tarefa',
+      importance: Importance.max,
+      playSound: true,
+      sound: UriAndroidNotificationSound('content://settings/system/alarm_alert'),
+      enableVibration: true,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+    ),
+    const AndroidNotificationChannel(
+      alarmSilentChannelId,
+      '⏰ Alarme de Task (silencioso)',
+      description: 'Alarmes sem som (preferência "som do alarme" desativada)',
+      importance: Importance.max,
+      playSound: false,
+      enableVibration: true,
+    ),
+  ];
 
   // ─── Agendar alarme ───────────────────────────────────────────────
 
@@ -95,12 +120,118 @@ class AlarmService {
     }
   }
 
+  // ─── Agendar Soneca ───────────────────────────────────────────────
+
+  /// Soneca em slot dedicado (3): não altera o `alarmTime` persistido.
+  /// [payload] permite manter o vínculo com um hábito (`habit_alarm_<id>`).
+  static Future<void> scheduleSnooze(Task task, int minutes,
+      {bool soundEnabled = true, String? payload}) async {
+    final snoozeTime = DateTime.now().add(Duration(minutes: minutes));
+    final tzAlarm = tz.TZDateTime.from(snoozeTime, tz.local);
+
+    await _plugin.zonedSchedule(
+      id: _notifId(task.id, 3), // slot 3 para soneca
+      title: '⏰ Soneca: ${task.text}',
+      body: 'Toque para abrir o TaskTasker',
+      scheduledDate: tzAlarm,
+      notificationDetails: _details(task, 1, soundEnabled: soundEnabled),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: payload ?? 'complete_task_${task.id}',
+    );
+  }
+
   // ─── Cancelar alarme ──────────────────────────────────────────────
 
-  /// Cancela todas as notificações pendentes de uma task (até 3 slots).
+  /// Cancela os slots 0-2 (alarme + repetições) e 3 (soneca) de uma task.
   static Future<void> cancelAlarm(int taskId) async {
-    for (int i = 0; i <= 2; i++) {
+    for (int i = 0; i <= 3; i++) {
       await _plugin.cancel(id: _notifId(taskId, i));
+    }
+  }
+
+  /// Cancela tudo de uma task: alarme, repetições, soneca e aviso das 8h.
+  static Future<void> cancelAllForTask(int taskId) async {
+    await cancelAlarm(taskId);
+    await cancelRedTaskNotification(taskId);
+  }
+
+  // ─── Alarmes de hábito (independem da rotina do dia existir) ──────
+  //
+  // A rotina só é criada quando o usuário toca no "+". Para que o alarme de
+  // uma task azul toque mesmo assim, pré-agendamos os próximos dias elegíveis
+  // vinculados ao habitId. Quando a rotina do dia é criada, o slot do dia é
+  // cancelado e substituído pelo alarme da cópia (com id de task real).
+
+  static const int habitWindowDays = 7;
+
+  static int _habitHash(String habitId) {
+    // FNV-1a 32 bits: estável entre execuções (String.hashCode não é garantido)
+    int h = 0x811c9dc5;
+    for (final c in habitId.codeUnits) {
+      h ^= c;
+      h = (h * 0x01000193) & 0xFFFFFFFF;
+    }
+    return h;
+  }
+
+  static int _habitNotifId(String habitId, DateTime day) {
+    final dayIndex = DateTime.utc(day.year, day.month, day.day)
+            .millisecondsSinceEpoch ~/
+        Duration.millisecondsPerDay;
+    return 300000000 + (_habitHash(habitId) % 1000000) * 10 + (dayIndex % 8);
+  }
+
+  static String habitPayload(String habitId) => 'habit_alarm_$habitId';
+
+  /// Re-agenda a janela de [habitWindowDays] dias do hábito representado por
+  /// [sample] (cópia mais recente). Se [includeToday] for false, o slot de hoje
+  /// é apenas cancelado (a rotina de hoje já possui a cópia com alarme próprio).
+  static Future<void> refreshHabitAlarms(
+    Task sample, {
+    required bool includeToday,
+    bool soundEnabled = true,
+  }) async {
+    final habitId = sample.habitId;
+    if (habitId == null) return;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    for (int d = 0; d <= habitWindowDays; d++) {
+      final day = today.add(Duration(days: d));
+      final id = _habitNotifId(habitId, day);
+      await _plugin.cancel(id: id);
+
+      if (d == 0 && !includeToday) continue;
+      if (sample.alarmTime == null || sample.color != TaskColor.blue) continue;
+      if (!BlueCadence.isEligibleOn(sample, day)) continue;
+
+      final at = DateTime(day.year, day.month, day.day,
+          sample.alarmTime!.hour, sample.alarmTime!.minute);
+      if (!at.isAfter(now)) continue;
+
+      await _plugin.zonedSchedule(
+        id: id,
+        title: '⏰ ${sample.text}',
+        body: 'Toque para abrir o TaskTasker',
+        scheduledDate: tz.TZDateTime.from(at, tz.local),
+        notificationDetails: _details(sample, 1, soundEnabled: soundEnabled),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        payload: habitPayload(habitId),
+      );
+    }
+  }
+
+  /// Cancela o pré-agendamento de um dia específico (ex.: hábito concluído hoje).
+  static Future<void> cancelHabitAlarmForDay(String habitId, DateTime day) async {
+    await _plugin.cancel(id: _habitNotifId(habitId, day));
+  }
+
+  /// Cancela toda a janela de pré-agendamento de um hábito (encerrado/sem alarme).
+  static Future<void> cancelHabitAlarms(String habitId) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    for (int d = -1; d <= habitWindowDays; d++) {
+      await _plugin.cancel(id: _habitNotifId(habitId, today.add(Duration(days: d))));
     }
   }
 
@@ -112,8 +243,8 @@ class AlarmService {
     final notifId = _notifId(task.id, 9); // slot 9 para task vermelha
     await cancelRedTaskNotification(task.id);
 
-    // P7: Se a task vermelha tiver alarme individual, cancelamos a notificação padrão das 8h
-    if (task.alarmTime != null) return;
+    // Escolha do usuário: a vermelha com alarme pontual recebe as duas — este
+    // aviso das 8h (notificação comum) e depois o alarme no horário definido.
 
     final scheduledDay = task.scheduledDate!;
     // Criar a data agendada para 8:00 AM no timezone local
@@ -203,8 +334,8 @@ class AlarmService {
     );
 
     final androidDetails = AndroidNotificationDetails(
-      'task_alarms',
-      '⏰ Alarme de Task',
+      soundEnabled ? alarmChannelId : alarmSilentChannelId,
+      soundEnabled ? '⏰ Alarme de Task' : '⏰ Alarme de Task (silencioso)',
       channelDescription: 'Alarmes individuais configurados para cada tarefa',
       importance: Importance.max,
       priority: Priority.high,
@@ -220,10 +351,8 @@ class AlarmService {
       fullScreenIntent: task.alarmFullScreen,
       category: AndroidNotificationCategory.alarm,
       audioAttributesUsage: AudioAttributesUsage.alarm,
-      // FLAG_INSISTENT=4, FLAG_SHOW_WHEN_LOCKED=0x80, FLAG_TURN_SCREEN_ON=0x200
-      additionalFlags: task.alarmFullScreen
-          ? Int32List.fromList(<int>[4, 0x80, 0x200])
-          : Int32List.fromList(<int>[4]),
+      // FLAG_INSISTENT=4
+      additionalFlags: Int32List.fromList(<int>[4]),
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'action_complete_task',
@@ -281,10 +410,9 @@ class AlarmService {
       playSound: soundEnabled,
       styleInformation: bigTextStyleInfo,
       ongoing: isToday,
-      fullScreenIntent: task.alarmFullScreen,
-      category: AndroidNotificationCategory.alarm,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-      additionalFlags: task.alarmFullScreen ? Int32List.fromList(<int>[4]) : null,
+      // O aviso das 8h é uma notificação comum; o despertador (tela cheia,
+      // insistente) fica a cargo do alarme pontual da task, se configurado.
+      category: AndroidNotificationCategory.reminder,
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'action_complete_task',

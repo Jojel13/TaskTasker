@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/theme/theme_config.dart';
+import '../../../core/services/permission_service.dart';
 import '../../../shared/models/task.dart';
 import '../../../shared/models/enums.dart';
 
@@ -84,6 +85,34 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
     HapticFeedback.mediumImpact();
 
     try {
+      final notifOk = await PermissionService.areNotificationsEnabled();
+      if (!notifOk) {
+        final granted = await PermissionService.requestNotifications();
+        if (!granted) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Permissão de notificação necessária para tocar alarmes.',
+                  style: theme.fontStyleBase(TextStyle(color: theme.textPrimary)),
+                ),
+                backgroundColor: theme.surface,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      final exactOk = await PermissionService.canScheduleExactAlarms();
+      if (!exactOk) {
+        await PermissionService.requestExactAlarms();
+      }
+
+      if (_fullScreen) {
+        await PermissionService.requestFullScreenIntent();
+      }
+
       final now = DateTime.now();
       final baseDate = (widget.task.color == TaskColor.red && widget.task.scheduledDate != null)
           ? widget.task.scheduledDate!
@@ -93,9 +122,13 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
         baseDate.year, baseDate.month, baseDate.day,
         _selectedTime.hour, _selectedTime.minute,
       );
+      
+      bool activeTomorrow = false;
       if (alarmDateTime.isBefore(now)) {
-        if (widget.task.color != TaskColor.red) {
+        if (widget.task.color == TaskColor.standard || widget.task.isWeekendTask) {
           alarmDateTime = alarmDateTime.add(const Duration(days: 1));
+        } else if (widget.task.color != TaskColor.red) {
+          activeTomorrow = true;
         }
       }
 
@@ -109,13 +142,18 @@ class _AlarmSheetState extends ConsumerState<AlarmSheet> {
       if (mounted) {
         final messenger = ScaffoldMessenger.of(context);
         Navigator.pop(context);
+        
+        final msg = activeTomorrow 
+            ? 'Alarme salvo, ativo a partir de amanhã'
+            : 'Alarme definido para ${_selectedTime.format(context)}';
+            
         messenger.showSnackBar(
           SnackBar(
             content: Row(children: [
               Icon(Icons.alarm_on_rounded, color: theme.primary, size: 18),
               const SizedBox(width: 8),
               Text(
-                'Alarme definido para ${_selectedTime.format(context)}',
+                msg,
                 style: theme.fontStyleBase(TextStyle(color: theme.textPrimary)),
               ),
             ]),

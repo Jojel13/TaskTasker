@@ -1,9 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
+
+import '../database/migration_service.dart';
+import 'alarm_service.dart';
+import 'notification_service.dart';
+import 'routine_service.dart';
 
 import '../../shared/models/routine.dart';
 import '../../shared/models/routine_day.dart';
@@ -40,6 +46,12 @@ class BackupService {
       'focusCount': task.focusCount,
       'hasImage': task.hasImage,
       'hasSubtasks': task.hasSubtasks,
+      'habitId': task.habitId,
+      'cadenceAnchor': task.cadenceAnchor?.toIso8601String(),
+      'isRecurrenceActive': task.isRecurrenceActive,
+      'recurrenceEndDate': task.recurrenceEndDate?.toIso8601String(),
+      'isWeekendTask': task.isWeekendTask,
+      'weekendOriginId': task.weekendOriginId,
       'subtasks': task.subtasks.map((s) => _subtaskToJson(s)).toList(),
     };
   }
@@ -93,6 +105,7 @@ class BackupService {
       'streakRecord': p.streakRecord,
       'lastOpenedDate': p.lastOpenedDate?.toIso8601String(),
       'lastRoutineDate': p.lastRoutineDate?.toIso8601String(),
+      'lastWeekendInjection': p.lastWeekendInjection?.toIso8601String(),
       'divisionMorningName': p.divisionMorningName,
       'divisionAfternoonName': p.divisionAfternoonName,
       'divisionNightName': p.divisionNightName,
@@ -106,6 +119,7 @@ class BackupService {
       'alarmSoundEnabled': p.alarmSoundEnabled,
       'brightnessOverride': p.brightnessOverride,
       'useBrightnessOverride': p.useBrightnessOverride,
+      'schemaVersion': p.schemaVersion,
     };
   }
 
@@ -139,7 +153,13 @@ class BackupService {
       ..alarmFullScreen = json['alarmFullScreen'] as bool? ?? false
       ..focusCount = json['focusCount'] as int? ?? 0
       ..hasImage = json['hasImage'] as bool? ?? false
-      ..hasSubtasks = json['hasSubtasks'] as bool? ?? false;
+      ..hasSubtasks = json['hasSubtasks'] as bool? ?? false
+      ..habitId = json['habitId'] as String?
+      ..cadenceAnchor = json['cadenceAnchor'] != null ? DateTime.parse(json['cadenceAnchor'] as String) : null
+      ..isRecurrenceActive = json['isRecurrenceActive'] as bool? ?? true
+      ..recurrenceEndDate = json['recurrenceEndDate'] != null ? DateTime.parse(json['recurrenceEndDate'] as String) : null
+      ..isWeekendTask = json['isWeekendTask'] as bool? ?? false
+      ..weekendOriginId = json['weekendOriginId'] as int?;
 
     if (json['subtasks'] != null) {
       task.subtasks = (json['subtasks'] as List)
@@ -198,6 +218,7 @@ class BackupService {
       ..streakRecord = json['streakRecord'] as int
       ..lastOpenedDate = json['lastOpenedDate'] != null ? DateTime.parse(json['lastOpenedDate'] as String) : null
       ..lastRoutineDate = json['lastRoutineDate'] != null ? DateTime.parse(json['lastRoutineDate'] as String) : null
+      ..lastWeekendInjection = json['lastWeekendInjection'] != null ? DateTime.parse(json['lastWeekendInjection'] as String) : null
       ..divisionMorningName = json['divisionMorningName'] as String
       ..divisionAfternoonName = json['divisionAfternoonName'] as String
       ..divisionNightName = json['divisionNightName'] as String
@@ -210,7 +231,8 @@ class BackupService {
       ..notifEnabled = json['notifEnabled'] as bool? ?? true
       ..alarmSoundEnabled = json['alarmSoundEnabled'] as bool? ?? true
       ..brightnessOverride = json['brightnessOverride'] as bool? ?? false
-      ..useBrightnessOverride = json['useBrightnessOverride'] as bool? ?? false;
+      ..useBrightnessOverride = json['useBrightnessOverride'] as bool? ?? false
+      ..schemaVersion = json['schemaVersion'] as int? ?? 1;
   }
 
   XPEvent _xpEventFromJson(Map<String, dynamic> json) {
@@ -227,14 +249,21 @@ class BackupService {
   Future<String> exportBackupData() async {
     final profile = await isar.userProfiles.get(1);
     final routines = await isar.routines.where().findAll();
+    for (final r in routines) {
+      await r.days.load();
+    }
+    
     final routineDays = await isar.routineDays.where().findAll();
+    for (final d in routineDays) {
+      await d.tasks.load();
+    }
     
     // Para as tasks e xpevents, precisamos carregar e serializar
     final tasks = await isar.tasks.where().findAll();
     final xpEvents = await isar.xPEvents.where().findAll();
 
     final backup = {
-      'version': 1,
+      'version': 2,
       'exportedAt': DateTime.now().toIso8601String(),
       'userProfile': profile != null ? _userProfileToJson(profile) : null,
       'routines': routines.map((r) => _routineToJson(r)).toList(),
@@ -272,6 +301,11 @@ class BackupService {
     final data = jsonDecode(jsonString) as Map<String, dynamic>;
     if (data['version'] == null) {
       throw const FormatException('Formato de backup inválido.');
+    }
+    
+    final int version = data['version'] as int;
+    if (version < 2) {
+      debugPrint('Aviso: Importando backup de versão antiga ($version). Alguns campos podem usar valores padrão.');
     }
 
     final Map<String, dynamic>? profileJson = data['userProfile'];
@@ -345,6 +379,37 @@ class BackupService {
         }
       }
     });
+
+    // 4. Executar migrações caso o backup seja de versão anterior
+    await MigrationService.run(isar);
+
+    // 5. Re-agendar alarmes da rotina de hoje e hábitos
+    try {
+      await NotificationService.instance.plugin.cancelAll();
+      final routineService = RoutineService(isar);
+      final todayRoutine = await routineService.findTodayRoutine();
+      final profile = await isar.userProfiles.get(1);
+      final soundEnabled = profile?.alarmSoundEnabled ?? true;
+      if (todayRoutine != null) {
+        await todayRoutine.days.load();
+        for (final day in todayRoutine.days) {
+          await day.tasks.load();
+          for (final t in day.tasks) {
+            if (t.status != TaskStatus.completed) {
+              if (t.hasAlarm) {
+                await AlarmService.scheduleAlarm(t, soundEnabled: soundEnabled);
+              }
+              if (t.color == TaskColor.red) {
+                await AlarmService.scheduleRedTaskNotification(t, soundEnabled: soundEnabled);
+              }
+            }
+          }
+        }
+      }
+      await routineService.refreshAllHabitAlarms();
+    } catch (e) {
+      debugPrint('Erro ao reagendar alarmes após importar backup: $e');
+    }
   }
 
   /// Abre o seletor de arquivos, lê o arquivo backup JSON e restaura os dados

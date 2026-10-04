@@ -117,8 +117,8 @@ class DivisionSection extends ConsumerWidget {
           await ref.read(routineServiceProvider).cycleColor(task);
           ref.invalidate(routineDaysProvider(routine.id));
         },
-        onDelete: () async {
-          await ref.read(routineServiceProvider).deleteTask(day.id, task.id);
+        onDelete: ({bool endHabit = false}) async {
+          await ref.read(routineServiceProvider).deleteTask(day.id, task.id, endHabit: endHabit);
           ref.invalidate(routineDaysProvider(routine.id));
         },
       );
@@ -181,7 +181,7 @@ class DivisionSection extends ConsumerWidget {
           if (oldIndex != -1) {
             await ref.read(routineServiceProvider).reorderTasks(day.id, oldIndex, i);
           } else {
-            await ref.read(routineServiceProvider).moveTaskToDay(droppedTask.id, day.id);
+            await ref.read(routineServiceProvider).moveTaskToDay(droppedTask.id, day.id, targetIndex: i);
           }
           ref.invalidate(routineDaysProvider(routine.id));
         },

@@ -23,7 +23,7 @@ class TaskCard extends ConsumerStatefulWidget {
   final Task task;
   final VoidCallback onToggle;
   final VoidCallback onColorCycle;
-  final VoidCallback onDelete;
+  final void Function({bool endHabit}) onDelete;
   final bool isReadOnly;
   final bool isYesterday;
   final String? divisionName;
@@ -153,23 +153,13 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 if (!mounted) return;
                 if (newText != null && newText.trim().isNotEmpty) {
                   final trimmed = newText.trim();
-                  final originalText = widget.task.text;
-                  final originalCreatedAt = widget.task.createdAt;
-                  
-                  widget.task.text = trimmed;
-                  if (widget.task.color == TaskColor.blue) {
-                    widget.task.createdAt = DateTime.now();
-                  }
-                  
                   try {
-                    final isar = ref.read(isarProvider);
-                    await isar.writeTxn(() async => await isar.tasks.put(widget.task));
+                    await ref.read(routineServiceProvider).renameTask(widget.task.id, trimmed);
+                    widget.task.text = trimmed;
                     if (mounted) {
                       setState(() {});
                     }
                   } catch (e) {
-                    widget.task.text = originalText;
-                    widget.task.createdAt = originalCreatedAt;
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text('Erro ao salvar tarefa: $e', style: theme.fontStyleBase(const TextStyle(color: Colors.white))),
@@ -264,11 +254,10 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     fromCamera: source == ImageSource.camera,
                   );
                   if (fileName != null && context.mounted) {
+                    await ref.read(routineServiceProvider).attachTaskImage(widget.task.id, fileName);
                     widget.task.imageFileName = fileName;
                     widget.task.hasImage = true;
-                    final isar = ref.read(isarProvider);
-                    await isar.writeTxn(() async => await isar.tasks.put(widget.task));
-                    setState(() {});
+                    if (mounted) setState(() {});
                   }
                 }
               },
@@ -309,22 +298,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
 
           if (!widget.isReadOnly || canInteractYesterday)
             SlidableAction(
-              onPressed: (_) {
-                showDialog(
-                  context: context,
-                  builder: (_) => BlurConfirmDialog(
-                    title: 'Apagar Tarefa',
-                    message: 'Deseja apagar esta tarefa permanentemente?',
-                    confirmLabel: 'Apagar',
-                    onConfirm: () {
-                      if (widget.task.imageFileName != null) {
-                        ImageService.deleteImage(widget.task.imageFileName!);
-                      }
-                      widget.onDelete();
-                    },
-                  ),
-                );
-              },
+              onPressed: (_) => _showDeleteDialog(context, theme),
               backgroundColor: theme.taskRed.withValues(alpha: 0.22),
               foregroundColor: theme.taskRed,
               icon: Icons.delete_outline_rounded,
@@ -423,8 +397,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 onTap: ((widget.isReadOnly && !canInteractYesterday) || _isDone || _isToggleLocked) ? null : () {
                   HapticFeedback.selectionClick();
                   if (widget.task.color == TaskColor.red) {
-                    ref.read(routineServiceProvider).clearTaskRed(widget.task)
-                        .then((_) => setState(() {}));
+                    _confirmClearRed(context, theme);
                   } else {
                     widget.onColorCycle();
                   }
@@ -554,14 +527,32 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                                         fontSize: 10,
                                       )),
                                     ),
-                                    if (widget.task.color == TaskColor.red && widget.task.scheduledDate != null)
-                                      Text(
-                                        '·  Agendada: ${DateFormat('dd/MM/yyyy').format(widget.task.scheduledDate!)}',
-                                        style: theme.fontStyleBase(TextStyle(
-                                          color: theme.taskRed,
-                                          fontSize: 10,
-                                        )),
-                                      ),
+                                    if (widget.task.color == TaskColor.red && widget.task.scheduledDate != null) ...[
+                                      Builder(builder: (context) {
+                                        final sched = widget.task.scheduledDate!;
+                                        final today = DateTime.now();
+                                        final diff = DateTime(sched.year, sched.month, sched.day)
+                                            .difference(DateTime(today.year, today.month, today.day))
+                                            .inDays;
+                                        if (diff < 0) {
+                                          return Text(
+                                            '·  Atrasada há ${diff.abs()} ${diff.abs() == 1 ? 'dia' : 'dias'}',
+                                            style: theme.fontStyleBase(TextStyle(
+                                              color: theme.taskRed,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            )),
+                                          );
+                                        }
+                                        return Text(
+                                          '·  Agendada: ${DateFormat('dd/MM/yyyy').format(sched)}',
+                                          style: theme.fontStyleBase(TextStyle(
+                                            color: theme.taskRed,
+                                            fontSize: 10,
+                                          )),
+                                        );
+                                      }),
+                                    ],
                                   ],
                                 ),
                               ],
@@ -573,7 +564,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                             padding: const EdgeInsets.only(left: 8.0),
                             child: Icon(Icons.image_outlined, size: 14, color: theme.textMuted),
                           ),
-                        if (widget.task.hasSubtasks) ...[
+                        if (widget.task.subtasks.isNotEmpty) ...[
                           Padding(
                             padding: const EdgeInsets.only(left: 8.0),
                             child: Text(
@@ -730,7 +721,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 const SizedBox(width: 16),
             ]),
 
-            if (_expanded && widget.task.hasSubtasks)
+            if (_expanded && widget.task.subtasks.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(left: 16, right: 12, bottom: 10),
                 child: Column(
@@ -776,12 +767,176 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   ],
                 ),
               ),
+
+            if (widget.task.subtasks.isNotEmpty) ...[
+              Builder(builder: (context) {
+                final completedCount = widget.task.subtasks.where((s) => s.isCompleted).length;
+                final total = widget.task.subtasks.length;
+                final progress = total > 0 ? (completedCount / total) : 0.0;
+                return ClipRRect(
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 2.0,
+                    backgroundColor: taskColor.withValues(alpha: 0.08),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      progress == 1.0 ? theme.primary : taskColor.withValues(alpha: 0.8),
+                    ),
+                  ),
+                );
+              }),
+            ],
           ],
         ),
       ),
     ),
     ),
     ).animate(key: ValueKey('anim_task_${widget.task.id}')).fade(duration: 200.ms).slideX(begin: 0.04, end: 0, curve: Curves.easeOut);
+  }
+
+  void _showDeleteDialog(BuildContext context, AppThemeData theme) {
+    if (widget.task.color == TaskColor.blue) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: theme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius),
+            side: BorderSide(color: theme.taskBlue.withValues(alpha: 0.3)),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.repeat_rounded, color: theme.taskBlue, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Apagar Task Azul',
+                  style: theme.fontStyleBase(TextStyle(
+                    color: theme.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  )),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Esta é uma tarefa recorrente (hábito). Como deseja apagá-la?',
+            style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 13, height: 1.4)),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          actions: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.textPrimary,
+                    side: BorderSide(color: theme.border),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    widget.onDelete(endHabit: false);
+                  },
+                  child: Text(
+                    'Apagar só hoje',
+                    style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.taskRed,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    widget.onDelete(endHabit: true);
+                  },
+                  child: Text(
+                    'Encerrar hábito permanentemente',
+                    style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    'Cancelar',
+                    style: theme.fontStyleBase(TextStyle(color: theme.textMuted, fontSize: 12)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (_) => BlurConfirmDialog(
+          title: 'Apagar Tarefa',
+          message: 'Deseja apagar esta tarefa permanentemente?',
+          confirmLabel: 'Apagar',
+          onConfirm: () => widget.onDelete(),
+        ),
+      );
+    }
+  }
+
+  void _confirmClearRed(BuildContext context, AppThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: theme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(theme.borderRadius > 12 ? 12 : theme.borderRadius),
+          side: BorderSide(color: theme.taskRed.withValues(alpha: 0.3)),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.calendar_today_rounded, color: theme.taskRed, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Remover Agendamento?',
+              style: theme.fontStyleBase(TextStyle(
+                color: theme.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              )),
+            ),
+          ],
+        ),
+        content: Text(
+          'Esta tarefa deixará de ser um compromisso vermelho com data agendada e voltará a ser uma tarefa normal.',
+          style: theme.fontStyleBase(TextStyle(color: theme.textSecondary, fontSize: 13, height: 1.4)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancelar', style: theme.fontStyleBase(TextStyle(color: theme.textMuted))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.taskRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(routineServiceProvider).clearTaskRed(widget.task).then((_) {
+                if (mounted) setState(() {});
+              });
+            },
+            child: Text('Remover', style: theme.fontStyleBase(const TextStyle(fontWeight: FontWeight.bold))),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -796,7 +951,7 @@ class _CountdownBadge extends ConsumerWidget {
     final diff = scheduledDate
         .difference(DateTime(today.year, today.month, today.day))
         .inDays;
-    final label = diff == 0 ? 'Hoje!' : diff < 0 ? 'Atrasado' : '${diff}d';
+    final label = diff == 0 ? 'Hoje!' : diff < 0 ? 'Atrasada (${diff.abs()}d)' : '${diff}d';
     final isToday = diff == 0;
     final isOverdue = diff < 0;
     final badgeColor = theme.taskRed;

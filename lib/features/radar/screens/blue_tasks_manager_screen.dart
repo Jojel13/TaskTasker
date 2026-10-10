@@ -334,12 +334,12 @@ class _BlueTasksManagerScreenState extends ConsumerState<BlueTasksManagerScreen>
                                     const SizedBox(height: 12),
                                     Wrap(
                                       spacing: 6,
-                                      runSpacing: 6,
+                                      runSpacing: 10,
                                       children: List.generate(7, (dIdx) {
                                         final dayNumber = dIdx + 1;
                                         final isSelected = habit.frequencyDays.contains(dayNumber);
                                         return Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                           decoration: BoxDecoration(
                                             color: isSelected
                                                 ? theme.taskBlue.withValues(alpha: 0.25)

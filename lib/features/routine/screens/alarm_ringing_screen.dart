@@ -81,6 +81,9 @@ class _AlarmRingingScreenState extends ConsumerState<AlarmRingingScreen> with Si
     final freshTask = await isar.tasks.get(widget.task.id) ?? widget.task;
     if (freshTask.status != TaskStatus.completed) {
       await ref.read(routineServiceProvider).toggleTask(freshTask);
+      ref.invalidate(todayRoutineProvider);
+      ref.invalidate(routineDaysProvider);
+      ref.invalidate(radarProvider);
     }
     if (mounted) {
       Navigator.pop(context);

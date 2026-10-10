@@ -624,7 +624,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 style: theme.fontStyleBase(TextStyle(color: theme.accent, fontSize: 11)),
                               ),
                               onPressed: () async {
-                                await PermissionService.requestFullScreenIntent();
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    backgroundColor: theme.surface,
+                                    title: Text('Atenção: Alarmes em Tela Cheia', style: theme.fontStyleBase(TextStyle(color: theme.accent, fontWeight: FontWeight.bold))),
+                                    content: Text(
+                                      'A partir do Android 14, o sistema bloqueia alarmes pulando na tela por padrão.\n\n'
+                                      'Na próxima tela do sistema, procure o TaskTasker e ative a opção "Permitir" ou "Aparecer sobre outros aplicativos" para que os alarmes funcionem com o celular bloqueado.',
+                                      style: theme.fontStyleBase(TextStyle(color: theme.textPrimary)),
+                                    ),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancelar', style: theme.fontStyleBase(TextStyle(color: theme.textMuted)))),
+                                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Entendi', style: theme.fontStyleBase(TextStyle(color: theme.accent, fontWeight: FontWeight.bold)))),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  await PermissionService.requestFullScreenIntent();
+                                }
                               },
                             ),
                           ),
@@ -863,6 +881,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         labelStyle: theme.fontStyleBase(TextStyle(color: theme.textMuted)),
         filled: true,
         fillColor: theme.surface,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

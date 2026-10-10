@@ -419,6 +419,15 @@ class RoutineService {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
+    if (task != null && task.color == TaskColor.blue) {
+      if (endHabit) {
+        await terminateBlueHabitFromToday(taskId);
+      } else if (task.habitId != null) {
+        // Apagada apenas hoje: cancela o alarme de hoje deste hábito
+        await AlarmService.cancelHabitAlarmForDay(task.habitId!, today);
+      }
+    }
+
     await _isar.writeTxn(() async {
       final day = await _isar.routineDays.get(dayId);
       if (day != null) {
@@ -428,15 +437,6 @@ class RoutineService {
       }
       await _isar.tasks.delete(taskId);
     });
-
-    if (task != null && task.color == TaskColor.blue) {
-      if (endHabit) {
-        await terminateBlueHabitFromToday(taskId);
-      } else if (task.habitId != null) {
-        // Apagada apenas hoje: cancela o alarme de hoje deste hábito
-        await AlarmService.cancelHabitAlarmForDay(task.habitId!, today);
-      }
-    }
 
     if (imageToDelete != null) {
       await ImageService.deleteImage(imageToDelete);
